@@ -53,14 +53,7 @@ export default function AddPetModal({
             <button
               key={pet.PETS}
               onClick={() => {
-                onSelect({
-                  PETS: pet.PETS,
-                  IMAGE: pet.IMAGE,
-                  NORMAL: Number(pet.NORMAL),
-                  NEON: Number(pet.NEON),
-                  MEGA: Number(pet.MEGA),
-                });
-
+                onSelect(pet as TradePet);
                 setSearch("");
                 onClose();
               }}
@@ -69,7 +62,7 @@ export default function AddPetModal({
               <img
                 src={pet.IMAGE}
                 alt={pet.PETS}
-                className="h-16 w-16 object-contain"
+                className="h-16 w-16 rounded-xl bg-gray-50 object-contain p-1"
                 onError={(e) => {
                   e.currentTarget.src = "/pets/placeholder.webp";
                 }}
@@ -80,12 +73,22 @@ export default function AddPetModal({
                   {pet.PETS}
                 </h3>
 
-                <p className="text-sm text-gray-500">
-                  Normal: {pet.NORMAL}
-                </p>
+                <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
+                  <span className="rounded-full bg-yellow-100 px-2 py-1 text-yellow-700">
+                    N: {pet.NORMAL}
+                  </span>
+
+                  <span className="rounded-full bg-cyan-100 px-2 py-1 text-cyan-700">
+                    Neon: {pet.NEON}
+                  </span>
+
+                  <span className="rounded-full bg-pink-100 px-2 py-1 text-pink-700">
+                    Mega: {pet.MEGA}
+                  </span>
+                </div>
               </div>
 
-              <div className="rounded-xl bg-yellow-500 px-4 py-2 font-bold text-white">
+              <div className="rounded-xl bg-yellow-500 px-4 py-2 font-bold text-white transition hover:bg-yellow-600">
                 Add
               </div>
             </button>

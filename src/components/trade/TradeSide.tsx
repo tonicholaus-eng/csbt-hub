@@ -6,6 +6,7 @@ type Props = {
   color: "yellow" | "cyan";
   pets: TradePet[];
   total: number;
+  valueType: "NORMAL" | "NEON" | "MEGA";
   onAdd: () => void;
   onRemove: (index: number) => void;
 };
@@ -15,6 +16,7 @@ export default function TradeSide({
   color,
   pets,
   total,
+  valueType,
   onAdd,
   onRemove,
 }: Props) {
@@ -22,7 +24,7 @@ export default function TradeSide({
 
   return (
     <div
-      className={`rounded-3xl border-2 p-6 ${
+      className={`rounded-3xl border-2 p-6 transition-all ${
         isYellow
           ? "border-yellow-200 bg-gradient-to-b from-yellow-50 to-white"
           : "border-cyan-200 bg-gradient-to-b from-cyan-50 to-white"
@@ -42,7 +44,7 @@ export default function TradeSide({
             isYellow ? "bg-yellow-200" : "bg-cyan-200"
           }`}
         >
-          {pets.length} Pets
+          {pets.length} {pets.length === 1 ? "Pet" : "Pets"}
         </span>
       </div>
 
@@ -67,6 +69,7 @@ export default function TradeSide({
             <TradePetCard
               key={`${pet.PETS}-${index}`}
               pet={pet}
+              valueType={valueType}
               onRemove={() => onRemove(index)}
             />
           ))
@@ -78,9 +81,7 @@ export default function TradeSide({
           isYellow ? "bg-yellow-100" : "bg-cyan-100"
         }`}
       >
-        <p className="text-sm text-gray-500">
-          Total Value
-        </p>
+        <p className="text-sm text-gray-500">Total Value</p>
 
         <p
           className={`text-3xl font-black ${
@@ -88,6 +89,10 @@ export default function TradeSide({
           }`}
         >
           {total}
+        </p>
+
+        <p className="mt-1 text-xs text-gray-500">
+          Using {valueType.toLowerCase()} values
         </p>
       </div>
     </div>
