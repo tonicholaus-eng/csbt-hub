@@ -8,6 +8,7 @@ import Navbar from "../components/Navbar";
 import Hero from "../components/Hero";
 import SearchBar from "../components/SearchBar";
 import Footer from "../components/Footer";
+import { NichAssistant } from "../components/nich";
 import TradeCalculator from "../components/trade/TradeCalculator";
 import PopularPets from "../components/PopularPets";
 import Stats from "../components/Stats";
@@ -70,7 +71,9 @@ export default function Home() {
     null,
   );
 
-  const results = searchPets(search);
+  const normalizedSearch = search.trim();
+  const isSearching = normalizedSearch.length > 0;
+  const results = isSearching ? searchPets(search) : [];
 
   return (
     <motion.main
@@ -85,6 +88,8 @@ export default function Home() {
         duration: shouldReduceMotion ? 0 : 0.45,
       }}
     >
+  
+
       {/* Lightweight base background */}
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,#e5f7ff_0%,#f1fbff_15%,#fff9e8_38%,#fff3dc_62%,#fdf0ff_82%,#eef9ff_100%)]" />
 
@@ -249,6 +254,7 @@ export default function Home() {
         <div className="mx-auto w-full max-w-7xl px-3 py-6 pb-24 sm:px-6 sm:py-8 sm:pb-32">
           <Hero totalPets={pets.length} />
 
+          {/* Search bar */}
           <motion.div
             className="mt-10 sm:mt-12"
             initial={{
@@ -274,8 +280,52 @@ export default function Home() {
             />
           </motion.div>
 
+          {/* Search results or selected pet */}
+          {(isSearching || selectedPet) && (
+            <motion.section
+              className="relative mt-8 min-w-0 sm:mt-10"
+              initial={{
+                opacity: 0,
+                y: shouldReduceMotion ? 0 : 20,
+              }}
+              animate={{
+                opacity: 1,
+                y: 0,
+              }}
+              transition={{
+                duration: shouldReduceMotion ? 0 : 0.4,
+                ease: "easeOut",
+              }}
+            >
+              <div className="pointer-events-none absolute -inset-10 -z-10 hidden rounded-full bg-gradient-to-br from-yellow-100/10 via-pink-100/10 to-violet-100/10 blur-2xl sm:block" />
+
+              {selectedPet ? (
+                <PetDetails
+                  pet={selectedPet}
+                  onBack={() => {
+                    setSelectedPet(null);
+                    setSearch("");
+                  }}
+                />
+              ) : (
+                <SearchResults
+                  pets={results}
+                  onSelect={(pet) => {
+                    setSelectedPet(pet);
+                    setSearch(pet.PETS);
+                  }}
+                />
+              )}
+            </motion.section>
+          )}
+
+          {/* Trade calculator */}
           <motion.section
-            className="relative mt-14 min-w-0 sm:mt-20"
+            className={`relative min-w-0 ${
+              isSearching || selectedPet
+                ? "mt-16 sm:mt-20"
+                : "mt-14 sm:mt-20"
+            }`}
             initial={{
               opacity: 0,
               y: shouldReduceMotion ? 0 : 28,
@@ -298,6 +348,7 @@ export default function Home() {
             <TradeCalculator />
           </motion.section>
 
+          {/* Popular pets */}
           <motion.section
             className="relative mt-16 min-w-0 sm:mt-24"
             initial={{
@@ -319,36 +370,24 @@ export default function Home() {
           >
             <div className="pointer-events-none absolute -inset-12 -z-10 hidden rounded-full bg-gradient-to-br from-yellow-100/10 via-pink-100/10 to-violet-100/10 blur-2xl sm:block" />
 
-            {!selectedPet ? (
-              <>
-                <SearchResults
-                  pets={results}
-                  onSelect={(pet) => {
-                    setSelectedPet(pet);
-                    setSearch(pet.PETS);
-                  }}
-                />
+            <PopularPets
+              onSelect={(pet) => {
+                setSelectedPet(pet);
+                setSearch(pet.PETS);
 
-                <div className="mt-16 sm:mt-24">
-                  <PopularPets
-                    onSelect={(pet) => {
-                      setSelectedPet(pet);
-                      setSearch(pet.PETS);
-                    }}
-                  />
-                </div>
-              </>
-            ) : (
-              <PetDetails
-                pet={selectedPet}
-                onBack={() => {
-                  setSelectedPet(null);
-                  setSearch("");
-                }}
-              />
-            )}
+                window.requestAnimationFrame(() => {
+                  window.scrollTo({
+                    top: 0,
+                    behavior: shouldReduceMotion
+                      ? "auto"
+                      : "smooth",
+                  });
+                });
+              }}
+            />
           </motion.section>
 
+          {/* Stats */}
           <motion.section
             className="relative mt-20 min-w-0 sm:mt-28"
             initial={{
@@ -376,6 +415,8 @@ export default function Home() {
 
         <Footer />
       </div>
+
+      <NichAssistant />
     </motion.main>
   );
 }
