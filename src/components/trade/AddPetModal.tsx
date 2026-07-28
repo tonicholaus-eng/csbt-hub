@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Image from "next/image";
 import pets from "../../data/pets.json";
 import { TradePet } from "./types";
 
@@ -28,81 +29,128 @@ export default function AddPetModal({
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"
+        className="flex h-[88vh] w-full max-w-6xl animate-fade-up flex-col overflow-hidden rounded-[36px] border border-white/30 bg-white/90 shadow-[0_30px_80px_rgba(0,0,0,.35)] backdrop-blur-xl"
       >
-        <div className="border-b p-6">
-          <h2 className="text-3xl font-black text-gray-800">
-            Add Pet
-          </h2>
+        {/* Header */}
 
-          <input
-            type="text"
-            placeholder="Search any Adopt Me pet..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="mt-5 w-full rounded-2xl border-2 border-yellow-200 p-4 outline-none transition focus:border-yellow-500"
-          />
+        <div className="sticky top-0 z-20 border-b border-gray-200 bg-white/90 p-6 backdrop-blur-xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-4xl font-black text-gray-800">
+                Select a Pet
+              </h2>
+
+              <p className="mt-1 text-gray-500">
+                {filteredPets.length} pets available
+              </p>
+            </div>
+
+            <button
+              onClick={onClose}
+              className="flex h-11 w-11 items-center justify-center rounded-2xl bg-red-500 font-black text-white transition hover:scale-110 hover:bg-red-600"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Search */}
+
+          <div className="relative mt-6">
+            <span className="absolute left-5 top-1/2 -translate-y-1/2 text-2xl">
+              🔍
+            </span>
+
+            <input
+              type="text"
+              placeholder="Search any Adopt Me pet..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-2xl border-2 border-yellow-200 bg-white py-4 pl-14 pr-4 text-lg font-semibold outline-none transition focus:border-yellow-400 focus:ring-4 focus:ring-yellow-200"
+            />
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
-          {filteredPets.map((pet) => (
-            <button
-              key={pet.PETS}
-              onClick={() => {
-                onSelect(pet as TradePet);
-                setSearch("");
-                onClose();
-              }}
-              className="flex w-full items-center gap-4 border-b p-4 transition hover:bg-yellow-50"
-            >
-              <img
-                src={pet.IMAGE}
-                alt={pet.PETS}
-                className="h-16 w-16 rounded-xl bg-gray-50 object-contain p-1"
-                onError={(e) => {
-                  e.currentTarget.src = "/pets/placeholder.webp";
-                }}
-              />
+        {/* Grid */}
 
-              <div className="flex-1 text-left">
-                <h3 className="font-bold text-gray-800">
+        {filteredPets.length === 0 ? (
+          <div className="flex flex-1 flex-col items-center justify-center">
+            <div className="text-8xl">🔍</div>
+
+            <h3 className="mt-6 text-3xl font-black text-gray-700">
+              No Pets Found
+            </h3>
+
+            <p className="mt-3 text-gray-500">
+              Try searching with another name.
+            </p>
+          </div>
+        ) : (
+          <div className="grid flex-1 grid-cols-2 gap-5 overflow-y-auto p-6 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {filteredPets.map((pet) => (
+              <button
+                key={pet.PETS}
+                onClick={() => {
+                  onSelect(pet as TradePet);
+                  setSearch("");
+                  onClose();
+                }}
+                className="group relative overflow-hidden rounded-3xl border border-white/50 bg-white p-4 shadow-lg transition-all duration-300 hover:-translate-y-2 hover:border-yellow-300 hover:shadow-2xl"
+              >
+                {/* Shine */}
+
+                <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+
+                {/* Image */}
+
+                <div className="relative flex h-32 items-center justify-center rounded-3xl bg-gradient-to-br from-yellow-50 via-white to-orange-100">
+                  <Image
+                    src={pet.IMAGE}
+                    alt={pet.PETS}
+                    width={90}
+                    height={90}
+                    className="object-contain transition duration-300 group-hover:scale-110 group-hover:rotate-3"
+                    unoptimized
+                  />
+                </div>
+
+                {/* Name */}
+
+                <h3 className="mt-5 line-clamp-2 min-h-[56px] text-lg font-black text-gray-800">
                   {pet.PETS}
                 </h3>
 
-                <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
-                  <span className="rounded-full bg-yellow-100 px-2 py-1 text-yellow-700">
-                    N: {pet.NORMAL}
-                  </span>
+                {/* Values */}
 
-                  <span className="rounded-full bg-cyan-100 px-2 py-1 text-cyan-700">
-                    Neon: {pet.NEON}
-                  </span>
+                <div className="mt-4 space-y-2 text-xs font-bold">
+                  <div className="flex justify-between rounded-xl bg-yellow-100 px-3 py-2 text-yellow-700">
+                    <span>Normal</span>
+                    <span>{pet.NORMAL}</span>
+                  </div>
 
-                  <span className="rounded-full bg-pink-100 px-2 py-1 text-pink-700">
-                    Mega: {pet.MEGA}
-                  </span>
+                  <div className="flex justify-between rounded-xl bg-cyan-100 px-3 py-2 text-cyan-700">
+                    <span>Neon</span>
+                    <span>{pet.NEON}</span>
+                  </div>
+
+                  <div className="flex justify-between rounded-xl bg-pink-100 px-3 py-2 text-pink-700">
+                    <span>Mega</span>
+                    <span>{pet.MEGA}</span>
+                  </div>
                 </div>
-              </div>
 
-              <div className="rounded-xl bg-yellow-500 px-4 py-2 font-bold text-white transition hover:bg-yellow-600">
-                Add
-              </div>
-            </button>
-          ))}
-        </div>
+                {/* Button */}
 
-        <div className="border-t p-5">
-          <button
-            onClick={onClose}
-            className="w-full rounded-2xl bg-red-500 py-3 font-bold text-white transition hover:bg-red-600"
-          >
-            Close
-          </button>
-        </div>
+                <div className="mt-5 rounded-2xl bg-gradient-to-r from-yellow-500 via-orange-500 to-amber-500 py-3 text-base font-black text-white transition-all duration-300 group-hover:scale-105">
+                  + Add Pet
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

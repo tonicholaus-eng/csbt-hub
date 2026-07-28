@@ -1,26 +1,354 @@
 @import "tailwindcss";
 
+/* =========================
+   Theme
+========================= */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fffaf0;
+  --foreground: #1f2937;
+
+  --gold: #facc15;
+  --orange: #fb923c;
+  --sky: #dff6ff;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* =========================
+   Base
+========================= */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
+  min-height: 100vh;
+  overflow-x: hidden;
+
   color: var(--foreground);
+
   font-family: Arial, Helvetica, sans-serif;
+
+  background:
+    radial-gradient(circle at top left,
+      rgba(255,255,255,.95),
+      transparent 35%),
+
+    radial-gradient(circle at top right,
+      rgba(255,236,179,.75),
+      transparent 35%),
+
+    radial-gradient(circle at bottom left,
+      rgba(191,219,254,.45),
+      transparent 45%),
+
+    linear-gradient(
+      180deg,
+      #dff6ff 0%,
+      #fff8df 45%,
+      #ffe8bf 100%
+    );
+
+  background-attachment: fixed;
+}
+
+/* =========================
+   Selection
+========================= */
+
+::selection {
+  background: #facc15;
+  color: #111827;
+}
+
+/* =========================
+   Scrollbar
+========================= */
+
+::-webkit-scrollbar {
+  width: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f3f4f6;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+
+  background: linear-gradient(
+    180deg,
+    #fde047,
+    #fb923c
+  );
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg,
+    #f59e0b,
+    #ea580c
+  );
+}
+
+/* Firefox */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #fbbf24 #f3f4f6;
+}
+
+/* =========================
+   Images
+========================= */
+
+img {
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* =========================
+   Glass Effect
+========================= */
+
+.glass {
+  background: rgba(255,255,255,.72);
+
+  backdrop-filter: blur(18px);
+
+  -webkit-backdrop-filter: blur(18px);
+
+  border: 1px solid rgba(255,255,255,.45);
+}
+
+/* =========================
+   Card Hover
+========================= */
+
+.hover-card {
+  transition:
+    transform .25s ease,
+    box-shadow .25s ease;
+}
+
+.hover-card:hover {
+  transform: translateY(-8px);
+
+  box-shadow:
+    0 20px 40px rgba(0,0,0,.12);
+}
+
+/* =========================
+   Float
+========================= */
+
+@keyframes float {
+  0% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-14px);
+  }
+
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* =========================
+   Float Slow
+========================= */
+
+@keyframes floatSlow {
+  0% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-24px);
+  }
+
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.animate-float-slow {
+  animation: floatSlow 10s ease-in-out infinite;
+}
+
+/* =========================
+   Glow
+========================= */
+
+@keyframes glow {
+  0% {
+    box-shadow:
+      0 0 0 rgba(255,255,255,.2);
+  }
+
+  50% {
+    box-shadow:
+      0 0 40px rgba(255,255,255,.55);
+  }
+
+  100% {
+    box-shadow:
+      0 0 0 rgba(255,255,255,.2);
+  }
+}
+
+.animate-glow {
+  animation: glow 3s ease-in-out infinite;
+}
+
+/* =========================
+   Pulse Pop
+========================= */
+
+@keyframes pop {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.05);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-pop {
+  animation: pop 2.8s ease-in-out infinite;
+}
+
+/* =========================
+   Fade Up
+========================= */
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fadeUp .8s ease forwards;
+}
+
+/* =========================
+   Sparkle
+========================= */
+
+@keyframes sparkle {
+
+  0% {
+    opacity: .35;
+    transform: scale(.8) rotate(0deg);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.35) rotate(180deg);
+  }
+
+  100% {
+    opacity: .35;
+    transform: scale(.8) rotate(360deg);
+  }
+}
+
+.animate-sparkle {
+  animation: sparkle 4s linear infinite;
+}
+
+/* =========================
+   Cloud Drift
+========================= */
+
+@keyframes cloud {
+
+  0% {
+    transform: translateX(-35px);
+  }
+
+  50% {
+    transform: translateX(35px);
+  }
+
+  100% {
+    transform: translateX(-35px);
+  }
+}
+
+.animate-cloud {
+  animation: cloud 20s ease-in-out infinite;
+}
+
+/* =========================
+   Gold Shine
+========================= */
+
+@keyframes shine {
+
+  0% {
+    background-position: -200%;
+  }
+
+  100% {
+    background-position: 200%;
+  }
+}
+
+.animate-shine {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255,255,255,.6),
+    transparent
+  );
+
+  background-size: 200% 100%;
+
+  animation: shine 3s linear infinite;
+}
+
+/* =========================
+   Reduce Motion
+========================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
 }

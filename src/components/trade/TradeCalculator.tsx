@@ -22,7 +22,6 @@ export default function TradeCalculator() {
 
     if (!raw) return 0;
 
-    // Lowest value from ranges like "5-10"
     if (raw.includes("-")) {
       return Number(raw.split("-")[0].trim());
     }
@@ -30,13 +29,15 @@ export default function TradeCalculator() {
     return Number(raw);
   }
 
-  const yourTotal = useMemo(() => {
-    return yourPets.reduce((sum, pet) => sum + getValue(pet), 0);
-  }, [yourPets, valueType]);
+  const yourTotal = useMemo(
+    () => yourPets.reduce((sum, pet) => sum + getValue(pet), 0),
+    [yourPets, valueType]
+  );
 
-  const theirTotal = useMemo(() => {
-    return theirPets.reduce((sum, pet) => sum + getValue(pet), 0);
-  }, [theirPets, valueType]);
+  const theirTotal = useMemo(
+    () => theirPets.reduce((sum, pet) => sum + getValue(pet), 0),
+    [theirPets, valueType]
+  );
 
   function addPet(pet: TradePet) {
     if (activeSide === "your") {
@@ -54,36 +55,74 @@ export default function TradeCalculator() {
     setTheirPets((prev) => prev.filter((_, i) => i !== index));
   }
 
+  function swapSides() {
+  const your = [...yourPets];
+  const their = [...theirPets];
+
+  setYourPets(their);
+  setTheirPets(your);
+}
+
+  function clearTrade() {
+    setYourPets([]);
+    setTheirPets([]);
+  }
+
   return (
     <>
-      <section className="mt-16 rounded-3xl bg-white p-8 shadow-2xl">
+      <section
+        id="calculator"
+        className="mt-20 overflow-hidden rounded-[40px] border border-white/40 bg-white/80 p-8 shadow-2xl backdrop-blur-xl lg:p-10"
+      >
         <div className="text-center">
-          <span className="rounded-full bg-yellow-100 px-4 py-2 text-sm font-bold text-yellow-700">
-            NEW
+
+          <span className="inline-flex items-center gap-2 rounded-full bg-yellow-100 px-5 py-2 text-sm font-bold text-yellow-700">
+            🧮 Trade Calculator
           </span>
 
-          <h2 className="mt-4 text-4xl font-black text-gray-800">
-            🧮 Trade Calculator
+          <h2 className="mt-6 text-5xl font-black text-gray-800">
+            Calculate Your Trade
           </h2>
 
-          <p className="mt-2 text-gray-500">
-            Compare your trade before accepting.
+          <p className="mx-auto mt-4 max-w-2xl text-lg text-gray-500">
+            Compare both offers instantly using the latest CSBT values before
+            accepting a trade.
           </p>
 
-          <div className="mt-6 flex justify-center">
-            <select
-              value={valueType}
-              onChange={(e) => setValueType(e.target.value as ValueType)}
-              className="rounded-xl border-2 border-yellow-300 bg-white px-5 py-3 font-bold outline-none"
-            >
-              <option value="NORMAL">Normal Values</option>
-              <option value="NEON">Neon Values</option>
-              <option value="MEGA">Mega Values</option>
-            </select>
-          </div>
         </div>
 
-        <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_auto_1fr]">
+        <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
+
+          <select
+            value={valueType}
+            onChange={(e) => setValueType(e.target.value as ValueType)}
+            className="rounded-2xl border-2 border-yellow-300 bg-white px-6 py-4 font-bold shadow-sm outline-none transition hover:border-yellow-400 focus:border-yellow-500"
+          >
+            <option value="NORMAL">🟡 Normal Values</option>
+            <option value="NEON">🔷 Neon Values</option>
+            <option value="MEGA">🌈 Mega Values</option>
+          </select>
+
+          <button
+            onClick={swapSides}
+            className="rounded-2xl bg-gradient-to-r from-blue-500 to-cyan-500 px-6 py-4 font-bold text-white shadow-lg transition duration-300 hover:-translate-y-1 hover:shadow-xl"
+          >
+            🔄 Swap Offers
+          </button>
+
+          <button
+            onClick={clearTrade}
+            className="rounded-2xl bg-gradient-to-r from-red-500 to-pink-500 px-6 py-4 font-bold text-white shadow-lg transition duration-300 hover:-translate-y-1 hover:shadow-xl"
+          >
+            🗑 Clear Trade
+          </button>
+
+        </div>
+
+        <div className="my-12 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent" />
+
+        <div className="grid gap-10 xl:grid-cols-[1fr_auto_1fr]">
+
           <TradeSide
             title="Your Offer"
             color="yellow"
@@ -98,9 +137,11 @@ export default function TradeCalculator() {
           />
 
           <div className="flex items-center justify-center">
-            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-r from-yellow-400 to-orange-500 text-3xl font-black text-white shadow-xl">
+
+            <div className="flex h-28 w-28 items-center justify-center rounded-full bg-gradient-to-br from-yellow-400 via-orange-400 to-orange-600 text-4xl font-black text-white shadow-2xl">
               VS
             </div>
+
           </div>
 
           <TradeSide
@@ -115,12 +156,14 @@ export default function TradeCalculator() {
             }}
             onRemove={removeTheir}
           />
+
         </div>
 
         <TradeSummary
           yourTotal={yourTotal}
           theirTotal={theirTotal}
         />
+
       </section>
 
       <AddPetModal
