@@ -1,7 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import {
+  AnimatePresence,
+  motion,
+  useReducedMotion,
+} from "framer-motion";
 import { Pet } from "../types/pet";
 
 type Props = {
@@ -16,7 +20,10 @@ const cardGradients = [
   "from-emerald-400 via-green-400 to-teal-500",
 ];
 
-export default function SearchResults({ pets, onSelect }: Props) {
+export default function SearchResults({
+  pets,
+  onSelect,
+}: Props) {
   const shouldReduceMotion = useReducedMotion();
 
   if (pets.length === 0) return null;
@@ -74,14 +81,6 @@ export default function SearchResults({ pets, onSelect }: Props) {
             opacity: 0,
             x: 20,
           }}
-          animate={{
-            opacity: 1,
-            x: 0,
-          }}
-          transition={{
-            delay: 0.1,
-            duration: 0.5,
-          }}
           animate={
             shouldReduceMotion
               ? {
@@ -94,6 +93,13 @@ export default function SearchResults({ pets, onSelect }: Props) {
                   scale: [1, 1.04, 1],
                 }
           }
+          transition={{
+            delay: 0.1,
+            duration: shouldReduceMotion ? 0.5 : 1.8,
+            repeat: shouldReduceMotion ? 0 : Infinity,
+            repeatDelay: shouldReduceMotion ? 0 : 1.5,
+            ease: "easeInOut",
+          }}
           className="inline-flex w-fit items-center gap-2 rounded-full border border-white/60 bg-white/80 px-5 py-2.5 text-sm font-black text-amber-600 shadow-lg backdrop-blur-xl"
         >
           <span className="relative flex h-2.5 w-2.5">
@@ -148,7 +154,7 @@ export default function SearchResults({ pets, onSelect }: Props) {
                       : {
                           y: -4,
                           scale: 1.008,
-                      }
+                        }
                   }
                   whileTap={{
                     scale: 0.985,
