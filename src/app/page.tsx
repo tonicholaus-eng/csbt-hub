@@ -6,6 +6,7 @@ import pets from "../data/pets.json";
 import Navbar from "../components/Navbar";
 import Hero from "../components/Hero";
 import SearchBar from "../components/SearchBar";
+import TradeCalculator from "../components/trade/TradeCalculator";
 import PopularPets from "../components/PopularPets";
 import Stats from "../components/Stats";
 import SearchResults from "../components/SearchResults";
@@ -100,16 +101,17 @@ export default function Home() {
           {/* Hero */}
           <div className="relative pt-8">
 
-            <Hero totalPets={pets.length} />
+           <Hero totalPets={pets.length} />
 
-            <SearchBar
-              search={search}
-              onChange={(value) => {
-                setSearch(value);
-                setSelectedPet(null);
-              }}
-            />
+<SearchBar
+  search={search}
+  onChange={(value) => {
+    setSearch(value);
+    setSelectedPet(null);
+  }}
+/>
 
+<TradeCalculator />
           </div>
 
           {!selectedPet ? (
