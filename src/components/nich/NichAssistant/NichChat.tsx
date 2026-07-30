@@ -477,14 +477,15 @@ function readSavedChat():
       return null;
     }
 
+    const savedAt = parsed.savedAt;
     const now = Date.now();
 
     const isExpired =
-      now - parsed.savedAt >
+      now - savedAt >
       NICH_CHAT_EXPIRY_MS;
 
     const isFromFuture =
-      parsed.savedAt >
+      savedAt >
       now + 5 * 60 * 1000;
 
     if (isExpired || isFromFuture) {
@@ -505,7 +506,7 @@ function readSavedChat():
               message.createdAt,
             )
               ? message.createdAt
-              : parsed.savedAt + index,
+              : savedAt + index,
           tradeComparison:
             sanitizeTradeComparison(
               message.tradeComparison,
