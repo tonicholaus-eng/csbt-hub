@@ -45,6 +45,33 @@ const featureItems = [
   },
 ];
 
+const statItems = (totalPets: number) => [
+  {
+    value: `${totalPets}+`,
+    label: "Pets",
+    description: "Tracked values",
+    shouldFloat: false,
+  },
+  {
+    value: "⚡",
+    label: "Fast Search",
+    description: "Instant results",
+    shouldFloat: true,
+  },
+  {
+    value: "💎",
+    label: "Accurate Values",
+    description: "Daily updates",
+    shouldFloat: true,
+  },
+  {
+    value: "🏆",
+    label: "Fair Trades",
+    description: "Trade smarter",
+    shouldFloat: true,
+  },
+];
+
 export default function Hero({ totalPets }: HeroProps) {
   const shouldReduceMotion = useReducedMotion();
 
@@ -107,9 +134,9 @@ export default function Hero({ totalPets }: HeroProps) {
               transformPerspective: 1400,
             }
       }
-      className="group relative overflow-hidden rounded-[40px] border border-white/30 bg-gradient-to-br from-amber-500 via-yellow-400 to-orange-500 px-5 py-16 text-white shadow-[0_30px_80px_rgba(251,146,60,.35)] sm:px-8 md:py-20"
+      className="group relative overflow-hidden rounded-[40px] border border-white/30 bg-gradient-to-br from-amber-500 via-yellow-400 to-orange-500 px-5 py-16 text-white shadow-[0_30px_80px_rgba(251,146,60,.35)] dark:shadow-[0_30px_90px_rgba(0,0,0,.5)] sm:px-8 md:py-20"
     >
-      {/* Background Lighting */}
+      {/* Background lighting */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,.32),transparent_58%)]" />
 
       <div className="absolute inset-0 bg-[linear-gradient(120deg,transparent_20%,rgba(255,255,255,.13)_45%,transparent_70%)] opacity-70" />
@@ -167,7 +194,7 @@ export default function Hero({ totalPets }: HeroProps) {
         }}
       />
 
-      {/* Moving Shine */}
+      {/* Moving shine */}
       <motion.div
         className="pointer-events-none absolute inset-y-0 -left-1/2 w-1/3 rotate-12 bg-gradient-to-r from-transparent via-white/20 to-transparent blur-xl"
         animate={
@@ -185,12 +212,12 @@ export default function Hero({ totalPets }: HeroProps) {
         }}
       />
 
-      {/* Decorative Rings */}
+      {/* Decorative rings */}
       <div className="absolute -right-24 -top-28 h-72 w-72 rounded-full border border-white/15" />
       <div className="absolute -right-10 -top-16 h-48 w-48 rounded-full border border-white/10" />
       <div className="absolute -bottom-36 -left-24 h-72 w-72 rounded-full border border-white/10" />
 
-      {/* Floating Pets */}
+      {/* Floating pets */}
       <motion.div
         style={
           shouldReduceMotion
@@ -457,7 +484,7 @@ export default function Hero({ totalPets }: HeroProps) {
                 stiffness: 300,
                 damping: 18,
               }}
-              className="relative overflow-hidden rounded-full border border-white/20 bg-white/15 px-5 py-3 font-bold shadow-lg backdrop-blur-xl"
+              className="group relative overflow-hidden rounded-full border border-white/20 bg-white/15 px-5 py-3 font-bold shadow-lg backdrop-blur-xl"
             >
               <span className="relative z-10">
                 {item.icon} {item.label}
@@ -475,28 +502,7 @@ export default function Hero({ totalPets }: HeroProps) {
           animate="visible"
           className="mt-14 grid gap-4 sm:grid-cols-2 md:grid-cols-4 md:gap-6"
         >
-          {[
-            {
-              value: `${totalPets}+`,
-              label: "Pets",
-              description: "Tracked values",
-            },
-            {
-              value: "⚡",
-              label: "Fast Search",
-              description: "Instant results",
-            },
-            {
-              value: "💎",
-              label: "Accurate Values",
-              description: "Daily updates",
-            },
-            {
-              value: "🏆",
-              label: "Fair Trades",
-              description: "Trade smarter",
-            },
-          ].map((item, index) => (
+          {statItems(totalPets).map((item, index) => (
             <motion.div
               key={item.label}
               whileHover={
@@ -523,12 +529,18 @@ export default function Hero({ totalPets }: HeroProps) {
               <motion.div
                 className="relative text-4xl font-black sm:text-5xl"
                 animate={
-                  shouldReduceMotion || typeof item.value === "string"
+                  shouldReduceMotion || !item.shouldFloat
                     ? undefined
                     : {
                         y: [0, -5, 0],
                       }
                 }
+                transition={{
+                  duration: 2.8,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  delay: index * 0.2,
+                }}
               >
                 {item.value}
               </motion.div>
@@ -545,7 +557,7 @@ export default function Hero({ totalPets }: HeroProps) {
         </motion.div>
       </div>
 
-      {/* Bottom Highlight */}
+      {/* Bottom highlight */}
       <div className="absolute inset-x-12 bottom-0 h-px bg-gradient-to-r from-transparent via-white/60 to-transparent" />
     </motion.section>
   );

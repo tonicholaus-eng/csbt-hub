@@ -1,11 +1,32 @@
 import type { Metadata } from "next";
+import { Plus_Jakarta_Sans } from "next/font/google";
+
+import GlobalNichAssistant from "../components/nich/GlobalNichAssistant";
+import ThemeProvider from "../components/ThemeProvider";
+
 import "./globals.css";
 
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-plus-jakarta",
+  display: "swap",
+  fallback: [
+    "system-ui",
+    "-apple-system",
+    "BlinkMacSystemFont",
+    "Segoe UI",
+    "sans-serif",
+  ],
+});
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://csbt-hub.vercel.app"), // Change after deploying
+  metadataBase: new URL(
+    "https://csbt-hub.vercel.app",
+  ),
 
   title: {
-    default: "CSBT HUB | Adopt Me Value Checker",
+    default:
+      "CSBT HUB | Adopt Me Value Checker",
     template: "%s | CSBT HUB",
   },
 
@@ -35,10 +56,11 @@ export const metadata: Metadata = {
   publisher: "CSBT HUB",
 
   openGraph: {
-    title: "CSBT HUB | Adopt Me Value Checker",
+    title:
+      "CSBT HUB | Adopt Me Value Checker",
     description:
       "Search the latest CSBT Adopt Me values and compare trades instantly.",
-    url: "https://your-domain.com",
+    url: "https://csbt-hub.vercel.app",
     siteName: "CSBT HUB",
     locale: "en_US",
     type: "website",
@@ -55,7 +77,8 @@ export const metadata: Metadata = {
 
   twitter: {
     card: "summary_large_image",
-    title: "CSBT HUB | Adopt Me Value Checker",
+    title:
+      "CSBT HUB | Adopt Me Value Checker",
     description:
       "Search Adopt Me values and compare trades instantly.",
     images: ["/logo.png"],
@@ -73,14 +96,26 @@ export const metadata: Metadata = {
   },
 };
 
+type RootLayoutProps = Readonly<{
+  children: React.ReactNode;
+}>;
+
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: RootLayoutProps) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={plusJakartaSans.variable}
+    >
+      <body className="min-h-screen overflow-x-hidden bg-[#fff8e9] font-sans text-slate-800 antialiased transition-colors duration-300 dark:bg-[#07111f] dark:text-slate-100">
+        <ThemeProvider>
+          {children}
+
+          <GlobalNichAssistant />
+        </ThemeProvider>
+      </body>
     </html>
   );
 }

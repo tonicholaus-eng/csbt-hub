@@ -1,96 +1,82 @@
+export type NichPose =
+  | "idle"
+  | "wave"
+  | "point"
+  | "celebrate"
+  | "walk";
+
 export type NichReaction = {
-  id: string;
-  pose: "idle" | "walk" | "wave" | "point" | "celebrate";
-  eyebrow?: string;
   message: string;
+  eyebrow?: string;
+  pose: NichPose;
   duration?: number;
 };
 
 export const NichReactions = {
   idle: {
-    id: "idle",
-    pose: "idle",
     message: "Need help?",
-    duration: 3000,
+    eyebrow: undefined,
+    pose: "idle",
+    duration: 0,
   },
 
   welcome: {
-    id: "welcome",
+    message: "Hi! 👋",
+    eyebrow: "WELCOME",
     pose: "wave",
-    eyebrow: "Welcome",
-    message: "Hi! I'm Nich 👋",
-    duration: 3500,
+    duration: 3000,
   },
 
-  search: {
-    id: "search",
-    pose: "point",
-    eyebrow: "Searching",
-    message: "Let's find that pet!",
+  wave: {
+    message: "Hello!",
+    eyebrow: "HEY",
+    pose: "wave",
     duration: 2500,
   },
 
+  goodbye: {
+    message: "See you!",
+    eyebrow: "BYE",
+    pose: "wave",
+    duration: 2500,
+  },
+
+  search: {
+    message: "Searching...",
+    eyebrow: "SEARCH",
+    pose: "walk",
+    duration: 1800,
+  },
+
   searchFound: {
-    id: "searchFound",
+    message: "Found it!",
+    eyebrow: "RESULT",
     pose: "celebrate",
-    eyebrow: "Found it!",
-    message: "Here's what I found!",
-    duration: 3000,
+    duration: 2800,
   },
 
   searchEmpty: {
-    id: "searchEmpty",
-    pose: "idle",
-    eyebrow: "Hmm...",
-    message: "I couldn't find that pet.",
-    duration: 3000,
+    message: "Nothing found.",
+    eyebrow: "OOPS",
+    pose: "point",
+    duration: 2500,
   },
 
   calculator: {
-    id: "calculator",
-    pose: "wave",
-    eyebrow: "Trade Calculator",
-    message: "Let's see if this trade is fair!",
+    message: "Let's calculate.",
+    eyebrow: "TOOLS",
+    pose: "point",
+    duration: 2800,
+  },
+
+  celebrate: {
+    message: "Awesome!",
+    eyebrow: "NICE",
+    pose: "celebrate",
     duration: 3000,
   },
-
-  fairTrade: {
-    id: "fairTrade",
-    pose: "celebrate",
-    eyebrow: "Looks good!",
-    message: "That trade looks fair! 🎉",
-    duration: 3500,
-  },
-
-  loseTrade: {
-    id: "loseTrade",
-    pose: "idle",
-    eyebrow: "Careful!",
-    message: "You might be overpaying.",
-    duration: 3500,
-  },
-
-  winTrade: {
-    id: "winTrade",
-    pose: "celebrate",
-    eyebrow: "Nice!",
-    message: "Looks like a win for you! 😎",
-    duration: 3500,
-  },
-
-  loading: {
-    id: "loading",
-    pose: "idle",
-    message: "Thinking...",
-    duration: 2000,
-  },
-
-  goodbye: {
-    id: "goodbye",
-    pose: "wave",
-    message: "See you later!",
-    duration: 3000,
-  },
-} as const;
+} satisfies Record<string, NichReaction>;
 
 export type NichReactionKey = keyof typeof NichReactions;
+
+export default NichReactions;

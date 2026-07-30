@@ -1,0 +1,712 @@
+import type {
+  NichPotionStatus,
+  NichTradeComparison,
+  NichTradeItem,
+} from "../brain/types";
+
+import {
+  findPetInMessage,
+  formatPetValue,
+  getRawPetVariantValue,
+  normalizeText,
+  type PetVariant,
+} from "./petSearch";
+
+export type ParsedTradeQuery = {
+  offerText: string;
+  requestText: string;
+  offerPet: string;
+  offerVariant: PetVariant;
+  offerPotionStatus: NichPotionStatus;
+  offerCode: string;
+  requestPet: string;
+  requestVariant: PetVariant;
+  requestPotionStatus: NichPotionStatus;
+  requestCode: string;
+};
+
+type TradePetDetails = {
+  variant: PetVariant;
+  potionStatus: NichPotionStatus;
+  code: string;
+  hasNoPotionWarning: boolean;
+};
+
+const MISSING_FLY_ADJUSTMENT = -20;
+const MISSING_RIDE_ADJUSTMENT = -10;
+
+function getNumericValue(
+  value: string | number | undefined,
+): number | null {
+  if (
+    value === undefined ||
+    value === null ||
+    String(value).trim() === ""
+  ) {
+    return null;
+  }
+
+  if (
+    typeof value === "number" &&
+    Number.isFinite(value)
+  ) {
+    return value;
+  }
+
+  const numbers = String(value)
+    .replace(/,/g, "")
+    .match(/\d+(?:\.\d+)?/g)
+    ?.map(Number)
+    .filter(Number.isFinite);
+
+  if (!numbers?.length) {
+    return null;
+  }
+
+  if (numbers.length === 1) {
+    return numbers[0];
+  }
+
+  const total = numbers.reduce(
+    (sum, number) => sum + number,
+    0,
+  );
+
+  return total / numbers.length;
+}
+
+function formatNumericValue(
+  value: number,
+) {
+  if (Number.isInteger(value)) {
+    return String(value);
+  }
+
+  return value
+    .toFixed(1)
+    .replace(/\.0$/, "");
+}
+
+function containsWholePhrase(
+  message: string,
+  phrase: string,
+) {
+  const normalizedMessage =
+    normalizeText(message);
+
+  const normalizedPhrase =
+    normalizeText(phrase);
+
+  if (
+    !normalizedMessage ||
+    !normalizedPhrase
+  ) {
+    return false;
+  }
+
+  const escapedPhrase =
+    normalizedPhrase.replace(
+      /[.*+?^${}()|[\]\\]/g,
+      "\\$&",
+    );
+
+  return new RegExp(
+    `(?:^|\\s)${escapedPhrase}(?=$|\\s)`,
+    "i",
+  ).test(normalizedMessage);
+}
+
+function detectTradeCode(
+  text: string,
+) {
+  const codes = [
+    "mfr",
+    "nfr",
+    "fr",
+    "mf",
+    "mr",
+    "nf",
+    "nr",
+    "m",
+    "n",
+    "f",
+    "r",
+  ];
+
+  return codes.find((code) =>
+    containsWholePhrase(text, code),
+  );
+}
+
+function containsWrittenPotion(
+  text: string,
+) {
+  return (
+    containsWholePhrase(text, "fly") ||
+    containsWholePhrase(text, "ride") ||
+    containsWholePhrase(
+      text,
+      "fly ride",
+    ) ||
+    containsWholePhrase(
+      text,
+      "ride fly",
+    )
+  );
+}
+
+function detectWrittenPotionStatus(
+  text: string,
+): NichPotionStatus {
+  const hasFly =
+    containsWholePhrase(text, "fly");
+
+  const hasRide =
+    containsWholePhrase(text, "ride");
+
+  if (hasFly && hasRide) {
+    return "flyRide";
+  }
+
+  if (hasFly) {
+    return "flyOnly";
+  }
+
+  if (hasRide) {
+    return "rideOnly";
+  }
+
+  return "unspecified";
+}
+
+function createWrittenCode(
+  variant: PetVariant,
+  text: string,
+) {
+  const potionStatus =
+    detectWrittenPotionStatus(text);
+
+  const variantPrefix =
+    variant === "mega"
+      ? "M"
+      : variant === "neon"
+        ? "N"
+        : "";
+
+  switch (potionStatus) {
+    case "flyRide":
+      return `${variantPrefix}FR`;
+
+    case "flyOnly":
+      return `${variantPrefix}F`;
+
+    case "rideOnly":
+      return `${variantPrefix}R`;
+
+    case "unspecified":
+    default:
+      return variantPrefix || "Normal";
+  }
+}
+
+function detectTradePetDetails(
+  text: string,
+): TradePetDetails {
+  const code =
+    detectTradeCode(text);
+
+  switch (code) {
+    case "mfr":
+      return {
+        variant: "mega",
+        potionStatus: "flyRide",
+        code: "MFR",
+        hasNoPotionWarning: false,
+      };
+
+    case "mf":
+      return {
+        variant: "mega",
+        potionStatus: "flyOnly",
+        code: "MF",
+        hasNoPotionWarning: false,
+      };
+
+    case "mr":
+      return {
+        variant: "mega",
+        potionStatus: "rideOnly",
+        code: "MR",
+        hasNoPotionWarning: false,
+      };
+
+    case "m":
+      return {
+        variant: "mega",
+        potionStatus: "unspecified",
+        code: "M",
+        hasNoPotionWarning: true,
+      };
+
+    case "nfr":
+      return {
+        variant: "neon",
+        potionStatus: "flyRide",
+        code: "NFR",
+        hasNoPotionWarning: false,
+      };
+
+    case "nf":
+      return {
+        variant: "neon",
+        potionStatus: "flyOnly",
+        code: "NF",
+        hasNoPotionWarning: false,
+      };
+
+    case "nr":
+      return {
+        variant: "neon",
+        potionStatus: "rideOnly",
+        code: "NR",
+        hasNoPotionWarning: false,
+      };
+
+    case "n":
+      return {
+        variant: "neon",
+        potionStatus: "unspecified",
+        code: "N",
+        hasNoPotionWarning: true,
+      };
+
+    case "fr":
+      return {
+        variant: "normal",
+        potionStatus: "flyRide",
+        code: "FR",
+        hasNoPotionWarning: false,
+      };
+
+    case "f":
+      return {
+        variant: "normal",
+        potionStatus: "flyOnly",
+        code: "F",
+        hasNoPotionWarning: false,
+      };
+
+    case "r":
+      return {
+        variant: "normal",
+        potionStatus: "rideOnly",
+        code: "R",
+        hasNoPotionWarning: false,
+      };
+  }
+
+  if (
+    containsWholePhrase(text, "mega")
+  ) {
+    return {
+      variant: "mega",
+      potionStatus:
+        detectWrittenPotionStatus(text),
+      code: createWrittenCode(
+        "mega",
+        text,
+      ),
+      hasNoPotionWarning:
+        !containsWrittenPotion(text),
+    };
+  }
+
+  if (
+    containsWholePhrase(text, "neon")
+  ) {
+    return {
+      variant: "neon",
+      potionStatus:
+        detectWrittenPotionStatus(text),
+      code: createWrittenCode(
+        "neon",
+        text,
+      ),
+      hasNoPotionWarning:
+        !containsWrittenPotion(text),
+    };
+  }
+
+  const writtenPotionStatus =
+    detectWrittenPotionStatus(text);
+
+  if (
+    writtenPotionStatus !==
+    "unspecified"
+  ) {
+    return {
+      variant: "normal",
+      potionStatus:
+        writtenPotionStatus,
+      code: createWrittenCode(
+        "normal",
+        text,
+      ),
+      hasNoPotionWarning: false,
+    };
+  }
+
+  return {
+    variant: "normal",
+    potionStatus: "unspecified",
+    code: "Normal",
+    hasNoPotionWarning: true,
+  };
+}
+
+function getPotionAdjustment(
+  potionStatus: NichPotionStatus,
+) {
+  switch (potionStatus) {
+    case "flyOnly":
+      return MISSING_RIDE_ADJUSTMENT;
+
+    case "rideOnly":
+      return MISSING_FLY_ADJUSTMENT;
+
+    case "flyRide":
+    case "unspecified":
+    default:
+      return 0;
+  }
+}
+
+function createTradeItem(
+  text: string,
+): NichTradeItem | null {
+  const result =
+    findPetInMessage(text);
+
+  if (!result) {
+    return null;
+  }
+
+  const details =
+    detectTradePetDetails(text);
+
+  const rawValue =
+    getRawPetVariantValue(
+      result.pet,
+      details.variant,
+    );
+
+  const baseValue =
+    getNumericValue(rawValue);
+
+  if (baseValue === null) {
+    return null;
+  }
+
+  const potionAdjustment =
+    getPotionAdjustment(
+      details.potionStatus,
+    );
+
+  const adjustedValue = Math.max(
+    0,
+    baseValue + potionAdjustment,
+  );
+
+  return {
+    petName: result.pet.PETS,
+    variant: details.variant,
+    petCode: details.code,
+    potionStatus:
+      details.potionStatus,
+    baseValue,
+    baseDisplayValue:
+      formatPetValue(rawValue),
+    potionAdjustment,
+    value: adjustedValue,
+    displayValue:
+      formatNumericValue(adjustedValue),
+    hasNoPotionWarning:
+      details.hasNoPotionWarning,
+  };
+}
+
+export function compareTrade(
+  offerText: string,
+  requestText: string,
+): NichTradeComparison | null {
+  const offered =
+    createTradeItem(offerText);
+
+  const requested =
+    createTradeItem(requestText);
+
+  if (!offered || !requested) {
+    return null;
+  }
+
+  const difference =
+    requested.value - offered.value;
+
+  const comparisonBase = Math.max(
+    offered.value,
+    requested.value,
+    1,
+  );
+
+  const differencePercent =
+    (difference / comparisonBase) * 100;
+
+  const absolutePercent = Math.abs(
+    differencePercent,
+  );
+
+  let verdict:
+    NichTradeComparison["verdict"];
+
+  if (absolutePercent <= 5) {
+    verdict = "fair";
+  } else if (difference > 0) {
+    verdict = "win";
+  } else {
+    verdict = "lose";
+  }
+
+  return {
+    offered,
+    requested,
+    offeredValue: offered.value,
+    requestedValue: requested.value,
+    difference,
+    differencePercent,
+    verdict,
+  };
+}
+
+const tradeSeparators = [
+  /\s+versus\s+/i,
+  /\s+against\s+/i,
+  /\s+compared\s+to\s+/i,
+  /\s+for\s+/i,
+  /\s+vs\.?\s+/i,
+];
+
+const YOUR_OWNER_PATTERN = [
+  "my offer",
+  "your offer",
+  "im giving",
+  "i am giving",
+  "im trading",
+  "i am trading",
+  "i have",
+  "mine",
+  "my",
+  "me",
+  "im",
+  "i am",
+  "i",
+].join("|");
+
+const THEIR_OWNER_PATTERN = [
+  "their offer",
+  "his offer",
+  "her offer",
+  "your offer",
+  "other persons offer",
+  "other person",
+  "other trader",
+  "someone else",
+  "theirs",
+  "their",
+  "them",
+  "they",
+  "his",
+  "him",
+  "he",
+  "hers",
+  "her",
+  "she",
+  "yours",
+  "your",
+  "you",
+].join("|");
+
+function cleanTradeSide(
+  value: string,
+) {
+  return value
+    .replace(
+      /^(?:wfl|w\/f\/l|w f l)\s*/i,
+      "",
+    )
+    .replace(
+      /^(?:is|are|compare|check|trade|trading|have|has|giving|give|gives|offering|offer|offers|receiving|receive|receives|get|gets|getting)\s+/i,
+      "",
+    )
+    .replace(
+      /^(?:your offer|my offer|their offer|his offer|her offer)\s*:?\s*/i,
+      "",
+    )
+    .replace(
+      /\s+(?:and|while)$/i,
+      "",
+    )
+    .replace(
+      /\s+(?:fair|good|bad|a win|a lose|win|lose|worth it|worth|better)\??$/i,
+      "",
+    )
+    .trim();
+}
+
+function stripWflPrefix(
+  message: string,
+) {
+  return message
+    .replace(
+      /^\s*(?:wfl|w\/f\/l|w f l)\s*[:\-]?\s*/i,
+      "",
+    )
+    .trim();
+}
+
+function splitOwnershipTradeMessage(
+  message: string,
+) {
+  const withoutWfl =
+    stripWflPrefix(message);
+
+  const ownershipExpression =
+    new RegExp(
+      `^(?:${YOUR_OWNER_PATTERN})\\s*[:\\-]?\\s+(.+?)\\s+(?:and\\s+|while\\s+)?(?:${THEIR_OWNER_PATTERN})\\s*[:\\-]?\\s+(.+)$`,
+      "i",
+    );
+
+  const match =
+    withoutWfl.match(
+      ownershipExpression,
+    );
+
+  if (!match) {
+    return null;
+  }
+
+  const offerText =
+    cleanTradeSide(match[1]);
+
+  const requestText =
+    cleanTradeSide(match[2]);
+
+  if (!offerText || !requestText) {
+    return null;
+  }
+
+  return {
+    offerText,
+    requestText,
+  };
+}
+
+function splitTradeMessage(
+  message: string,
+) {
+  const ownershipTrade =
+    splitOwnershipTradeMessage(message);
+
+  if (ownershipTrade) {
+    return ownershipTrade;
+  }
+
+  const withoutWfl =
+    stripWflPrefix(message);
+
+  for (
+    const separator of tradeSeparators
+  ) {
+    const parts =
+      withoutWfl.split(separator);
+
+    if (parts.length !== 2) {
+      continue;
+    }
+
+    return {
+      offerText: cleanTradeSide(
+        parts[0],
+      ),
+      requestText: cleanTradeSide(
+        parts[1],
+      ),
+    };
+  }
+
+  return null;
+}
+
+export function parseTradeMessage(
+  message: string,
+): ParsedTradeQuery | null {
+  const normalizedMessage =
+    normalizeText(message);
+
+  if (!normalizedMessage) {
+    return null;
+  }
+
+  const tradeSides =
+    splitTradeMessage(message);
+
+  if (!tradeSides) {
+    return null;
+  }
+
+  const offeredPet =
+    findPetInMessage(
+      tradeSides.offerText,
+    );
+
+  const requestedPet =
+    findPetInMessage(
+      tradeSides.requestText,
+    );
+
+  if (!offeredPet || !requestedPet) {
+    return null;
+  }
+
+  const offeredDetails =
+    detectTradePetDetails(
+      tradeSides.offerText,
+    );
+
+  const requestedDetails =
+    detectTradePetDetails(
+      tradeSides.requestText,
+    );
+
+  return {
+    offerText:
+      tradeSides.offerText,
+    requestText:
+      tradeSides.requestText,
+    offerPet:
+      offeredPet.pet.PETS,
+    offerVariant:
+      offeredDetails.variant,
+    offerPotionStatus:
+      offeredDetails.potionStatus,
+    offerCode:
+      offeredDetails.code,
+    requestPet:
+      requestedPet.pet.PETS,
+    requestVariant:
+      requestedDetails.variant,
+    requestPotionStatus:
+      requestedDetails.potionStatus,
+    requestCode:
+      requestedDetails.code,
+  };
+}

@@ -61,8 +61,8 @@ function SuggestionImage({
         shadow-sm
         ${
           selected
-            ? "border-yellow-200 bg-white"
-            : "border-gray-100 bg-gradient-to-br from-white to-yellow-50"
+            ? "border-yellow-200 bg-white dark:border-amber-400/40 dark:bg-slate-800"
+            : "border-gray-100 bg-gradient-to-br from-white to-yellow-50 dark:border-white/10 dark:from-slate-800 dark:to-slate-900"
         }
       `}
     >
@@ -121,7 +121,7 @@ function HighlightedName({
       <>
         {beforeMatch}
 
-        <span className="rounded-md bg-yellow-200/80 px-0.5 text-yellow-800">
+        <span className="rounded-md bg-yellow-200/80 px-0.5 text-yellow-800 dark:bg-amber-400/20 dark:text-amber-300">
           {match}
         </span>
 
@@ -148,7 +148,7 @@ function HighlightedName({
             {index > 0 ? " " : ""}
 
             {shouldHighlight ? (
-              <span className="rounded-md bg-yellow-200/80 px-0.5 text-yellow-800">
+              <span className="rounded-md bg-yellow-200/80 px-0.5 text-yellow-800 dark:bg-amber-400/20 dark:text-amber-300">
                 {word}
               </span>
             ) : (
@@ -339,7 +339,7 @@ export default function SearchBar({
           repeat: isFocused ? Infinity : 0,
           ease: "easeInOut",
         }}
-        className="absolute inset-0 rounded-[36px] bg-gradient-to-r from-yellow-300/40 via-orange-300/35 to-pink-300/30 blur-3xl"
+        className="absolute inset-0 rounded-[36px] bg-gradient-to-r from-yellow-300/40 via-orange-300/35 to-pink-300/30 blur-3xl dark:from-amber-500/20 dark:via-orange-500/15 dark:to-violet-500/15"
       />
 
       {/* Search box */}
@@ -352,10 +352,10 @@ export default function SearchBar({
           duration: 0.25,
           ease: "easeOut",
         }}
-        className="relative overflow-visible rounded-[36px] border border-white/60 bg-white/75 p-3 shadow-[0_25px_70px_rgba(251,146,60,.18)] backdrop-blur-2xl"
+        className="relative overflow-visible rounded-[36px] border border-white/60 bg-white/75 p-3 shadow-[0_25px_70px_rgba(251,146,60,.18)] backdrop-blur-2xl transition-colors duration-300 dark:border-white/10 dark:bg-slate-900/75 dark:shadow-[0_25px_70px_rgba(0,0,0,.35)]"
       >
         {/* Top highlight */}
-        <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent" />
+        <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent dark:via-white/30" />
 
         <div className="relative">
           <motion.div
@@ -407,6 +407,8 @@ export default function SearchBar({
               border
               border-yellow-100
               bg-white/90
+              dark:border-white/10
+              dark:bg-slate-950/85
               py-5
               pl-14
               pr-16
@@ -414,14 +416,19 @@ export default function SearchBar({
               font-semibold
               text-gray-800
               shadow-inner
+              dark:text-slate-100
+              dark:shadow-black/20
               outline-none
               transition-all
               duration-300
               placeholder:font-medium
               placeholder:text-gray-400
+              dark:placeholder:text-slate-500
               focus:border-yellow-300
+              dark:focus:border-amber-400/60
               focus:ring-4
               focus:ring-yellow-200/80
+              dark:focus:ring-amber-400/15
               sm:py-6
               sm:pl-16
               sm:pr-20
@@ -522,21 +529,21 @@ export default function SearchBar({
                   : 0.2,
                 ease: [0.22, 1, 0.36, 1],
               }}
-              className="absolute left-1 right-1 top-[calc(100%+10px)] z-50 overflow-hidden rounded-[24px] border border-white/80 bg-white/95 p-2 shadow-[0_25px_70px_rgba(15,23,42,.2)] backdrop-blur-2xl sm:left-3 sm:right-3 sm:rounded-[28px]"
+              className="absolute left-1 right-1 top-[calc(100%+10px)] z-50 overflow-hidden rounded-[24px] border border-white/80 bg-white/95 p-2 shadow-[0_25px_70px_rgba(15,23,42,.2)] backdrop-blur-2xl transition-colors duration-300 dark:border-white/10 dark:bg-slate-900/95 dark:shadow-[0_25px_70px_rgba(0,0,0,.45)] sm:left-3 sm:right-3 sm:rounded-[28px]"
             >
               <div className="flex items-center justify-between gap-3 px-3 py-3 sm:px-4">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-yellow-600 sm:text-xs">
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-yellow-600 dark:text-amber-300 sm:text-xs">
                     Pet Suggestions
                   </p>
 
-                  <p className="mt-1 hidden text-xs text-gray-400 sm:block">
+                  <p className="mt-1 hidden text-xs text-gray-400 dark:text-slate-500 sm:block">
                     Use ↑ ↓ and Enter to select
                   </p>
                 </div>
 
                 {suggestions.length > 0 && (
-                  <span className="shrink-0 rounded-full bg-yellow-100 px-3 py-1 text-[10px] font-black text-yellow-700 sm:text-xs">
+                  <span className="shrink-0 rounded-full bg-yellow-100 px-3 py-1 text-[10px] font-black text-yellow-700 dark:bg-amber-400/15 dark:text-amber-300 sm:text-xs">
                     {suggestions.length} found
                   </span>
                 )}
@@ -606,8 +613,8 @@ export default function SearchBar({
                             sm:px-4
                             ${
                               isSelected
-                                ? "border-yellow-200 bg-gradient-to-r from-yellow-100 via-orange-50 to-pink-50 shadow-md"
-                                : "border-transparent hover:border-yellow-100 hover:bg-yellow-50/70"
+                                ? "border-yellow-200 bg-gradient-to-r from-yellow-100 via-orange-50 to-pink-50 shadow-md dark:border-amber-400/30 dark:from-amber-500/15 dark:via-orange-500/10 dark:to-violet-500/10"
+                                : "border-transparent hover:border-yellow-100 hover:bg-yellow-50/70 dark:hover:border-white/10 dark:hover:bg-white/5"
                             }
                           `}
                         >
@@ -652,8 +659,8 @@ export default function SearchBar({
                                 sm:text-base
                                 ${
                                   isSelected
-                                    ? "text-gray-900"
-                                    : "text-gray-700"
+                                    ? "text-gray-900 dark:text-white"
+                                    : "text-gray-700 dark:text-slate-200"
                                 }
                               `}
                             >
@@ -663,7 +670,7 @@ export default function SearchBar({
                               />
                             </p>
 
-                            <p className="mt-0.5 text-[10px] font-medium text-gray-400 sm:text-xs">
+                            <p className="mt-0.5 text-[10px] font-medium text-gray-400 dark:text-slate-500 sm:text-xs">
                               Adopt Me pet
                             </p>
                           </div>
@@ -691,7 +698,7 @@ export default function SearchBar({
                               ${
                                 isSelected
                                   ? "bg-gradient-to-br from-yellow-400 to-orange-500 text-white shadow-md"
-                                  : "bg-gray-100 text-gray-400 group-hover:bg-yellow-100 group-hover:text-yellow-700"
+                                  : "bg-gray-100 text-gray-400 group-hover:bg-yellow-100 group-hover:text-yellow-700 dark:bg-slate-800 dark:text-slate-500 dark:group-hover:bg-amber-400/15 dark:group-hover:text-amber-300"
                               }
                             `}
                           >
@@ -712,17 +719,17 @@ export default function SearchBar({
                     opacity: 1,
                     y: 0,
                   }}
-                  className="rounded-[22px] border border-dashed border-gray-200 bg-gray-50/80 px-5 py-8 text-center"
+                  className="rounded-[22px] border border-dashed border-gray-200 bg-gray-50/80 px-5 py-8 text-center dark:border-white/10 dark:bg-slate-950/60"
                 >
                   <div className="text-4xl">
                     🔎
                   </div>
 
-                  <p className="mt-3 font-black text-gray-700">
+                  <p className="mt-3 font-black text-gray-700 dark:text-slate-200">
                     No close matches found
                   </p>
 
-                  <p className="mt-1 text-sm text-gray-400">
+                  <p className="mt-1 text-sm text-gray-400 dark:text-slate-500">
                     Try another spelling or a
                     shorter pet name.
                   </p>
@@ -791,22 +798,29 @@ export default function SearchBar({
               border
               border-white/60
               bg-white/80
+              dark:border-white/10
+              dark:bg-slate-900/75
               px-4
               py-2.5
               text-xs
               font-bold
               text-gray-700
               shadow-lg
+              dark:text-slate-200
+              dark:shadow-black/20
               backdrop-blur-xl
               transition-colors
               duration-300
               hover:bg-gradient-to-r
               hover:from-yellow-100
               hover:to-orange-100
+              dark:hover:from-amber-500/15
+              dark:hover:to-orange-500/10
               hover:shadow-xl
               focus-visible:outline-none
               focus-visible:ring-4
               focus-visible:ring-yellow-200
+              dark:focus-visible:ring-amber-400/20
               sm:px-5
               sm:text-sm
             "

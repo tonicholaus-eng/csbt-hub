@@ -6,7 +6,9 @@ import {
   motion,
   useReducedMotion,
 } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+import useNich from "./useNich";
 
 type NichButtonProps = {
   open: boolean;
@@ -26,11 +28,111 @@ export default function NichButton({
 }: NichButtonProps) {
   const shouldReduceMotion = useReducedMotion();
 
+  const { reaction, reactionKey, isReacting } = useNich();
+
   const [messageIndex, setMessageIndex] = useState(0);
-  const [showBubble, setShowBubble] = useState(true);
+  const [showHelperBubble, setShowHelperBubble] = useState(true);
   const [imageFailed, setImageFailed] = useState(false);
 
   const hideTimerRef = useRef<number | null>(null);
+
+  const visibleMessage = isReacting
+    ? reaction.message
+    : helperMessages[messageIndex];
+
+  const visibleEyebrow = isReacting
+    ? reaction.eyebrow
+    : undefined;
+
+  const showBubble =
+    !open && (isReacting || showHelperBubble);
+
+  const mascotAnimation = useMemo(() => {
+    if (shouldReduceMotion) {
+      return undefined;
+    }
+
+    switch (reaction.pose) {
+      case "wave":
+        return {
+          rotate: [0, -7, 7, -5, 5, 0],
+          y: [0, -4, 0, -3, 0],
+          scale: [1, 1.04, 1, 1.03, 1],
+        };
+
+      case "point":
+        return {
+          rotate: [0, -5, 0],
+          x: [0, -4, 0],
+          y: [0, -2, 0],
+        };
+
+      case "celebrate":
+        return {
+          rotate: [0, -8, 8, -6, 6, 0],
+          y: [0, -8, 0, -6, 0],
+          scale: [1, 1.08, 1, 1.05, 1],
+        };
+
+      case "walk":
+        return {
+          rotate: [-4, 4, -4],
+          x: [-3, 3, -3],
+          y: [0, -3, 0],
+        };
+
+      case "idle":
+      default:
+        return open
+          ? undefined
+          : {
+              rotate: [0, 0, -4, 4, 0],
+              y: [0, 0, -2, 0],
+            };
+    }
+  }, [open, reaction.pose, shouldReduceMotion]);
+
+  const mascotTransition = useMemo(() => {
+    if (reaction.pose === "celebrate") {
+      return {
+        duration: 0.75,
+        repeat: Infinity,
+        ease: "easeInOut" as const,
+      };
+    }
+
+    if (reaction.pose === "wave") {
+      return {
+        duration: 1.1,
+        repeat: Infinity,
+        repeatDelay: 0.35,
+        ease: "easeInOut" as const,
+      };
+    }
+
+    if (reaction.pose === "point") {
+      return {
+        duration: 1.1,
+        repeat: Infinity,
+        ease: "easeInOut" as const,
+      };
+    }
+
+    if (reaction.pose === "walk") {
+      return {
+        duration: 0.55,
+        repeat: Infinity,
+        ease: "easeInOut" as const,
+      };
+    }
+
+    return {
+      duration: 1.1,
+      repeat: Infinity,
+      repeatDelay: 5,
+      ease: "easeInOut" as const,
+    };
+  }, [reaction.pose]);
 
   useEffect(() => {
     function clearHideTimer() {
@@ -42,16 +144,16 @@ export default function NichButton({
 
     clearHideTimer();
 
-    if (open) {
-      setShowBubble(false);
+    if (open || isReacting) {
+      setShowHelperBubble(false);
       return clearHideTimer;
     }
 
     function showNextBubble() {
-      setShowBubble(true);
+      setShowHelperBubble(true);
 
       hideTimerRef.current = window.setTimeout(() => {
-        setShowBubble(false);
+        setShowHelperBubble(false);
 
         setMessageIndex((currentIndex) => {
           return (currentIndex + 1) % helperMessages.length;
@@ -59,19 +161,27 @@ export default function NichButton({
       }, 4000);
     }
 
-    const bubbleCycle = window.setInterval(showNextBubble, 14000);
+    const bubbleCycle = window.setInterval(
+      showNextBubble,
+      14000,
+    );
 
     return () => {
       window.clearInterval(bubbleCycle);
       clearHideTimer();
     };
-  }, [open]);
+  }, [open, isReacting]);
 
   return (
     <div className="fixed bottom-4 right-4 z-[90] flex items-end gap-2 sm:bottom-6 sm:right-6 sm:gap-3">
-      <AnimatePresence>
-        {!open && showBubble && (
+      <AnimatePresence mode="wait">
+        {showBubble && (
           <motion.button
+            key={
+              isReacting
+                ? reactionKey
+                : `helper-${messageIndex}`
+            }
             type="button"
             onClick={onClick}
             initial={{
@@ -99,7 +209,7 @@ export default function NichButton({
             className="
               relative
               mb-3
-              max-w-[180px]
+              max-w-[205px]
               rounded-2xl
               border
               border-yellow-200/80
@@ -117,12 +227,20 @@ export default function NichButton({
               focus-visible:ring-yellow-300/50
             "
           >
+            {visibleEyebrow && (
+              <span className="mb-1 block text-[10px] font-black uppercase tracking-[0.14em] text-amber-500">
+                {visibleEyebrow}
+              </span>
+            )}
+
             <span className="block text-xs font-black text-gray-900 sm:text-sm">
-              {helperMessages[messageIndex]}
+              {visibleMessage}
             </span>
 
             <span className="mt-1 block text-[10px] font-semibold text-gray-400 sm:text-xs">
-              Tap to ask Nich
+              {isReacting
+                ? "Nich is reacting"
+                : "Tap to ask Nich"}
             </span>
 
             <span
@@ -193,13 +311,18 @@ export default function NichButton({
           animate={
             shouldReduceMotion
               ? undefined
-              : {
-                  opacity: [0.3, 0.75, 0.3],
-                  scale: [0.9, 1.14, 0.9],
-                }
+              : isReacting
+                ? {
+                    opacity: [0.35, 0.9, 0.35],
+                    scale: [0.9, 1.22, 0.9],
+                  }
+                : {
+                    opacity: [0.3, 0.75, 0.3],
+                    scale: [0.9, 1.14, 0.9],
+                  }
           }
           transition={{
-            duration: 2.6,
+            duration: isReacting ? 1.1 : 2.6,
             repeat: Infinity,
             ease: "easeInOut",
           }}
@@ -207,20 +330,9 @@ export default function NichButton({
         />
 
         <motion.div
-          animate={
-            shouldReduceMotion || open
-              ? undefined
-              : {
-                  rotate: [0, 0, -4, 4, 0],
-                  y: [0, 0, -2, 0],
-                }
-          }
-          transition={{
-            duration: 1.1,
-            repeat: Infinity,
-            repeatDelay: 5,
-            ease: "easeInOut",
-          }}
+          key={reactionKey}
+          animate={mascotAnimation}
+          transition={mascotTransition}
           className="relative h-full w-full overflow-hidden rounded-full bg-yellow-50"
         >
           {!imageFailed ? (
@@ -240,6 +352,90 @@ export default function NichButton({
             </div>
           )}
         </motion.div>
+
+        <AnimatePresence>
+          {reaction.pose === "celebrate" && (
+            <motion.span
+              aria-hidden="true"
+              initial={{
+                opacity: 0,
+                scale: 0.5,
+                y: 8,
+              }}
+              animate={{
+                opacity: [0, 1, 1, 0],
+                scale: [0.5, 1.1, 1, 1.25],
+                y: [8, -12, -18, -28],
+                rotate: [0, -8, 8, 0],
+              }}
+              exit={{
+                opacity: 0,
+                scale: 0.5,
+              }}
+              transition={{
+                duration: 1.2,
+                repeat: Infinity,
+              }}
+              className="pointer-events-none absolute -left-3 -top-4 text-2xl"
+            >
+              ✨
+            </motion.span>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {reaction.pose === "wave" && (
+            <motion.span
+              aria-hidden="true"
+              initial={{
+                opacity: 0,
+                scale: 0.5,
+              }}
+              animate={{
+                opacity: [0, 1, 1, 0],
+                scale: [0.5, 1, 0.9, 1.15],
+                rotate: [-15, 10, -8, 12],
+              }}
+              exit={{
+                opacity: 0,
+              }}
+              transition={{
+                duration: 1.1,
+                repeat: Infinity,
+                repeatDelay: 0.4,
+              }}
+              className="pointer-events-none absolute -left-4 top-0 text-2xl"
+            >
+              👋
+            </motion.span>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {reaction.pose === "point" && (
+            <motion.span
+              aria-hidden="true"
+              initial={{
+                opacity: 0,
+                x: -6,
+              }}
+              animate={{
+                opacity: [0.4, 1, 0.4],
+                x: [-6, -12, -6],
+              }}
+              exit={{
+                opacity: 0,
+              }}
+              transition={{
+                duration: 1,
+                repeat: Infinity,
+              }}
+              className="pointer-events-none absolute -left-6 top-1/2 -translate-y-1/2 text-xl"
+            >
+              👈
+            </motion.span>
+          )}
+        </AnimatePresence>
 
         <span className="absolute bottom-0.5 right-0.5 h-4 w-4 rounded-full border-[3px] border-white bg-green-400 shadow-sm sm:h-[18px] sm:w-[18px]" />
 
