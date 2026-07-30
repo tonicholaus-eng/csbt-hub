@@ -134,7 +134,7 @@ export default function Hero({ totalPets }: HeroProps) {
               transformPerspective: 1400,
             }
       }
-      className="group relative overflow-hidden rounded-[40px] border border-white/30 bg-gradient-to-br from-amber-500 via-yellow-400 to-orange-500 px-5 py-16 text-white shadow-[0_30px_80px_rgba(251,146,60,.35)] dark:shadow-[0_30px_90px_rgba(0,0,0,.5)] sm:px-8 md:py-20"
+      className="group relative overflow-hidden rounded-[40px] border border-white/30 bg-gradient-to-br from-amber-500 via-yellow-400 to-orange-500 px-5 py-12 text-white shadow-[0_30px_80px_rgba(251,146,60,.35)] will-change-transform dark:shadow-[0_30px_90px_rgba(0,0,0,.5)] sm:px-8 md:py-20"
     >
       {/* Background lighting */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,.32),transparent_58%)]" />
@@ -142,7 +142,7 @@ export default function Hero({ totalPets }: HeroProps) {
       <div className="absolute inset-0 bg-[linear-gradient(120deg,transparent_20%,rgba(255,255,255,.13)_45%,transparent_70%)] opacity-70" />
 
       <motion.div
-        className="absolute -left-24 -top-24 h-80 w-80 rounded-full bg-white/15 blur-3xl"
+        className="absolute -left-24 -top-24 hidden h-80 w-80 rounded-full bg-white/15 blur-3xl md:block"
         animate={
           shouldReduceMotion
             ? undefined
@@ -160,7 +160,7 @@ export default function Hero({ totalPets }: HeroProps) {
       />
 
       <motion.div
-        className="absolute -right-20 bottom-0 h-96 w-96 rounded-full bg-orange-300/25 blur-3xl"
+        className="absolute -right-20 bottom-0 hidden h-96 w-96 rounded-full bg-orange-300/25 blur-3xl md:block"
         animate={
           shouldReduceMotion
             ? undefined
@@ -178,7 +178,7 @@ export default function Hero({ totalPets }: HeroProps) {
       />
 
       <motion.div
-        className="absolute left-1/2 top-0 h-80 w-80 -translate-x-1/2 rounded-full bg-yellow-100/15 blur-3xl"
+        className="absolute left-1/2 top-0 hidden h-80 w-80 -translate-x-1/2 rounded-full bg-yellow-100/15 blur-3xl md:block"
         animate={
           shouldReduceMotion
             ? undefined
@@ -426,7 +426,7 @@ export default function Hero({ totalPets }: HeroProps) {
           variants={fadeUp}
           initial="hidden"
           animate="visible"
-          className="mt-8 text-5xl font-black tracking-tight drop-shadow-lg sm:text-6xl md:text-8xl"
+          className="mt-8 text-4xl font-black tracking-tight drop-shadow-lg sm:text-6xl md:text-8xl"
         >
           <span className="relative inline-block">
             CSBT HUB

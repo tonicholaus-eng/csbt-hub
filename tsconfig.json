@@ -29,6 +29,6 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     "**/*.mts"
-  ],
+, "src/components/nich/NichAssistant/tools", "src/components/nich/NichAssistant/memory"  ],
   "exclude": ["node_modules"]
 }

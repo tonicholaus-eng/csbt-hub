@@ -32,6 +32,14 @@ type PositionedPetMatch = PetMessageMatch & {
   end: number;
 };
 
+type FuzzyPetCandidate = {
+  pet: PetRecord;
+  matchedName: string;
+  distance: number;
+  similarity: number;
+  isAlias: boolean;
+};
+
 const petRecords = pets as PetRecord[];
 
 const PET_ALIASES: Record<string, string> = {
@@ -86,6 +94,89 @@ const PET_ALIASES: Record<string, string> = {
   "unicorn pet": "Unicorn",
 };
 
+const FUZZY_IGNORED_WORDS = new Set([
+  "a",
+  "about",
+  "an",
+  "are",
+  "can",
+  "check",
+  "could",
+  "do",
+  "does",
+  "find",
+  "for",
+  "get",
+  "give",
+  "how",
+  "i",
+  "is",
+  "it",
+  "look",
+  "me",
+  "of",
+  "please",
+  "pls",
+  "price",
+  "prices",
+  "show",
+  "tell",
+  "the",
+  "this",
+  "to",
+  "u",
+  "up",
+  "value",
+  "values",
+  "was",
+  "were",
+  "what",
+  "whats",
+  "worth",
+  "would",
+  "you",
+
+  // Variant and potion words should not become part of a fuzzy pet name.
+  "normal",
+  "regular",
+  "neon",
+  "mega",
+  "fly",
+  "ride",
+  "potion",
+  "no",
+  "f",
+  "r",
+  "fr",
+  "n",
+  "nf",
+  "nr",
+  "nfr",
+  "m",
+  "mf",
+  "mr",
+  "mfr",
+]);
+
+const PET_QUERY_WORDS = [
+  "worth",
+  "value",
+  "values",
+  "price",
+  "how much",
+  "check",
+  "show me",
+  "tell me",
+  "normal",
+  "regular",
+  "neon",
+  "mega",
+  "no potion",
+  "fr",
+  "nfr",
+  "mfr",
+] as const;
+
 export function normalizeText(value: string) {
   return value
     .toLowerCase()
@@ -94,6 +185,323 @@ export function normalizeText(value: string) {
     .replace(/[^a-z0-9\s-]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function getWords(value: string) {
+  const normalizedValue = normalizeText(value);
+
+  return normalizedValue
+    ? normalizedValue.split(" ")
+    : [];
+}
+
+function createFuzzySearchPhrase(value: string) {
+  return getWords(value)
+    .filter(
+      (word) =>
+        !FUZZY_IGNORED_WORDS.has(word),
+    )
+    .join(" ")
+    .trim();
+}
+
+function looksLikePetRequest(value: string) {
+  const normalizedValue = normalizeText(value);
+
+  return PET_QUERY_WORDS.some((word) =>
+    containsWholePhrase(
+      normalizedValue,
+      word,
+    ),
+  );
+}
+
+function calculateEditDistance(
+  firstValue: string,
+  secondValue: string,
+) {
+  const first = normalizeText(firstValue);
+  const second = normalizeText(secondValue);
+
+  if (first === second) {
+    return 0;
+  }
+
+  if (!first) {
+    return second.length;
+  }
+
+  if (!second) {
+    return first.length;
+  }
+
+  const distances = Array.from(
+    { length: first.length + 1 },
+    () =>
+      Array<number>(second.length + 1)
+        .fill(0),
+  );
+
+  for (
+    let firstIndex = 0;
+    firstIndex <= first.length;
+    firstIndex += 1
+  ) {
+    distances[firstIndex][0] =
+      firstIndex;
+  }
+
+  for (
+    let secondIndex = 0;
+    secondIndex <= second.length;
+    secondIndex += 1
+  ) {
+    distances[0][secondIndex] =
+      secondIndex;
+  }
+
+  for (
+    let firstIndex = 1;
+    firstIndex <= first.length;
+    firstIndex += 1
+  ) {
+    for (
+      let secondIndex = 1;
+      secondIndex <= second.length;
+      secondIndex += 1
+    ) {
+      const substitutionCost =
+        first[firstIndex - 1] ===
+        second[secondIndex - 1]
+          ? 0
+          : 1;
+
+      distances[firstIndex][secondIndex] =
+        Math.min(
+          distances[firstIndex - 1][
+            secondIndex
+          ] + 1,
+          distances[firstIndex][
+            secondIndex - 1
+          ] + 1,
+          distances[firstIndex - 1][
+            secondIndex - 1
+          ] + substitutionCost,
+        );
+
+      const hasTransposition =
+        firstIndex > 1 &&
+        secondIndex > 1 &&
+        first[firstIndex - 1] ===
+          second[secondIndex - 2] &&
+        first[firstIndex - 2] ===
+          second[secondIndex - 1];
+
+      if (hasTransposition) {
+        distances[firstIndex][secondIndex] =
+          Math.min(
+            distances[firstIndex][
+              secondIndex
+            ],
+            distances[firstIndex - 2][
+              secondIndex - 2
+            ] + substitutionCost,
+          );
+      }
+    }
+  }
+
+  return distances[first.length][
+    second.length
+  ];
+}
+
+function getAllowedFuzzyDistance(
+  length: number,
+) {
+  if (length <= 4) {
+    return 1;
+  }
+
+  if (length <= 8) {
+    return 1;
+  }
+
+  if (length <= 14) {
+    return 2;
+  }
+
+  return 3;
+}
+
+function hasCompatibleWordCount(
+  firstValue: string,
+  secondValue: string,
+) {
+  return (
+    Math.abs(
+      getWords(firstValue).length -
+        getWords(secondValue).length,
+    ) <= 1
+  );
+}
+
+function findBestFuzzyPet(
+  value: string,
+  allowDirectName = false,
+): FuzzyPetCandidate | undefined {
+  const fuzzyPhrase =
+    createFuzzySearchPhrase(value);
+
+  if (!fuzzyPhrase) {
+    return undefined;
+  }
+
+  const directNameRequest =
+    allowDirectName &&
+    getWords(fuzzyPhrase).length <= 4;
+
+  if (
+    !directNameRequest &&
+    !looksLikePetRequest(value)
+  ) {
+    return undefined;
+  }
+
+  const candidatesByPet =
+    new Map<string, FuzzyPetCandidate>();
+
+  for (const searchablePet of searchablePetNames) {
+    if (
+      !hasCompatibleWordCount(
+        fuzzyPhrase,
+        searchablePet.normalizedName,
+      )
+    ) {
+      continue;
+    }
+
+    if (
+      fuzzyPhrase[0] !==
+      searchablePet.normalizedName[0]
+    ) {
+      continue;
+    }
+
+    const longestLength = Math.max(
+      fuzzyPhrase.length,
+      searchablePet.normalizedName.length,
+    );
+
+    const distance = calculateEditDistance(
+      fuzzyPhrase,
+      searchablePet.normalizedName,
+    );
+
+    const allowedDistance =
+      getAllowedFuzzyDistance(longestLength);
+
+    if (distance > allowedDistance) {
+      continue;
+    }
+
+    const similarity =
+      longestLength === 0
+        ? 1
+        : 1 - distance / longestLength;
+
+    const minimumSimilarity =
+      longestLength <= 4 ? 0.74 : 0.78;
+
+    if (similarity < minimumSimilarity) {
+      continue;
+    }
+
+    const petKey = normalizeText(
+      searchablePet.pet.PETS,
+    );
+
+    const candidate: FuzzyPetCandidate = {
+      pet: searchablePet.pet,
+      matchedName: searchablePet.searchableName,
+      distance,
+      similarity,
+      isAlias: searchablePet.isAlias,
+    };
+
+    const existingCandidate =
+      candidatesByPet.get(petKey);
+
+    if (
+      !existingCandidate ||
+      candidate.distance <
+        existingCandidate.distance ||
+      (candidate.distance ===
+        existingCandidate.distance &&
+        candidate.similarity >
+          existingCandidate.similarity) ||
+      (candidate.distance ===
+        existingCandidate.distance &&
+        candidate.similarity ===
+          existingCandidate.similarity &&
+        !candidate.isAlias &&
+        existingCandidate.isAlias)
+    ) {
+      candidatesByPet.set(
+        petKey,
+        candidate,
+      );
+    }
+  }
+
+  const candidates = Array.from(
+    candidatesByPet.values(),
+  ).sort((firstCandidate, secondCandidate) => {
+    if (
+      firstCandidate.distance !==
+      secondCandidate.distance
+    ) {
+      return (
+        firstCandidate.distance -
+        secondCandidate.distance
+      );
+    }
+
+    if (
+      firstCandidate.similarity !==
+      secondCandidate.similarity
+    ) {
+      return (
+        secondCandidate.similarity -
+        firstCandidate.similarity
+      );
+    }
+
+    return Number(firstCandidate.isAlias) -
+      Number(secondCandidate.isAlias);
+  });
+
+  const bestCandidate = candidates[0];
+  const secondCandidate = candidates[1];
+
+  if (!bestCandidate) {
+    return undefined;
+  }
+
+  // Avoid guessing when two different pets are equally plausible.
+  if (
+    secondCandidate &&
+    secondCandidate.distance ===
+      bestCandidate.distance &&
+    Math.abs(
+      secondCandidate.similarity -
+        bestCandidate.similarity,
+    ) < 0.03
+  ) {
+    return undefined;
+  }
+
+  return bestCandidate;
 }
 
 function escapeRegExp(value: string) {
@@ -249,13 +657,16 @@ export function findPetByName(
   const aliasTarget =
     PET_ALIASES[normalizedPetName];
 
-  if (!aliasTarget) {
-    return undefined;
+  if (aliasTarget) {
+    return findPetByExactDatabaseName(
+      aliasTarget,
+    );
   }
 
-  return findPetByExactDatabaseName(
-    aliasTarget,
-  );
+  return findBestFuzzyPet(
+    normalizedPetName,
+    true,
+  )?.pet;
 }
 
 export function detectPetVariant(
@@ -406,6 +817,103 @@ function findPositionedPets(
   );
 }
 
+function findUnmatchedRanges(
+  message: string,
+  positionedMatches: PositionedPetMatch[],
+) {
+  const normalizedMessage = normalizeText(message);
+
+  if (!normalizedMessage) {
+    return [];
+  }
+
+  if (positionedMatches.length === 0) {
+    return [
+      {
+        start: 0,
+        end: normalizedMessage.length,
+        text: normalizedMessage,
+      },
+    ];
+  }
+
+  const ranges: Array<{
+    start: number;
+    end: number;
+    text: string;
+  }> = [];
+
+  let cursor = 0;
+
+  for (const match of positionedMatches) {
+    if (cursor < match.start) {
+      ranges.push({
+        start: cursor,
+        end: match.start,
+        text: normalizedMessage.slice(
+          cursor,
+          match.start,
+        ),
+      });
+    }
+
+    cursor = Math.max(cursor, match.end);
+  }
+
+  if (cursor < normalizedMessage.length) {
+    ranges.push({
+      start: cursor,
+      end: normalizedMessage.length,
+      text: normalizedMessage.slice(cursor),
+    });
+  }
+
+  return ranges.filter(
+    (range) =>
+      createFuzzySearchPhrase(range.text)
+        .length > 0,
+  );
+}
+
+function findFuzzyPositionedPets(
+  message: string,
+  lineIndex: number,
+  exactMatches: PositionedPetMatch[],
+): PositionedPetMatch[] {
+  const unmatchedRanges =
+    findUnmatchedRanges(
+      message,
+      exactMatches,
+    );
+
+  return unmatchedRanges.flatMap(
+    (range) => {
+      const candidate = findBestFuzzyPet(
+        range.text,
+        exactMatches.length === 0,
+      );
+
+      if (!candidate) {
+        return [];
+      }
+
+      return [
+        {
+          pet: candidate.pet,
+          matchedName:
+            candidate.matchedName,
+          variant: detectPetVariant(
+            range.text,
+          ),
+          lineIndex,
+          start: range.start,
+          end: range.end,
+        },
+      ];
+    },
+  );
+}
+
 function detectVariantForPosition(
   message: string,
   currentMatch: PositionedPetMatch,
@@ -427,8 +935,24 @@ function findPetsInSection(
   section: string,
   lineIndex: number,
 ): PetMessageMatch[] {
-  const positionedMatches =
+  const exactMatches =
     findPositionedPets(section, lineIndex);
+
+  const fuzzyMatches =
+    findFuzzyPositionedPets(
+      section,
+      lineIndex,
+      exactMatches,
+    );
+
+  const positionedMatches = [
+    ...exactMatches,
+    ...fuzzyMatches,
+  ].sort(
+    (firstMatch, secondMatch) =>
+      firstMatch.start -
+      secondMatch.start,
+  );
 
   return positionedMatches.map(
     (match, index) => {
@@ -440,11 +964,13 @@ function findPetsInSection(
       return {
         pet: match.pet,
         matchedName: match.matchedName,
-        variant: detectVariantForPosition(
-          section,
-          match,
-          previousMatch,
-        ),
+        variant:
+          match.variant ??
+          detectVariantForPosition(
+            section,
+            match,
+            previousMatch,
+          ),
         lineIndex,
       };
     },

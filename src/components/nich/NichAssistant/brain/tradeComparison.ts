@@ -21,6 +21,18 @@ function capitalize(value: string) {
   );
 }
 
+function formatNumber(
+  value: number,
+) {
+  if (Number.isInteger(value)) {
+    return String(value);
+  }
+
+  return value
+    .toFixed(1)
+    .replace(/\.0$/, "");
+}
+
 const verdictEmoji = {
   win: "🟢",
   fair: "🟡",
@@ -67,48 +79,69 @@ function getAdjustmentText(
   return `Adjustment: ${item.potionAdjustment} (${missingPotion})`;
 }
 
-function createTradeItemBlock(
-  heading: string,
+function createTradeItemLines(
   item: NichTradeItem,
+  index: number,
 ) {
   const adjustmentText =
     getAdjustmentText(item);
 
   const lines = [
-    heading,
-    `${item.petCode} ${item.petName}`,
-    `Variant: ${capitalize(
+    `${index + 1}. ${item.petCode} ${item.petName}`,
+    `   Variant: ${capitalize(
       item.variant,
     )}`,
-    `Potions: ${getPotionLabel(
+    `   Potions: ${getPotionLabel(
       item.potionStatus,
     )}`,
   ];
 
   if (item.potionAdjustment !== 0) {
     lines.push(
-      `Original value: ${item.baseDisplayValue}`,
+      `   Original value: ${item.baseDisplayValue}`,
     );
 
     if (adjustmentText) {
-      lines.push(adjustmentText);
+      lines.push(
+        `   ${adjustmentText}`,
+      );
     }
   }
 
   lines.push(
-    `Value used: ${item.displayValue}`,
+    `   Value used: ${item.displayValue}`,
   );
 
   return lines;
 }
 
+function createTradeSideBlock(
+  heading: string,
+  items: NichTradeItem[],
+  total: number,
+) {
+  const itemLines = items.flatMap(
+    createTradeItemLines,
+  );
+
+  return [
+    `${heading} (${items.length} ${
+      items.length === 1
+        ? "pet"
+        : "pets"
+    })`,
+    ...itemLines,
+    `Total: ${formatNumber(total)}`,
+  ];
+}
+
 function createNoPotionWarning(
-  offered: NichTradeItem,
-  requested: NichTradeItem,
+  offeredItems: NichTradeItem[],
+  requestedItems: NichTradeItem[],
 ) {
   const warningPets = [
-    offered,
-    requested,
+    ...offeredItems,
+    ...requestedItems,
   ].filter(
     (item) =>
       item.hasNoPotionWarning,
@@ -123,7 +156,7 @@ function createNoPotionWarning(
       (item) =>
         `${item.petCode} ${item.petName}`,
     )
-    .join(" and ");
+    .join(", ");
 
   return [
     "",
@@ -131,6 +164,28 @@ function createNoPotionWarning(
     "No Fly or Ride potion letters were specified, so Nich used the original database value with no deduction.",
     "Some no-potion pets, especially high-tier pets, may be worth more than the listed value.",
   ];
+}
+
+function formatTradeSideForMessage(
+  items: NichTradeItem[],
+) {
+  return items
+    .map(
+      (item) =>
+        `${item.petCode} ${item.petName}`,
+    )
+    .join(" + ");
+}
+
+function createRecentPets(
+  items: NichTradeItem[],
+) {
+  return items.map((item) => ({
+    petName: item.petName,
+    variant: item.variant,
+    value: item.value,
+    displayValue: item.displayValue,
+  }));
 }
 
 export function createTradeComparisonResponse(
@@ -157,17 +212,25 @@ export function createTradeComparisonResponse(
   if (!comparison) {
     return {
       text: [
-        "I couldn't compare those pets.",
+        "I couldn't compare that trade.",
         "",
-        "Make sure both pet names are valid and that their values exist in the CSBT database.",
+        "Make sure each side contains at least one valid pet and that every pet has a value in the CSBT database.",
+        "",
+        "Separate multiple pets with +, commas, or the word “and.”",
       ].join("\n"),
       intent: "tradeComparison",
       reaction: "searchEmpty",
-      typingDuration: 600,
+      typingDuration: 650,
       suggestions: [
         {
-          id: "trade-example",
-          label: "Try an example",
+          id: "trade-multiple-example",
+          label: "Try multiple pets",
+          message:
+            "Me: FR Frost Dragon + Turtle Them: FR Owl + Kangaroo",
+        },
+        {
+          id: "trade-single-example",
+          label: "Try one pet each",
           message:
             "WFL me FR Frost Dragon him FR Owl",
         },
@@ -181,44 +244,70 @@ export function createTradeComparisonResponse(
 
   const difference = Math.abs(
     comparison.difference,
-  ).toFixed(1);
+  );
 
   let explanation: string;
 
   switch (comparison.verdict) {
     case "win":
       explanation =
-        `You're gaining about ${difference} value.`;
+        `You're gaining about ${formatNumber(
+          difference,
+        )} value.`;
       break;
 
     case "lose":
       explanation =
-        `You're overpaying by about ${difference} value.`;
+        `You're overpaying by about ${formatNumber(
+          difference,
+        )} value.`;
       break;
 
     case "fair":
     default:
       explanation =
-        "Both offers are very close in value.";
+        "Both offers are very close in total value.";
       break;
   }
 
   const yourOfferBlock =
-    createTradeItemBlock(
+    createTradeSideBlock(
       "Your Offer",
-      comparison.offered,
+      comparison.offeredItems,
+      comparison.offeredValue,
     );
 
   const theirOfferBlock =
-    createTradeItemBlock(
+    createTradeSideBlock(
       "Their Offer",
-      comparison.requested,
+      comparison.requestedItems,
+      comparison.requestedValue,
     );
 
   const warningLines =
     createNoPotionWarning(
-      comparison.offered,
-      comparison.requested,
+      comparison.offeredItems,
+      comparison.requestedItems,
+    );
+
+  const allItems = [
+    ...comparison.offeredItems,
+    ...comparison.requestedItems,
+  ];
+
+  const lastItem =
+    comparison.requestedItems[
+      comparison.requestedItems.length - 1
+    ];
+
+  const yourOfferMessage =
+    formatTradeSideForMessage(
+      comparison.offeredItems,
+    );
+
+  const theirOfferMessage =
+    formatTradeSideForMessage(
+      comparison.requestedItems,
     );
 
   return {
@@ -243,7 +332,11 @@ export function createTradeComparisonResponse(
         : comparison.verdict === "fair"
           ? "calculator"
           : "searchEmpty",
-    typingDuration: 900,
+    typingDuration:
+      Math.min(
+        850 + allItems.length * 100,
+        1600,
+      ),
     tradeComparison: comparison,
     context: {
       lastIntent:
@@ -251,46 +344,31 @@ export function createTradeComparisonResponse(
       lastTradeComparison:
         comparison,
       lastPetName:
-        comparison.requested.petName,
+        lastItem.petName,
       lastVariant:
-        comparison.requested.variant,
+        lastItem.variant,
       lastNumericValue:
-        comparison.requested.value,
-      recentPets: [
-        {
-          petName:
-            comparison.offered.petName,
-          variant:
-            comparison.offered.variant,
-          value:
-            comparison.offered.value,
-          displayValue:
-            comparison.offered.displayValue,
-        },
-        {
-          petName:
-            comparison.requested.petName,
-          variant:
-            comparison.requested.variant,
-          value:
-            comparison.requested.value,
-          displayValue:
-            comparison.requested.displayValue,
-        },
-      ],
+        lastItem.value,
+      recentPets:
+        createRecentPets(allItems),
     },
     suggestions: [
       {
-        id: "trade-full-potions",
-        label: "Compare FR pets",
+        id: "trade-swap-sides",
+        label: "Swap the sides",
         message:
-          `WFL me FR ${comparison.offered.petName} him FR ${comparison.requested.petName}`,
+          `WFL me ${theirOfferMessage} them ${yourOfferMessage}`,
       },
       {
-        id: "trade-missing-fly",
-        label: "Try missing Fly",
+        id: "trade-check-all-values",
+        label: "Check all values",
         message:
-          `WFL me MR ${comparison.offered.petName} him MFR ${comparison.requested.petName}`,
+          allItems
+            .map(
+              (item) =>
+                `${item.petCode} ${item.petName}`,
+            )
+            .join(", "),
       },
     ],
   };

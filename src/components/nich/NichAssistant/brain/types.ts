@@ -17,6 +17,19 @@ export type NichSuggestion = {
   message: string;
 };
 
+export type NichNavigationPath =
+  | "/"
+  | "/values"
+  | "/calculator"
+  | "/nich"
+  | "/about";
+
+export type NichNavigationAction = {
+  href: NichNavigationPath;
+  label: string;
+  delay?: number;
+};
+
 export type NichTradeItem = {
   petName: string;
   variant: PetVariant;
@@ -61,8 +74,25 @@ export type NichTradeItem = {
 };
 
 export type NichTradeComparison = {
+  /**
+   * Every pet detected on the user's side.
+   */
+  offeredItems: NichTradeItem[];
+
+  /**
+   * Every pet detected on the other trader's side.
+   */
+  requestedItems: NichTradeItem[];
+
+  /**
+   * Backward-compatible first items.
+   *
+   * Existing code that reads comparison.offered or
+   * comparison.requested will continue to work.
+   */
   offered: NichTradeItem;
   requested: NichTradeItem;
+
   offeredValue: number;
   requestedValue: number;
   difference: number;
@@ -158,6 +188,7 @@ export type NichResponse = {
   suggestions?: NichSuggestion[];
   context?: Partial<NichConversationContext>;
   tradeComparison?: NichTradeComparison;
+  navigation?: NichNavigationAction;
 };
 
 export type NichBrainInput = {

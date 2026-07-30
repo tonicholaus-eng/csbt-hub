@@ -1664,13 +1664,6 @@
     "IMAGE": "/pets/garden-snake.webp"
   },
   {
-    "PETS": "Garden Snake",
-    "NORMAL": "3-5",
-    "NEON": "10-15",
-    "MEGA": "30-35",
-    "IMAGE": "/pets/garden-snake.webp"
-  },
-  {
     "PETS": "Gargoyle",
     "NORMAL": "20-25",
     "NEON": "70-75",

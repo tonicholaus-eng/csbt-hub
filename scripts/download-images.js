@@ -30,7 +30,7 @@ async function downloadImage(page, imageUrl, destination) {
 
   fs.writeFileSync(destination, buffer);
 }
-      async function getImageUrl(page, petName) {
+ async function getImageUrl(page, petName) {
   const url =
     "https://adoptme.fandom.com/wiki/" +
     encodeURIComponent(petName.replace(/\s+/g, "_"));
@@ -40,44 +40,51 @@ await page.goto(url, {
   timeout: 120000,
 });
 
-await page.waitForTimeout(5000);
-
-const image = await page.evaluate(() => {
-  const selectors = [
-    ".pi-image-thumbnail",
-    ".image img",
-    ".portable-infobox img",
-    ".mw-parser-output img"
-  ];
-
-  for (const selector of selectors) {
-    const img = document.querySelector(selector);
-    if (img && img.src) {
-      return img.src;
-    }
-  }
-
-  return null;
+await page.screenshot({
+  path: "abyssinian-test.png",
+  fullPage: true,
 });
 
-console.log("Image URL:", image);
+  // Wait until at least one Adopt Me image appears
+  await page
+    .waitForFunction(() => {
+      return [...document.images].some((img) =>
+        img.src.includes("static.wikia.nocookie.net/adoptme")
+      );
+    }, { timeout: 15000 })
+    .catch(() => {});
 
-if (!image) return null;
-
-return image.split("/revision")[0];
-}(async () => {
-  const browser = await chromium.launch({
-    headless: false,
+  const images = await page.evaluate(() => {
+    return [...document.images].map((img) => img.src);
   });
 
-  const page = await browser.newPage({
+  console.log("All images found:");
+  console.log(images);
+
+  const image = images.find((src) =>
+    src.includes("static.wikia.nocookie.net/adoptme")
+  );
+
+  console.log("Image URL:", image);
+
+  return image || null;
+}
+(async () => {
+const context = await chromium.launchPersistentContext(
+  "C:\\Users\\me\\AppData\\Local\\Google\\Chrome\\User Data\\Profile 1",
+  {
+    headless: false,
+    channel: "chrome",
     viewport: {
       width: 1400,
       height: 900,
     },
-  });
+  }
+);
 
- for (let i = 0; i < pets.length; i++) {
+const page = context.pages()[0] || await context.newPage();
+
+ for (let i = 4; i < 5; i++) {
     const pet = pets[i];
 
     const filename = pet.IMAGE.replace("/pets/", "");
@@ -111,7 +118,7 @@ return image.split("/revision")[0];
     }
   }
 
-  await browser.close();
+ await context.close();
 
   console.log("\n🎉 Finished!");
 })();

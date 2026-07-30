@@ -10,7 +10,6 @@ import Hero from "../components/Hero";
 import MeetNich from "../components/home/MeetNich";
 import QuickActions from "../components/home/QuickActions";
 import Navbar from "../components/Navbar";
-import { NichAssistant } from "../components/nich";
 import PopularPets from "../components/PopularPets";
 import Stats from "../components/Stats";
 
@@ -356,7 +355,7 @@ export default function Home() {
         <Footer />
       </div>
 
-      <NichAssistant />
+      
     </motion.main>
   );
 }

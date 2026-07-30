@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import {
+  useDeferredValue,
   useEffect,
   useMemo,
   useRef,
@@ -21,6 +22,8 @@ type Props = {
   onClose: () => void;
   onSelect: (pet: TradePet) => void;
 };
+
+const PETS_PER_PAGE = 30;
 
 type PetImageProps = {
   src?: string;
@@ -66,6 +69,7 @@ function PetImage({
       width={96}
       height={96}
       unoptimized
+      loading="lazy"
       onError={() => setImageFailed(true)}
       className="h-20 w-20 object-contain drop-shadow-lg transition-transform duration-300 group-hover/card:scale-110 group-hover/card:rotate-3 sm:h-24 sm:w-24"
     />
@@ -106,7 +110,13 @@ export default function AddPetModal({
   const [search, setSearch] =
     useState("");
 
-  const normalizedSearch = search
+  const [visibleCount, setVisibleCount] =
+    useState(PETS_PER_PAGE);
+
+  const deferredSearch =
+    useDeferredValue(search);
+
+  const normalizedSearch = deferredSearch
     .trim()
     .toLowerCase();
 
@@ -122,11 +132,22 @@ export default function AddPetModal({
     );
   }, [normalizedSearch]);
 
+  const visiblePets = useMemo(
+    () => filteredPets.slice(0, visibleCount),
+    [filteredPets, visibleCount],
+  );
+
+  const hasMorePets =
+    visibleCount < filteredPets.length;
+
   useEffect(() => {
     if (!open) {
       setSearch("");
+      setVisibleCount(PETS_PER_PAGE);
       return;
     }
+
+    setVisibleCount(PETS_PER_PAGE);
 
     previouslyFocusedElement.current =
       document.activeElement instanceof
@@ -239,6 +260,7 @@ export default function AddPetModal({
 
   function clearSearch() {
     setSearch("");
+    setVisibleCount(PETS_PER_PAGE);
 
     requestAnimationFrame(() => {
       searchInputRef.current?.focus();
@@ -382,11 +404,14 @@ export default function AddPetModal({
                   ref={searchInputRef}
                   type="search"
                   value={search}
-                  onChange={(event) =>
+                  onChange={(event) => {
                     setSearch(
                       event.target.value,
-                    )
-                  }
+                    );
+                    setVisibleCount(
+                      PETS_PER_PAGE,
+                    );
+                  }}
                   placeholder="Search any Adopt Me pet..."
                   autoComplete="off"
                   spellCheck={false}
@@ -471,7 +496,7 @@ export default function AddPetModal({
             ) : (
               <div className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain">
                 <div className="grid grid-cols-2 items-stretch gap-3 p-3 sm:gap-5 sm:p-6 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                  {filteredPets.map(
+                  {visiblePets.map(
                     (pet, index) => (
                       <motion.button
                         type="button"
@@ -581,6 +606,33 @@ export default function AddPetModal({
                         </div>
                       </motion.button>
                     ),
+                  )}
+
+                  {hasMorePets && (
+                    <div className="col-span-full flex flex-col items-center justify-center gap-3 py-4 sm:py-6">
+                      <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 sm:text-sm">
+                        Showing {visiblePets.length} of{" "}
+                        {filteredPets.length} pets
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setVisibleCount(
+                            (currentCount) =>
+                              currentCount +
+                              PETS_PER_PAGE,
+                          )
+                        }
+                        className="min-h-12 rounded-2xl bg-gradient-to-r from-yellow-500 via-orange-500 to-amber-500 px-6 py-3 text-sm font-black text-white shadow-lg outline-none transition duration-300 hover:-translate-y-0.5 hover:shadow-xl focus-visible:ring-4 focus-visible:ring-yellow-300/50 dark:focus-visible:ring-amber-400/30 sm:text-base"
+                      >
+                        Load {Math.min(
+                          PETS_PER_PAGE,
+                          filteredPets.length -
+                            visiblePets.length,
+                        )} more pets
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>

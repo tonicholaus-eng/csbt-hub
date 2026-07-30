@@ -13,6 +13,8 @@ import {
 import createNearbyPetsResponse from "./nearbyPets";
 import createPetLookupResponse from "./petLookup";
 import createTradeComparisonResponse from "./tradeComparison";
+import createSmartFallbackResponse from "./smartFallback";
+import createWebsiteKnowledgeResponse from "./websiteKnowledge";
 
 import type {
   NichBrainInput,
@@ -55,6 +57,33 @@ function createGreetingResponse(): NichResponse {
         label: "Find nearby values",
         message:
           "Find pets around 500 value",
+      },
+    ],
+  };
+}
+
+function createHandsomeResponse(): NichResponse {
+  return {
+    text: "According to my highly accurate calculations... Big Boss Nich. 😎",
+    intent: "greeting",
+    reaction: "celebrate",
+    typingDuration: 700,
+    suggestions: [
+      {
+        id: "handsome-pet-values",
+        label: "Check pet values",
+        message:
+          "What is Frost Dragon worth?",
+      },
+      {
+        id: "handsome-compare",
+        label: "Compare a trade",
+        message: "Frost Dragon for Owl",
+      },
+      {
+        id: "handsome-help",
+        label: "What can you do?",
+        message: "What can you do?",
       },
     ],
   };
@@ -173,8 +202,9 @@ function createHelpResponse(): NichResponse {
       "🔎 Finding pets near a certain value",
       "🧮 Using the Trade Calculator",
       "💬 Remembering pets from recent messages",
+      "🧭 Finding pages and features on CSBT HUB",
       "",
-      "I can also distinguish between value lookups, nearby searches, and trade comparisons when a question could mean more than one thing.",
+      "I can also distinguish between value lookups, nearby searches, trade comparisons, and website questions when a message could mean more than one thing.",
     ].join("\n"),
     intent: "help",
     reaction: "wave",
@@ -187,16 +217,16 @@ function createHelpResponse(): NichResponse {
           "How much are Frost Dragon, Owl, and Kangaroo?",
       },
       {
-        id: "help-variant-values",
-        label: "Different variants",
-        message:
-          "Mega Owl, Neon Crow, and normal Turtle",
-      },
-      {
         id: "help-trade-comparison",
         label: "Compare trade",
         message:
           "Neon Turtle vs Mega Unicorn",
+      },
+      {
+        id: "help-website-pages",
+        label: "Website pages",
+        message:
+          "What pages are on this website?",
       },
     ],
   };
@@ -244,6 +274,25 @@ function isGreeting(message: string) {
     message.startsWith("hi nich") ||
     message.startsWith("hello nich") ||
     message.startsWith("hey nich")
+  );
+}
+
+function isHandsomeQuestion(message: string) {
+  return (
+    message === "whos handsome" ||
+    message === "who is handsome" ||
+    message === "who handsome" ||
+    message === "whos the most handsome" ||
+    message === "who is the most handsome" ||
+    message === "whos pogi" ||
+    message === "who is pogi" ||
+    message === "sino pogi" ||
+    message === "sino ang pogi" ||
+    message === "sino pinaka pogi" ||
+    message === "sino ang pinaka pogi" ||
+    message.includes("who do you think is handsome") ||
+    message.includes("who is the handsomest") ||
+    message.includes("sino ang handsome")
   );
 }
 
@@ -403,6 +452,10 @@ export function routeNichMessage(
   ) {
     response = createGreetingResponse();
   } else if (
+    isHandsomeQuestion(normalizedMessage)
+  ) {
+    response = createHandsomeResponse();
+  } else if (
     isThanks(normalizedMessage)
   ) {
     response = createThanksResponse();
@@ -426,10 +479,17 @@ export function routeNichMessage(
     response = createHelpResponse();
   } else {
     response =
+      createWebsiteKnowledgeResponse(
+        resolvedInput.message,
+      ) ??
       runScoredFeatureRoutes(
         resolvedInput,
         analysis,
-      ) ?? createFallbackResponse();
+      ) ??
+      createSmartFallbackResponse(
+        resolvedInput,
+        analysis,
+      );
   }
 
   return attachConversationMetadata(

@@ -12,9 +12,23 @@ import {
   type PetVariant,
 } from "./petSearch";
 
+export type ParsedTradeItem = {
+  text: string;
+  petName: string;
+  variant: PetVariant;
+  potionStatus: NichPotionStatus;
+  code: string;
+};
+
 export type ParsedTradeQuery = {
   offerText: string;
   requestText: string;
+  offerItems: ParsedTradeItem[];
+  requestItems: ParsedTradeItem[];
+
+  /**
+   * Backward-compatible details for the first item on each side.
+   */
   offerPet: string;
   offerVariant: PetVariant;
   offerPotionStatus: NichPotionStatus;
@@ -34,6 +48,7 @@ type TradePetDetails = {
 
 const MISSING_FLY_ADJUSTMENT = -20;
 const MISSING_RIDE_ADJUSTMENT = -10;
+const MAX_ITEMS_PER_SIDE = 9;
 
 function getNumericValue(
   value: string | number | undefined,
@@ -381,6 +396,71 @@ function getPotionAdjustment(
   }
 }
 
+function normalizeTradeSeparators(
+  value: string,
+) {
+  return value
+    .replace(
+      /\bfly\s+and\s+ride\b/gi,
+      "fly ride",
+    )
+    .replace(
+      /\bride\s+and\s+fly\b/gi,
+      "ride fly",
+    );
+}
+
+function splitTradeSideIntoItems(
+  value: string,
+) {
+  const normalizedValue =
+    normalizeTradeSeparators(value);
+
+  return normalizedValue
+    .split(
+      /\r?\n|,|;|\+|\s+\/\s+|\s+\band\b\s+|\s+\bwith\b\s+/gi,
+    )
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, MAX_ITEMS_PER_SIDE);
+}
+
+function parseTradeItem(
+  text: string,
+): ParsedTradeItem | null {
+  const result =
+    findPetInMessage(text);
+
+  if (!result) {
+    return null;
+  }
+
+  const details =
+    detectTradePetDetails(text);
+
+  return {
+    text,
+    petName: result.pet.PETS,
+    variant: details.variant,
+    potionStatus:
+      details.potionStatus,
+    code: details.code,
+  };
+}
+
+function parseTradeSide(
+  text: string,
+) {
+  return splitTradeSideIntoItems(text)
+    .map(parseTradeItem)
+    .filter(
+      (
+        item,
+      ): item is ParsedTradeItem =>
+        item !== null,
+    );
+}
+
 function createTradeItem(
   text: string,
 ): NichTradeItem | null {
@@ -435,26 +515,58 @@ function createTradeItem(
   };
 }
 
+function createTradeItems(
+  text: string,
+) {
+  return splitTradeSideIntoItems(text)
+    .map(createTradeItem)
+    .filter(
+      (
+        item,
+      ): item is NichTradeItem =>
+        item !== null,
+    );
+}
+
+function sumTradeItems(
+  items: NichTradeItem[],
+) {
+  return items.reduce(
+    (total, item) =>
+      total + item.value,
+    0,
+  );
+}
+
 export function compareTrade(
   offerText: string,
   requestText: string,
 ): NichTradeComparison | null {
-  const offered =
-    createTradeItem(offerText);
+  const offeredItems =
+    createTradeItems(offerText);
 
-  const requested =
-    createTradeItem(requestText);
+  const requestedItems =
+    createTradeItems(requestText);
 
-  if (!offered || !requested) {
+  if (
+    offeredItems.length === 0 ||
+    requestedItems.length === 0
+  ) {
     return null;
   }
 
+  const offeredValue =
+    sumTradeItems(offeredItems);
+
+  const requestedValue =
+    sumTradeItems(requestedItems);
+
   const difference =
-    requested.value - offered.value;
+    requestedValue - offeredValue;
 
   const comparisonBase = Math.max(
-    offered.value,
-    requested.value,
+    offeredValue,
+    requestedValue,
     1,
   );
 
@@ -477,10 +589,15 @@ export function compareTrade(
   }
 
   return {
-    offered,
-    requested,
-    offeredValue: offered.value,
-    requestedValue: requested.value,
+    offeredItems,
+    requestedItems,
+
+    // Keep these fields so older Nich code remains compatible.
+    offered: offeredItems[0],
+    requested: requestedItems[0],
+
+    offeredValue,
+    requestedValue,
     difference,
     differencePercent,
     verdict,
@@ -663,50 +780,53 @@ export function parseTradeMessage(
     return null;
   }
 
-  const offeredPet =
-    findPetInMessage(
+  const offerItems =
+    parseTradeSide(
       tradeSides.offerText,
     );
 
-  const requestedPet =
-    findPetInMessage(
+  const requestItems =
+    parseTradeSide(
       tradeSides.requestText,
     );
 
-  if (!offeredPet || !requestedPet) {
+  if (
+    offerItems.length === 0 ||
+    requestItems.length === 0
+  ) {
     return null;
   }
 
-  const offeredDetails =
-    detectTradePetDetails(
-      tradeSides.offerText,
-    );
+  const firstOffer =
+    offerItems[0];
 
-  const requestedDetails =
-    detectTradePetDetails(
-      tradeSides.requestText,
-    );
+  const firstRequest =
+    requestItems[0];
 
   return {
     offerText:
       tradeSides.offerText,
     requestText:
       tradeSides.requestText,
+    offerItems,
+    requestItems,
+
+    // Keep the original first-item fields for compatibility.
     offerPet:
-      offeredPet.pet.PETS,
+      firstOffer.petName,
     offerVariant:
-      offeredDetails.variant,
+      firstOffer.variant,
     offerPotionStatus:
-      offeredDetails.potionStatus,
+      firstOffer.potionStatus,
     offerCode:
-      offeredDetails.code,
+      firstOffer.code,
     requestPet:
-      requestedPet.pet.PETS,
+      firstRequest.petName,
     requestVariant:
-      requestedDetails.variant,
+      firstRequest.variant,
     requestPotionStatus:
-      requestedDetails.potionStatus,
+      firstRequest.potionStatus,
     requestCode:
-      requestedDetails.code,
+      firstRequest.code,
   };
 }
