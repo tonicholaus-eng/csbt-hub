@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Pet } from "../types/pet";
 
@@ -8,6 +9,44 @@ type Props = {
   pet: Pet;
   onBack: () => void;
 };
+
+type PetImageProps = {
+  src?: string;
+  name: string;
+};
+
+function PetImage({ src, name }: PetImageProps) {
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [src]);
+
+  if (!src || imageFailed) {
+    return (
+      <div className="flex h-52 w-52 items-center justify-center sm:h-60 sm:w-60">
+        <span aria-hidden="true" className="text-7xl">
+          🐾
+        </span>
+        <span className="sr-only">Image unavailable for {name}</span>
+      </div>
+    );
+  }
+
+  return (
+    <Image
+      src={src}
+      alt={name}
+      width={256}
+      height={256}
+      priority
+      unoptimized
+      onError={() => setImageFailed(true)}
+      className="h-52 w-52 object-contain drop-shadow-[0_22px_30px_rgba(0,0,0,.25)] sm:h-60 sm:w-60"
+    />
+  );
+}
+
 
 const valueCards = [
   {
@@ -190,13 +229,9 @@ export default function PetDetails({ pet, onBack }: Props) {
                 }}
                 className="relative"
               >
-                <Image
+                <PetImage
                   src={pet.IMAGE}
-                  alt={pet.PETS}
-                  width={256}
-                  height={256}
-                  priority
-                  className="h-52 w-52 object-contain drop-shadow-[0_22px_30px_rgba(0,0,0,.25)] sm:h-60 sm:w-60"
+                  name={pet.PETS}
                 />
               </motion.div>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useEffect, useState } from "react";
 import {
   AnimatePresence,
   motion,
@@ -12,6 +13,43 @@ type Props = {
   pets: Pet[];
   onSelect: (pet: Pet) => void;
 };
+
+type PetImageProps = {
+  src?: string;
+  name: string;
+};
+
+function PetImage({ src, name }: PetImageProps) {
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [src]);
+
+  if (!src || imageFailed) {
+    return (
+      <div className="flex h-24 w-24 items-center justify-center">
+        <span aria-hidden="true" className="text-5xl">
+          🐾
+        </span>
+        <span className="sr-only">Image unavailable for {name}</span>
+      </div>
+    );
+  }
+
+  return (
+    <Image
+      src={src}
+      alt={name}
+      width={96}
+      height={96}
+      unoptimized
+      onError={() => setImageFailed(true)}
+      className="h-24 w-24 object-contain drop-shadow-xl transition-transform duration-300 group-hover:scale-110"
+    />
+  );
+}
+
 
 const cardGradients = [
   "from-amber-400 via-yellow-400 to-orange-500",
@@ -187,12 +225,9 @@ export default function SearchResults({
                     className={`relative mx-auto flex h-28 w-28 shrink-0 items-center justify-center rounded-3xl bg-gradient-to-br ${gradient} p-[2px] sm:mx-0`}
                   >
                     <div className="flex h-full w-full items-center justify-center rounded-[22px] bg-gradient-to-br from-white via-white to-gray-50 p-3">
-                      <Image
+                      <PetImage
                         src={pet.IMAGE}
-                        alt={pet.PETS}
-                        width={96}
-                        height={96}
-                        className="h-24 w-24 object-contain drop-shadow-xl transition-transform duration-300 group-hover:scale-110"
+                        name={pet.PETS}
                       />
                     </div>
 

@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "data:validate": "tsx scripts/validatePets.ts",
+    "data:convert": "tsx scripts/convert.ts",
+    "data:add-images": "tsx scripts/addImages.ts",
+    "images:import": "node scripts/import-pet-images.mjs"
   },
   "dependencies": {
     "axios": "^1.18.1",

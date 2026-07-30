@@ -1,8 +1,6 @@
 import pets from "../data/pets.json";
 import { Pet } from "../types/pet";
 
-const petList = pets as Pet[];
-
 function normalize(value: string): string {
   return value
     .toLowerCase()
@@ -10,6 +8,15 @@ function normalize(value: string): string {
     .replace(/[^a-z0-9\s]/g, "")
     .replace(/\s+/g, " ");
 }
+
+const petList = Array.from(
+  new Map(
+    (pets as Pet[]).map((pet) => [
+      normalize(pet.PETS),
+      pet,
+    ]),
+  ).values(),
+);
 
 function getLevenshteinDistance(first: string, second: string): number {
   const rows = second.length + 1;
