@@ -31,7 +31,11 @@ function capitalizeVariant(
 }
 
 function parseNumericValue(
-  value: string | number | undefined,
+  value:
+    | string
+    | number
+    | null
+    | undefined,
 ) {
   if (
     value === undefined ||
