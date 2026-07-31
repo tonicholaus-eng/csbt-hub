@@ -49,9 +49,9 @@ function getTradeResult(
       glow:
         "shadow-slate-400/30 dark:shadow-black/30",
       message:
-        "Add pets to both sides to calculate your trade.",
+        "Add items to both sides to calculate your trade.",
       explanation:
-        "Start adding pets to compare both offers instantly.",
+        "Start adding items to compare both offers instantly.",
     };
   }
 
@@ -390,7 +390,7 @@ export default function TradeSummary({
         {!hasTradeValues && (
           <div className="mt-6 rounded-[24px] border border-white/15 bg-white/10 p-5 text-center backdrop-blur-xl sm:mt-10 sm:rounded-3xl">
             <p className="font-semibold leading-relaxed text-white/90">
-              Add at least one pet to either
+              Add at least one item to either
               offer to begin the comparison.
             </p>
           </div>

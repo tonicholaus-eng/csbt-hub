@@ -3,8 +3,6 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { useRouter } from "next/navigation";
 
-import pets from "../data/pets.json";
-
 import Footer from "../components/Footer";
 import Hero from "../components/Hero";
 import MeetNich from "../components/home/MeetNich";
@@ -12,6 +10,12 @@ import QuickActions from "../components/home/QuickActions";
 import Navbar from "../components/Navbar";
 import PopularPets from "../components/PopularPets";
 import Stats from "../components/Stats";
+import type { TradeItem } from "../components/trade/types";
+import tradingItemsData from "../data/tradingItems.json";
+
+const tradingItems = tradingItemsData as TradeItem[];
+
+const totalItems = tradingItems.length;
 
 const desktopSparkles = [
   {
@@ -241,7 +245,7 @@ export default function Home() {
         <Navbar />
 
         <div className="mx-auto w-full max-w-7xl px-3 pb-24 pt-6 sm:px-6 sm:pb-32 sm:pt-8">
-          <Hero totalPets={pets.length} />
+          <Hero totalPets={totalItems} />
 
           {/* Quick actions */}
           <motion.div
@@ -293,7 +297,7 @@ export default function Home() {
             <PopularPets
               onSelect={(pet) => {
                 const params = new URLSearchParams({
-                  pet: pet.PETS,
+                  pet: pet.NAME,
                 });
 
                 router.push(`/values?${params.toString()}`);
@@ -348,7 +352,7 @@ export default function Home() {
           >
             <div className="pointer-events-none absolute -inset-12 -z-10 hidden rounded-full bg-gradient-to-r from-orange-100/10 via-white/15 to-cyan-100/10 blur-2xl dark:from-orange-500/5 dark:via-white/5 dark:to-cyan-500/5 sm:block" />
 
-            <Stats totalPets={pets.length} />
+            <Stats totalPets={totalItems} />
           </motion.section>
         </div>
 

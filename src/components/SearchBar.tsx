@@ -289,13 +289,13 @@ export default function SearchBar({
           suggestions[selectedIndex];
 
         if (selectedPet) {
-          selectSuggestion(selectedPet.PETS);
+          selectSuggestion(selectedPet.NAME);
         }
       } else if (suggestions[0]) {
         event.preventDefault();
 
         selectSuggestion(
-          suggestions[0].PETS,
+          suggestions[0].NAME,
         );
       }
     }
@@ -383,16 +383,16 @@ export default function SearchBar({
             ref={inputRef}
             type="text"
             value={search}
-            placeholder="Search any Adopt Me pet..."
+            placeholder="Search any Trading item..."
             autoComplete="off"
             spellCheck={false}
             role="combobox"
-            aria-label="Search Adopt Me pets"
+            aria-label="Search Trading items and pet wear"
             aria-expanded={isDropdownOpen}
-            aria-controls="pet-search-suggestions"
+            aria-controls="item-search-suggestions"
             aria-activedescendant={
               selectedIndex >= 0
-                ? `pet-suggestion-${selectedIndex}`
+                ? `item-suggestion-${selectedIndex}`
                 : undefined
             }
             onFocus={() => setIsFocused(true)}
@@ -506,7 +506,7 @@ export default function SearchBar({
         <AnimatePresence>
           {isDropdownOpen && (
             <motion.div
-              id="pet-search-suggestions"
+              id="item-search-suggestions"
               role="listbox"
               initial={{
                 opacity: 0,
@@ -534,7 +534,7 @@ export default function SearchBar({
               <div className="flex items-center justify-between gap-3 px-3 py-3 sm:px-4">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.18em] text-yellow-600 dark:text-amber-300 sm:text-xs">
-                    Pet Suggestions
+                    Item Suggestions
                   </p>
 
                   <p className="mt-1 hidden text-xs text-gray-400 dark:text-slate-500 sm:block">
@@ -558,8 +558,8 @@ export default function SearchBar({
 
                       return (
                         <motion.button
-                          id={`pet-suggestion-${index}`}
-                          key={pet.PETS}
+                          id={`item-suggestion-${index}`}
+                          key={pet.NAME}
                           type="button"
                           role="option"
                           aria-selected={
@@ -591,7 +591,7 @@ export default function SearchBar({
                             event.preventDefault();
 
                             selectSuggestion(
-                              pet.PETS,
+                              pet.NAME,
                             );
                           }}
                           className={`
@@ -642,7 +642,7 @@ export default function SearchBar({
                           >
                             <SuggestionImage
                               src={pet.IMAGE}
-                              name={pet.PETS}
+                              name={pet.NAME}
                               selected={
                                 isSelected
                               }
@@ -665,13 +665,13 @@ export default function SearchBar({
                               `}
                             >
                               <HighlightedName
-                                name={pet.PETS}
+                                name={pet.NAME}
                                 query={search}
                               />
                             </p>
 
                             <p className="mt-0.5 text-[10px] font-medium text-gray-400 dark:text-slate-500 sm:text-xs">
-                              Adopt Me pet
+                              Trading item
                             </p>
                           </div>
 

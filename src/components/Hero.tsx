@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import {
   motion,
   useMotionValue,
@@ -72,8 +71,53 @@ const statItems = (totalPets: number) => [
   },
 ];
 
-export default function Hero({ totalPets }: HeroProps) {
-  const shouldReduceMotion = useReducedMotion();
+const sparkleDots = [
+  {
+    left: "18%",
+    top: "20%",
+    delay: 0,
+    size: "h-2.5 w-2.5",
+  },
+  {
+    left: "28%",
+    top: "72%",
+    delay: 1.2,
+    size: "h-2 w-2",
+  },
+  {
+    left: "78%",
+    top: "28%",
+    delay: 0.6,
+    size: "h-2.5 w-2.5",
+  },
+  {
+    left: "86%",
+    top: "58%",
+    delay: 1.8,
+    size: "h-2 w-2",
+  },
+];
+
+function SparkleCross({
+  className,
+}: {
+  className?: string;
+}) {
+  return (
+    <div
+      className={`relative ${className ?? ""}`}
+    >
+      <span className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 rounded-full bg-white/60" />
+      <span className="absolute left-0 top-1/2 h-px w-full -translate-y-1/2 rounded-full bg-white/60" />
+    </div>
+  );
+}
+
+export default function Hero({
+  totalPets,
+}: HeroProps) {
+  const shouldReduceMotion =
+    useReducedMotion();
 
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
@@ -90,27 +134,76 @@ export default function Hero({ totalPets }: HeroProps) {
     mass: 0.6,
   });
 
-  const rotateX = useTransform(smoothMouseY, [-0.5, 0.5], [2.5, -2.5]);
-  const rotateY = useTransform(smoothMouseX, [-0.5, 0.5], [-2.5, 2.5]);
+  const rotateX = useTransform(
+    smoothMouseY,
+    [-0.5, 0.5],
+    [2.5, -2.5],
+  );
+  const rotateY = useTransform(
+    smoothMouseX,
+    [-0.5, 0.5],
+    [-2.5, 2.5],
+  );
 
-  const frostX = useTransform(smoothMouseX, [-0.5, 0.5], [-18, 18]);
-  const frostY = useTransform(smoothMouseY, [-0.5, 0.5], [-14, 14]);
+  const leftDecorX = useTransform(
+    smoothMouseX,
+    [-0.5, 0.5],
+    [-12, 12],
+  );
+  const leftDecorY = useTransform(
+    smoothMouseY,
+    [-0.5, 0.5],
+    [-10, 10],
+  );
 
-  const shadowX = useTransform(smoothMouseX, [-0.5, 0.5], [16, -16]);
-  const shadowY = useTransform(smoothMouseY, [-0.5, 0.5], [12, -12]);
+  const rightDecorX = useTransform(
+    smoothMouseX,
+    [-0.5, 0.5],
+    [14, -14],
+  );
+  const rightDecorY = useTransform(
+    smoothMouseY,
+    [-0.5, 0.5],
+    [10, -10],
+  );
 
-  const owlX = useTransform(smoothMouseX, [-0.5, 0.5], [-12, 12]);
-  const owlY = useTransform(smoothMouseY, [-0.5, 0.5], [16, -16]);
+  const bottomLeftX = useTransform(
+    smoothMouseX,
+    [-0.5, 0.5],
+    [-10, 10],
+  );
+  const bottomLeftY = useTransform(
+    smoothMouseY,
+    [-0.5, 0.5],
+    [8, -8],
+  );
 
-  const unicornX = useTransform(smoothMouseX, [-0.5, 0.5], [14, -14]);
-  const unicornY = useTransform(smoothMouseY, [-0.5, 0.5], [-12, 12]);
+  const bottomRightX = useTransform(
+    smoothMouseX,
+    [-0.5, 0.5],
+    [10, -10],
+  );
+  const bottomRightY = useTransform(
+    smoothMouseY,
+    [-0.5, 0.5],
+    [-8, 8],
+  );
 
-  function handleMouseMove(event: MouseEvent<HTMLElement>) {
+  function handleMouseMove(
+    event: MouseEvent<HTMLElement>,
+  ) {
     if (shouldReduceMotion) return;
 
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const x = (event.clientX - bounds.left) / bounds.width - 0.5;
-    const y = (event.clientY - bounds.top) / bounds.height - 0.5;
+    const bounds =
+      event.currentTarget.getBoundingClientRect();
+    const x =
+      (event.clientX - bounds.left) /
+        bounds.width -
+      0.5;
+    const y =
+      (event.clientY - bounds.top) /
+        bounds.height -
+      0.5;
 
     mouseX.set(x);
     mouseY.set(y);
@@ -138,7 +231,6 @@ export default function Hero({ totalPets }: HeroProps) {
     >
       {/* Background lighting */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,.32),transparent_58%)]" />
-
       <div className="absolute inset-0 bg-[linear-gradient(120deg,transparent_20%,rgba(255,255,255,.13)_45%,transparent_70%)] opacity-70" />
 
       <motion.div
@@ -217,54 +309,21 @@ export default function Hero({ totalPets }: HeroProps) {
       <div className="absolute -right-10 -top-16 h-48 w-48 rounded-full border border-white/10" />
       <div className="absolute -bottom-36 -left-24 h-72 w-72 rounded-full border border-white/10" />
 
-      {/* Floating pets */}
+      {/* New clean decorative design */}
       <motion.div
         style={
           shouldReduceMotion
             ? undefined
             : {
-                x: frostX,
-                y: frostY,
+                x: leftDecorX,
+                y: leftDecorY,
               }
         }
         animate={
           shouldReduceMotion
             ? undefined
             : {
-                rotate: [-12, -7, -12],
-              }
-        }
-        transition={{
-          duration: 6,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
-        className="pointer-events-none absolute left-8 top-8 hidden lg:block"
-      >
-        <Image
-          src="/pets/frost-dragon.webp"
-          alt=""
-          width={144}
-          height={144}
-          priority
-          className="h-36 w-36 object-contain opacity-25 drop-shadow-2xl"
-        />
-      </motion.div>
-
-      <motion.div
-        style={
-          shouldReduceMotion
-            ? undefined
-            : {
-                x: shadowX,
-                y: shadowY,
-              }
-        }
-        animate={
-          shouldReduceMotion
-            ? undefined
-            : {
-                rotate: [12, 18, 12],
+                rotate: [-6, -2, -6],
               }
         }
         transition={{
@@ -272,15 +331,17 @@ export default function Hero({ totalPets }: HeroProps) {
           repeat: Infinity,
           ease: "easeInOut",
         }}
-        className="pointer-events-none absolute bottom-8 left-10 hidden lg:block"
+        className="pointer-events-none absolute left-6 top-6 hidden lg:block"
       >
-        <Image
-          src="/pets/shadow-dragon.webp"
-          alt=""
-          width={144}
-          height={144}
-          className="h-36 w-36 object-contain opacity-25 drop-shadow-2xl"
-        />
+        <div className="relative h-28 w-24 rotate-[-8deg] rounded-[24px] border border-white/25 bg-white/12 shadow-[0_18px_50px_rgba(120,53,15,.18)] backdrop-blur-md">
+          <div className="absolute inset-3 rounded-[18px] border border-white/15" />
+          <div className="absolute left-5 top-5 h-3 w-3 rounded-full bg-white/75" />
+          <div className="absolute left-10 top-5 h-3 w-3 rounded-full bg-white/45" />
+          <div className="absolute left-15 top-5 h-3 w-3 rounded-full bg-white/25" />
+          <div className="absolute left-5 top-12 h-1.5 w-12 rounded-full bg-white/45" />
+          <div className="absolute left-5 top-17 h-1.5 w-8 rounded-full bg-white/35" />
+          <div className="absolute bottom-5 left-5 h-10 w-10 rounded-2xl bg-gradient-to-br from-white/50 to-white/10" />
+        </div>
       </motion.div>
 
       <motion.div
@@ -288,31 +349,30 @@ export default function Hero({ totalPets }: HeroProps) {
           shouldReduceMotion
             ? undefined
             : {
-                x: owlX,
-                y: owlY,
+                x: rightDecorX,
+                y: rightDecorY,
               }
         }
         animate={
           shouldReduceMotion
             ? undefined
             : {
-                rotate: [-4, 4, -4],
+                rotate: [0, 6, 0],
               }
         }
         transition={{
-          duration: 5.5,
+          duration: 8,
           repeat: Infinity,
           ease: "easeInOut",
         }}
-        className="pointer-events-none absolute right-10 top-10 hidden lg:block"
+        className="pointer-events-none absolute right-7 top-7 hidden lg:block"
       >
-        <Image
-          src="/pets/owl.webp"
-          alt=""
-          width={128}
-          height={128}
-          className="h-32 w-32 object-contain opacity-25 drop-shadow-2xl"
-        />
+        <div className="relative h-24 w-24">
+          <div className="absolute inset-0 rounded-full border border-white/20 bg-white/8 backdrop-blur-sm" />
+          <div className="absolute inset-[10px] rounded-full border border-white/20" />
+          <div className="absolute inset-[22px] rounded-full bg-white/12 shadow-[0_15px_35px_rgba(120,53,15,.18)]" />
+          <div className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/75" />
+        </div>
       </motion.div>
 
       <motion.div
@@ -320,74 +380,98 @@ export default function Hero({ totalPets }: HeroProps) {
           shouldReduceMotion
             ? undefined
             : {
-                x: unicornX,
-                y: unicornY,
+                x: bottomLeftX,
+                y: bottomLeftY,
               }
         }
         animate={
           shouldReduceMotion
             ? undefined
             : {
-                rotate: [4, -5, 4],
+                rotate: [0, -3, 0],
               }
         }
         transition={{
-          duration: 6.5,
+          duration: 9,
           repeat: Infinity,
           ease: "easeInOut",
         }}
-        className="pointer-events-none absolute bottom-10 right-10 hidden lg:block"
+        className="pointer-events-none absolute bottom-7 left-7 hidden lg:block"
       >
-        <Image
-          src="/pets/balloon-unicorn.webp"
-          alt=""
-          width={128}
-          height={128}
-          className="h-32 w-32 object-contain opacity-25 drop-shadow-2xl"
-        />
+        <div className="relative h-28 w-36">
+          <div className="absolute bottom-2 left-1 h-14 w-14 rounded-full border border-white/20 bg-white/10 shadow-xl backdrop-blur-md" />
+          <div className="absolute bottom-12 left-12 h-7 w-7 rounded-full border border-white/20 bg-white/12 shadow-lg backdrop-blur-md" />
+          <div className="absolute bottom-0 left-20 h-5 w-5 rounded-full border border-white/20 bg-white/15 shadow-md backdrop-blur-md" />
+          <div className="absolute right-2 top-4 h-16 w-18 rounded-[20px] border border-white/20 bg-white/10 shadow-xl backdrop-blur-md">
+            <div className="absolute left-4 top-5 h-6 w-1 rounded-full bg-white/35" />
+            <div className="absolute left-8 top-2 h-9 w-1 rounded-full bg-white/55" />
+            <div className="absolute left-12 top-7 h-4 w-1 rounded-full bg-white/28" />
+          </div>
+        </div>
+      </motion.div>
+
+      <motion.div
+        style={
+          shouldReduceMotion
+            ? undefined
+            : {
+                x: bottomRightX,
+                y: bottomRightY,
+              }
+        }
+        animate={
+          shouldReduceMotion
+            ? undefined
+            : {
+                rotate: [4, 1, 4],
+              }
+        }
+        transition={{
+          duration: 7.5,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+        className="pointer-events-none absolute bottom-7 right-8 hidden lg:block"
+      >
+        <div className="relative h-28 w-36">
+          <div className="absolute bottom-0 right-0 h-16 w-16 rotate-6 rounded-[22px] border border-white/20 bg-white/10 shadow-xl backdrop-blur-md" />
+          <div className="absolute bottom-4 right-9 h-18 w-18 -rotate-6 rounded-[24px] border border-white/25 bg-white/14 shadow-2xl backdrop-blur-md" />
+          <div className="absolute left-6 top-2 h-3 w-3 rounded-full bg-white/70" />
+          <div className="absolute left-12 top-7 h-2.5 w-2.5 rounded-full bg-white/45" />
+          <div className="absolute left-2 top-10 h-1.5 w-10 rounded-full bg-white/35" />
+        </div>
       </motion.div>
 
       {/* Sparkles */}
-      <motion.span
-        className="pointer-events-none absolute left-[18%] top-[18%] text-2xl"
-        animate={
-          shouldReduceMotion
-            ? undefined
-            : {
-                opacity: [0.2, 1, 0.2],
-                scale: [0.8, 1.25, 0.8],
-                rotate: [0, 180, 360],
-              }
-        }
-        transition={{
-          duration: 4,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
-      >
-        ✨
-      </motion.span>
-
-      <motion.span
-        className="pointer-events-none absolute right-[18%] top-[28%] text-xl"
-        animate={
-          shouldReduceMotion
-            ? undefined
-            : {
-                opacity: [0.2, 0.9, 0.2],
-                scale: [0.7, 1.2, 0.7],
-                rotate: [360, 180, 0],
-              }
-        }
-        transition={{
-          duration: 5,
-          repeat: Infinity,
-          ease: "easeInOut",
-          delay: 1,
-        }}
-      >
-        ⭐
-      </motion.span>
+      {sparkleDots.map((sparkle) => (
+        <motion.div
+          key={`${sparkle.left}-${sparkle.top}`}
+          className="pointer-events-none absolute"
+          style={{
+            left: sparkle.left,
+            top: sparkle.top,
+          }}
+          animate={
+            shouldReduceMotion
+              ? undefined
+              : {
+                  opacity: [0.25, 0.95, 0.25],
+                  scale: [0.8, 1.2, 0.8],
+                  rotate: [0, 180, 360],
+                }
+          }
+          transition={{
+            duration: 4.4,
+            delay: sparkle.delay,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+        >
+          <SparkleCross
+            className={`${sparkle.size} opacity-80`}
+          />
+        </motion.div>
+      ))}
 
       {/* Content */}
       <div className="relative z-10 mx-auto max-w-5xl text-center">
@@ -502,58 +586,64 @@ export default function Hero({ totalPets }: HeroProps) {
           animate="visible"
           className="mt-14 grid gap-4 sm:grid-cols-2 md:grid-cols-4 md:gap-6"
         >
-          {statItems(totalPets).map((item, index) => (
-            <motion.div
-              key={item.label}
-              whileHover={
-                shouldReduceMotion
-                  ? undefined
-                  : {
-                      y: -10,
-                      scale: 1.04,
-                      rotate: index % 2 === 0 ? -1 : 1,
-                    }
-              }
-              whileTap={{
-                scale: 0.98,
-              }}
-              transition={{
-                type: "spring",
-                stiffness: 250,
-                damping: 18,
-              }}
-              className="relative overflow-hidden rounded-3xl border border-white/25 bg-white/15 p-5 shadow-xl backdrop-blur-xl sm:p-6"
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 transition-opacity duration-300 hover:opacity-100" />
-
+          {statItems(totalPets).map(
+            (item, index) => (
               <motion.div
-                className="relative text-4xl font-black sm:text-5xl"
-                animate={
-                  shouldReduceMotion || !item.shouldFloat
+                key={item.label}
+                whileHover={
+                  shouldReduceMotion
                     ? undefined
                     : {
-                        y: [0, -5, 0],
+                        y: -10,
+                        scale: 1.04,
+                        rotate:
+                          index % 2 === 0
+                            ? -1
+                            : 1,
                       }
                 }
-                transition={{
-                  duration: 2.8,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: index * 0.2,
+                whileTap={{
+                  scale: 0.98,
                 }}
+                transition={{
+                  type: "spring",
+                  stiffness: 250,
+                  damping: 18,
+                }}
+                className="relative overflow-hidden rounded-3xl border border-white/25 bg-white/15 p-5 shadow-xl backdrop-blur-xl sm:p-6"
               >
-                {item.value}
+                <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 transition-opacity duration-300 hover:opacity-100" />
+
+                <motion.div
+                  className="relative text-4xl font-black sm:text-5xl"
+                  animate={
+                    shouldReduceMotion ||
+                    !item.shouldFloat
+                      ? undefined
+                      : {
+                          y: [0, -5, 0],
+                        }
+                  }
+                  transition={{
+                    duration: 2.8,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                    delay: index * 0.2,
+                  }}
+                >
+                  {item.value}
+                </motion.div>
+
+                <p className="relative mt-3 font-black text-white">
+                  {item.label}
+                </p>
+
+                <p className="relative mt-1 text-sm text-white/70">
+                  {item.description}
+                </p>
               </motion.div>
-
-              <p className="relative mt-3 font-black text-white">
-                {item.label}
-              </p>
-
-              <p className="relative mt-1 text-sm text-white/70">
-                {item.description}
-              </p>
-            </motion.div>
-          ))}
+            ),
+          )}
         </motion.div>
       </div>
 

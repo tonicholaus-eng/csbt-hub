@@ -7,14 +7,14 @@ import {
 
 import TradePetCard from "./TradePetCard";
 import {
-  SelectedTradePet,
+  SelectedTradeItem,
   ValueType,
 } from "./types";
 
 type Props = {
   title: string;
   color: "yellow" | "cyan";
-  pets: SelectedTradePet[];
+  items: SelectedTradeItem[];
   total: number;
   onAdd: () => void;
   onRemove: (id: string) => void;
@@ -24,7 +24,7 @@ type Props = {
   ) => void;
 };
 
-function formatTotal(total: number) {
+function formatTotal(total: number): string {
   if (!Number.isFinite(total)) {
     return "0";
   }
@@ -37,7 +37,7 @@ function formatTotal(total: number) {
 export default function TradeSide({
   title,
   color,
-  pets,
+  items,
   total,
   onAdd,
   onRemove,
@@ -124,10 +124,10 @@ export default function TradeSide({
           </div>
 
           <span className="shrink-0 rounded-full border border-white/20 bg-white/20 px-3 py-2 text-xs font-black text-white shadow-sm backdrop-blur-md sm:px-4 sm:text-sm">
-            {pets.length}{" "}
-            {pets.length === 1
-              ? "Pet"
-              : "Pets"}
+            {items.length}{" "}
+            {items.length === 1
+              ? "Item"
+              : "Items"}
           </span>
         </div>
       </div>
@@ -164,14 +164,14 @@ export default function TradeSide({
               +
             </span>
 
-            Add Pet
+            Add Item
           </span>
         </motion.button>
 
-        {/* Pet list */}
+        {/* Item list */}
         <div className="mt-5 flex-1 overflow-hidden rounded-[24px] border border-white/70 bg-white/65 shadow-inner transition-colors duration-300 dark:border-white/10 dark:bg-slate-950/45 sm:mt-6 sm:rounded-3xl">
           <div className="h-[360px] overflow-y-auto overscroll-contain p-3 sm:h-[430px] sm:p-4">
-            {pets.length === 0 ? (
+            {items.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center rounded-[20px] border-2 border-dashed border-slate-300 px-5 text-center dark:border-white/10 dark:bg-white/[0.02]">
                 <motion.div
                   animate={
@@ -194,17 +194,17 @@ export default function TradeSide({
                   className="text-6xl sm:text-7xl"
                   aria-hidden="true"
                 >
-                  🐾
+                  ✨
                 </motion.div>
 
                 <h4 className="mt-5 text-xl font-black text-slate-700 dark:text-white sm:text-2xl">
-                  No Pets Added
+                  No Items Added
                 </h4>
 
                 <p className="mt-3 max-w-xs text-sm leading-6 text-slate-500 dark:text-slate-400">
                   Press the{" "}
                   <span className="font-bold text-slate-700 dark:text-slate-200">
-                    Add Pet
+                    Add Item
                   </span>{" "}
                   button to start building your
                   trade.
@@ -215,63 +215,69 @@ export default function TradeSide({
                 className="space-y-3 sm:space-y-4"
                 aria-live="polite"
               >
-                {pets.map((selectedPet) => (
-                  <motion.div
-                    key={selectedPet.id}
-                    layout={!shouldReduceMotion}
-                    initial={{
-                      opacity: 0,
-                      y: shouldReduceMotion
-                        ? 0
-                        : 12,
-                      scale: shouldReduceMotion
-                        ? 1
-                        : 0.98,
-                    }}
-                    animate={{
-                      opacity: 1,
-                      y: 0,
-                      scale: 1,
-                    }}
-                    exit={{
-                      opacity: 0,
-                      scale: shouldReduceMotion
-                        ? 1
-                        : 0.96,
-                    }}
-                    transition={{
-                      duration:
-                        shouldReduceMotion
+                {items.map(
+                  (selectedItem) => (
+                    <motion.div
+                      key={selectedItem.id}
+                      layout={
+                        !shouldReduceMotion
+                      }
+                      initial={{
+                        opacity: 0,
+                        y: shouldReduceMotion
                           ? 0
-                          : 0.25,
-                      ease: [
-                        0.22,
-                        1,
-                        0.36,
-                        1,
-                      ],
-                    }}
-                  >
-                    <TradePetCard
-                      selectedPet={
-                        selectedPet
-                      }
-                      onRemove={() =>
-                        onRemove(
-                          selectedPet.id,
-                        )
-                      }
-                      onValueTypeChange={(
-                        valueType,
-                      ) =>
-                        onValueTypeChange(
-                          selectedPet.id,
+                          : 12,
+                        scale:
+                          shouldReduceMotion
+                            ? 1
+                            : 0.98,
+                      }}
+                      animate={{
+                        opacity: 1,
+                        y: 0,
+                        scale: 1,
+                      }}
+                      exit={{
+                        opacity: 0,
+                        scale:
+                          shouldReduceMotion
+                            ? 1
+                            : 0.96,
+                      }}
+                      transition={{
+                        duration:
+                          shouldReduceMotion
+                            ? 0
+                            : 0.25,
+                        ease: [
+                          0.22,
+                          1,
+                          0.36,
+                          1,
+                        ],
+                      }}
+                    >
+                      <TradePetCard
+                        selectedItem={
+                          selectedItem
+                        }
+                        onRemove={() =>
+                          onRemove(
+                            selectedItem.id,
+                          )
+                        }
+                        onValueTypeChange={(
                           valueType,
-                        )
-                      }
-                    />
-                  </motion.div>
-                ))}
+                        ) =>
+                          onValueTypeChange(
+                            selectedItem.id,
+                            valueType,
+                          )
+                        }
+                      />
+                    </motion.div>
+                  ),
+                )}
               </div>
             )}
           </div>
@@ -313,9 +319,10 @@ export default function TradeSide({
                 scale: 1,
               }}
               transition={{
-                duration: shouldReduceMotion
-                  ? 0
-                  : 0.25,
+                duration:
+                  shouldReduceMotion
+                    ? 0
+                    : 0.25,
               }}
               className={`mt-3 break-words text-5xl font-black tabular-nums sm:mt-4 sm:text-6xl ${
                 isYellow

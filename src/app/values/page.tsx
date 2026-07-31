@@ -8,22 +8,42 @@ import PetDetails from "../../components/PetDetails";
 import SearchBar from "../../components/SearchBar";
 import SearchResults from "../../components/SearchResults";
 
-import { searchPets } from "../../lib/search";
-import { Pet } from "../../types/pet";
+import {
+  searchItems,
+} from "../../lib/search";
+
+import {
+  TradeItem,
+} from "../../components/trade/types";
+
 
 export default function ValuesPage() {
-  const [search, setSearch] = useState("");
-  const [selectedPet, setSelectedPet] =
-    useState<Pet | null>(null);
+  const [
+    search,
+    setSearch,
+  ] = useState("");
 
-  const searching = search.trim().length > 0;
+  const [
+    selectedItem,
+    setSelectedItem,
+  ] = useState<TradeItem | null>(
+    null,
+  );
 
-  const results = searching
-    ? searchPets(search)
-    : [];
+
+  const searching =
+    search.trim().length > 0;
+
+
+  const results =
+    searching
+      ? searchItems(search)
+      : [];
+
 
   return (
     <main className="relative min-h-screen overflow-x-hidden bg-[#fff8e9] text-slate-800 transition-colors duration-300 dark:bg-[#07111f] dark:text-slate-100">
+
       {/* Background */}
 
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,#e5f7ff_0%,#fff9e8_40%,#fff3dc_70%,#eef9ff_100%)] transition-opacity duration-300 dark:opacity-0" />
@@ -36,66 +56,92 @@ export default function ValuesPage() {
 
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle,rgba(255,255,255,.65)_1px,transparent_1px)] bg-[size:32px_32px] opacity-20 dark:opacity-[0.04]" />
 
+
       <div className="relative z-10">
+
         <Navbar />
 
+
         <div className="mx-auto max-w-7xl px-3 pb-24 pt-8 sm:px-6 sm:pb-32 sm:pt-12">
-          {/* Header */}
+
 
           <header className="mx-auto max-w-3xl text-center">
+
             <span className="inline-flex rounded-full border border-cyan-200/70 bg-white/70 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-cyan-700 backdrop-blur-xl dark:border-cyan-400/15 dark:bg-white/5 dark:text-cyan-300">
-              Pet Database
+              Trading Database
             </span>
 
+
             <h1 className="mt-5 text-4xl font-black tracking-tight text-slate-900 dark:text-white sm:text-5xl lg:text-6xl">
-              Browse Pet Values
+              Browse Trading Values
             </h1>
 
+
             <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-600 dark:text-slate-300 sm:text-lg">
-              Search every Adopt Me pet and instantly
-              compare Normal, Neon and Mega values.
+              Search Adopt Me pets and pet wear
+              and instantly compare their
+              current trading values.
             </p>
+
           </header>
 
-          {/* Search */}
+
 
           <section className="mt-10 sm:mt-14">
+
             <SearchBar
               search={search}
               onChange={(value) => {
                 setSearch(value);
-                setSelectedPet(null);
+                setSelectedItem(null);
               }}
             />
+
           </section>
 
-          {/* Results */}
 
-          {(searching || selectedPet) && (
+
+
+          {(searching || selectedItem) && (
+
             <section className="mt-10">
-              {selectedPet ? (
+
+              {selectedItem ? (
+
                 <PetDetails
-                  pet={selectedPet}
+                  pet={selectedItem}
                   onBack={() => {
-                    setSelectedPet(null);
+                    setSelectedItem(null);
                     setSearch("");
                   }}
                 />
+
+
               ) : (
+
+
                 <SearchResults
                   pets={results}
-                  onSelect={(pet) => {
-                    setSelectedPet(pet);
-                    setSearch(pet.PETS);
+                  onSelect={(item) => {
+                    setSelectedItem(item);
+                    setSearch(item.NAME);
                   }}
                 />
+
               )}
+
             </section>
+
           )}
+
+
         </div>
 
+
         <Footer />
+
       </div>
+
     </main>
   );
 }

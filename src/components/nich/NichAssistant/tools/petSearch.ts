@@ -1,13 +1,20 @@
-import pets from "../../../../data/pets.json";
+import tradingItemsData from "../../../../data/tradingItems.json";
+import type {
+  TradeItem,
+  TradeValue,
+} from "../../../trade/types";
 
 export type PetVariant = "normal" | "neon" | "mega";
 
-export type PetRecord = {
+/**
+ * Compatibility type used by the existing Nich AI files.
+ *
+ * Every record now uses the unified TradeItem structure. PETS is retained as
+ * a legacy alias for NAME so existing response/rendering files do not break
+ * while the rest of Nich AI is migrated.
+ */
+export type PetRecord = TradeItem & {
   PETS: string;
-  NORMAL?: string | number;
-  NEON?: string | number;
-  MEGA?: string | number;
-  IMAGE?: string;
 };
 
 export type PetSearchResult = {
@@ -40,7 +47,12 @@ type FuzzyPetCandidate = {
   isAlias: boolean;
 };
 
-const petRecords = pets as PetRecord[];
+const petRecords: PetRecord[] = (
+  tradingItemsData as TradeItem[]
+).map((item) => ({
+  ...item,
+  PETS: item.NAME,
+}));
 
 const PET_ALIASES: Record<string, string> = {
   "frost drag": "Frost Dragon",
@@ -133,6 +145,10 @@ const FUZZY_IGNORED_WORDS = new Set([
   "what",
   "whats",
   "worth",
+  "item",
+  "items",
+  "petwear",
+  "wear",
   "would",
   "you",
 
@@ -163,6 +179,11 @@ const PET_QUERY_WORDS = [
   "value",
   "values",
   "price",
+  "item",
+  "items",
+  "pet wear",
+  "petwear",
+  "wear",
   "how much",
   "check",
   "show me",
@@ -417,9 +438,7 @@ function findBestFuzzyPet(
       continue;
     }
 
-    const petKey = normalizeText(
-      searchablePet.pet.PETS,
-    );
+    const petKey = searchablePet.pet.ID;
 
     const candidate: FuzzyPetCandidate = {
       pet: searchablePet.pet,
@@ -547,7 +566,7 @@ function findPetByExactDatabaseName(
 
   return petRecords.find(
     (pet) =>
-      normalizeText(pet.PETS) ===
+      normalizeText(pet.NAME) ===
       normalizedPetName,
   );
 }
@@ -555,8 +574,8 @@ function findPetByExactDatabaseName(
 const searchablePetNames: SearchablePetName[] = [
   ...petRecords.map((pet) => ({
     pet,
-    searchableName: pet.PETS,
-    normalizedName: normalizeText(pet.PETS),
+    searchableName: pet.NAME,
+    normalizedName: normalizeText(pet.NAME),
     isAlias: false,
   })),
 
@@ -600,7 +619,7 @@ const searchablePetNames: SearchablePetName[] = [
 });
 
 export function formatPetValue(
-  value: string | number | undefined,
+  value: TradeValue,
 ) {
   if (
     value === undefined ||
@@ -616,7 +635,7 @@ export function formatPetValue(
 export function getRawPetVariantValue(
   pet: PetRecord,
   variant: PetVariant,
-): string | number | undefined {
+): TradeValue {
   switch (variant) {
     case "normal":
       return pet.NORMAL;
@@ -1006,7 +1025,7 @@ export function findPetsInMessage(
 
   return matches.filter((match) => {
     const key = [
-      normalizeText(match.pet.PETS),
+      match.pet.ID,
       match.variant ?? "all",
     ].join(":");
 
@@ -1034,7 +1053,7 @@ export function findPetInMessage(
   if (exactMatch) {
     return {
       pet: exactMatch,
-      matchedName: exactMatch.PETS,
+      matchedName: exactMatch.NAME,
     };
   }
 
@@ -1054,3 +1073,15 @@ export function findPetInMessage(
 export function getAllPetRecords() {
   return petRecords;
 }
+
+/**
+ * Unified Trading Item aliases.
+ *
+ * Existing pet-named exports remain available for backward compatibility.
+ */
+export type TradingItemRecord = PetRecord;
+export type TradingItemVariant = PetVariant;
+export const findTradingItemByName = findPetByName;
+export const findTradingItemsInMessage = findPetsInMessage;
+export const findTradingItemInMessage = findPetInMessage;
+export const getAllTradingItemRecords = getAllPetRecords;

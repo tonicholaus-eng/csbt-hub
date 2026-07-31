@@ -1,140 +1,372 @@
-import pets from "../data/pets.json";
-import { Pet } from "../types/pet";
+import tradingItems from "../data/tradingItems.json";
 
-function normalize(value: string): string {
+import {
+  TradeItem,
+} from "../components/trade/types";
+
+
+function normalize(
+  value: string,
+): string {
   return value
     .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9\s]/g, "")
-    .replace(/\s+/g, " ");
+    .replace(
+      /[^a-z0-9\s]/g,
+      "",
+    )
+    .replace(
+      /\s+/g,
+      " ",
+    );
 }
 
-const petList = Array.from(
+
+const itemList = Array.from(
   new Map(
-    (pets as Pet[]).map((pet) => [
-      normalize(pet.PETS),
-      pet,
-    ]),
+    (tradingItems as TradeItem[]).map(
+      (item) => [
+        normalize(item.NAME),
+        item,
+      ],
+    ),
   ).values(),
 );
 
-function getLevenshteinDistance(first: string, second: string): number {
-  const rows = second.length + 1;
-  const columns = first.length + 1;
 
-  const matrix = Array.from({ length: rows }, () =>
-    Array<number>(columns).fill(0),
-  );
 
-  for (let column = 0; column < columns; column += 1) {
-    matrix[0][column] = column;
+function getLevenshteinDistance(
+  first: string,
+  second: string,
+): number {
+
+  const rows =
+    second.length + 1;
+
+  const columns =
+    first.length + 1;
+
+
+  const matrix =
+    Array.from(
+      {
+        length: rows,
+      },
+      () =>
+        Array<number>(
+          columns,
+        ).fill(0),
+    );
+
+
+  for (
+    let column = 0;
+    column < columns;
+    column++
+  ) {
+    matrix[0][column] =
+      column;
   }
 
-  for (let row = 0; row < rows; row += 1) {
-    matrix[row][0] = row;
+
+  for (
+    let row = 0;
+    row < rows;
+    row++
+  ) {
+    matrix[row][0] =
+      row;
   }
 
-  for (let row = 1; row < rows; row += 1) {
-    for (let column = 1; column < columns; column += 1) {
-      const substitutionCost =
-        second[row - 1] === first[column - 1] ? 0 : 1;
 
-      matrix[row][column] = Math.min(
-        matrix[row - 1][column] + 1,
-        matrix[row][column - 1] + 1,
-        matrix[row - 1][column - 1] + substitutionCost,
-      );
+  for (
+    let row = 1;
+    row < rows;
+    row++
+  ) {
+
+    for (
+      let column = 1;
+      column < columns;
+      column++
+    ) {
+
+      const cost =
+        second[row - 1] ===
+        first[column - 1]
+          ? 0
+          : 1;
+
+
+      matrix[row][column] =
+        Math.min(
+          matrix[row - 1][column] + 1,
+          matrix[row][column - 1] + 1,
+          matrix[row - 1][column - 1] +
+            cost,
+        );
     }
   }
+
 
   return matrix[rows - 1][columns - 1];
 }
 
-function getSimilarity(first: string, second: string): number {
-  if (!first.length && !second.length) return 1;
 
-  const longestLength = Math.max(first.length, second.length);
 
-  if (!longestLength) return 1;
+function getSimilarity(
+  first: string,
+  second: string,
+): number {
 
-  const distance = getLevenshteinDistance(first, second);
+  if (
+    !first.length &&
+    !second.length
+  ) {
+    return 1;
+  }
 
-  return 1 - distance / longestLength;
+
+  const longest =
+    Math.max(
+      first.length,
+      second.length,
+    );
+
+
+  if (!longest) {
+    return 1;
+  }
+
+
+  const distance =
+    getLevenshteinDistance(
+      first,
+      second,
+    );
+
+
+  return (
+    1 -
+    distance / longest
+  );
 }
 
-function getSearchScore(petName: string, query: string): number {
-  const normalizedName = normalize(petName);
-  const normalizedQuery = normalize(query);
 
-  if (!normalizedQuery) return 0;
 
-  if (normalizedName === normalizedQuery) {
+function getSearchScore(
+  name: string,
+  query: string,
+): number {
+
+  const itemName =
+    normalize(name);
+
+  const search =
+    normalize(query);
+
+
+  if (!search) {
+    return 0;
+  }
+
+
+  if (
+    itemName === search
+  ) {
     return 1000;
   }
 
-  if (normalizedName.startsWith(normalizedQuery)) {
-    return 900 - (normalizedName.length - normalizedQuery.length);
+
+  if (
+    itemName.startsWith(search)
+  ) {
+    return (
+      900 -
+      (
+        itemName.length -
+        search.length
+      )
+    );
   }
 
-  const words = normalizedName.split(" ");
 
-  const matchingWordIndex = words.findIndex((word) =>
-    word.startsWith(normalizedQuery),
-  );
+  const words =
+    itemName.split(" ");
 
-  if (matchingWordIndex !== -1) {
-    return 800 - matchingWordIndex * 10;
+
+  const wordMatch =
+    words.findIndex(
+      (word) =>
+        word.startsWith(search),
+    );
+
+
+  if (
+    wordMatch !== -1
+  ) {
+    return (
+      800 -
+      wordMatch * 10
+    );
   }
 
-  const includedIndex = normalizedName.indexOf(normalizedQuery);
 
-  if (includedIndex !== -1) {
-    return 700 - includedIndex;
+  const included =
+    itemName.indexOf(search);
+
+
+  if (
+    included !== -1
+  ) {
+    return (
+      700 -
+      included
+    );
   }
 
-  const wordSimilarity = Math.max(
-    ...words.map((word) => getSimilarity(word, normalizedQuery)),
-  );
 
-  const fullNameSimilarity = getSimilarity(normalizedName, normalizedQuery);
+  const similarity =
+    Math.max(
+      ...words.map(
+        (word) =>
+          getSimilarity(
+            word,
+            search,
+          ),
+      ),
+    );
 
-  const bestSimilarity = Math.max(wordSimilarity, fullNameSimilarity);
 
-  if (bestSimilarity >= 0.72) {
-    return Math.round(bestSimilarity * 600);
+  const fullSimilarity =
+    getSimilarity(
+      itemName,
+      search,
+    );
+
+
+  const best =
+    Math.max(
+      similarity,
+      fullSimilarity,
+    );
+
+
+  if (
+    best >= 0.72
+  ) {
+    return Math.round(
+      best * 600,
+    );
   }
+
 
   return 0;
 }
 
-export function searchPets(query: string): Pet[] {
-  const normalizedQuery = normalize(query);
 
-  if (!normalizedQuery) return [];
 
-  return petList
-    .map((pet) => ({
-      pet,
-      score: getSearchScore(pet.PETS, normalizedQuery),
-    }))
-    .filter((result) => result.score > 0)
-    .sort((first, second) => {
-      if (second.score !== first.score) {
-        return second.score - first.score;
-      }
+export function searchItems(
+  query: string,
+): TradeItem[] {
 
-      return first.pet.PETS.localeCompare(second.pet.PETS);
-    })
-    .slice(0, 8)
-    .map((result) => result.pet);
+  const normalized =
+    normalize(query);
+
+
+  if (!normalized) {
+    return [];
+  }
+
+
+  return itemList
+    .map(
+      (item) => ({
+        item,
+        score:
+          getSearchScore(
+            item.NAME,
+            query,
+          ),
+      }),
+    )
+    .filter(
+      (result) =>
+        result.score > 0,
+    )
+    .sort(
+      (
+        a,
+        b,
+      ) => {
+
+        if (
+          b.score !==
+          a.score
+        ) {
+          return (
+            b.score -
+            a.score
+          );
+        }
+
+
+        return (
+          a.item.NAME.localeCompare(
+            b.item.NAME,
+          )
+        );
+      },
+    )
+    .slice(
+      0,
+      8,
+    )
+    .map(
+      (result) =>
+        result.item,
+    );
 }
 
-export function getPet(name: string): Pet | undefined {
-  const normalizedName = normalize(name);
 
-  return petList.find(
-    (pet) => normalize(pet.PETS) === normalizedName,
+
+export function getItem(
+  name: string,
+): TradeItem | undefined {
+
+  const normalized =
+    normalize(name);
+
+
+  return itemList.find(
+    (item) =>
+      normalize(
+        item.NAME,
+      ) === normalized,
   );
 }
 
-export { petList };
+
+/*
+  Compatibility exports.
+  These keep your old components working
+  while we migrate the rest of the website.
+*/
+
+export function searchPets(
+  query: string,
+): TradeItem[] {
+  return searchItems(query);
+}
+
+
+export function getPet(
+  name: string,
+): TradeItem | undefined {
+  return getItem(name);
+}
+
+
+export {
+  itemList,
+};

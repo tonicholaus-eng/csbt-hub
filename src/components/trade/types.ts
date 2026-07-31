@@ -3,22 +3,40 @@ export type ValueType =
   | "NEON"
   | "MEGA";
 
+
 export type TradeValue =
   | string
   | number
   | null
   | undefined;
 
-export type TradePet = {
-  PETS: string;
+
+export type ItemCategory =
+  | "PET"
+  | "PETWEAR";
+
+
+export type TradeItem = {
+  ID: string;
+
+  NAME: string;
+
   IMAGE: string;
+
+  CATEGORY: ItemCategory;
+
   NORMAL: TradeValue;
-  NEON: TradeValue;
-  MEGA: TradeValue;
+
+  NEON?: TradeValue;
+
+  MEGA?: TradeValue;
 };
 
-export type SelectedTradePet = {
+
+export type SelectedTradeItem = {
   id: string;
-  pet: TradePet;
+
+  item: TradeItem;
+
   valueType: ValueType;
 };
