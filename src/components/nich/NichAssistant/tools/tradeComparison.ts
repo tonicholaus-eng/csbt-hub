@@ -51,7 +51,11 @@ const MISSING_RIDE_ADJUSTMENT = -10;
 const MAX_ITEMS_PER_SIDE = 9;
 
 function getNumericValue(
-  value: string | number | undefined,
+  value:
+    | string
+    | number
+    | null
+    | undefined,
 ): number | null {
   if (
     value === undefined ||

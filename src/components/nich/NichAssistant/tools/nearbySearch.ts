@@ -13,7 +13,11 @@ export type NearbyPetResult = {
 };
 
 function getValueCenter(
-  value: string | number | undefined,
+  value:
+    | string
+    | number
+    | null
+    | undefined,
 ): number | null {
   if (
     value === undefined ||
@@ -27,7 +31,9 @@ function getValueCenter(
     .replace(/,/g, "")
     .match(/\d+(?:\.\d+)?/g)
     ?.map(Number)
-    .filter((number) => Number.isFinite(number));
+    .filter((number) =>
+      Number.isFinite(number),
+    );
 
   if (!numbers?.length) {
     return null;
@@ -37,7 +43,9 @@ function getValueCenter(
     return numbers[0];
   }
 
-  return (numbers[0] + numbers[1]) / 2;
+  return (
+    numbers[0] + numbers[1]
+  ) / 2;
 }
 
 export function findPetsNearValue(
@@ -67,7 +75,8 @@ export function findPetsNearValue(
     ];
 
     for (const item of variants) {
-      const centerValue = getValueCenter(item.value);
+      const centerValue =
+        getValueCenter(item.value);
 
       if (centerValue === null) {
         continue;
@@ -76,7 +85,9 @@ export function findPetsNearValue(
       matches.push({
         name: pet.PETS,
         variant: item.variant,
-        value: formatPetValue(item.value),
+        value: formatPetValue(
+          item.value,
+        ),
         centerValue,
         difference: Math.abs(
           centerValue - targetValue,
@@ -103,9 +114,10 @@ export function extractNearbyTargetValue(
     .replace(/\s+/g, " ")
     .trim();
 
-  const match = normalizedMessage.match(
-    /(?:around|near|about|close to|value|worth)\s+(\d+(?:\.\d+)?)/,
-  );
+  const match =
+    normalizedMessage.match(
+      /(?:around|near|about|close to|value|worth)\s+(\d+(?:\.\d+)?)/,
+    );
 
   if (!match) {
     return null;
