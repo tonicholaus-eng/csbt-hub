@@ -30,27 +30,37 @@ function normalizeText(value: string) {
     .trim();
 }
 
+function capitalize(value: string) {
+  return (
+    value.charAt(0).toUpperCase() +
+    value.slice(1)
+  );
+}
+
 function createGreetingResponse(): NichResponse {
   return {
     text: [
       "Hey! 👋 I’m Nich, your CSBT trading buddy.",
       "",
-      "You can ask me about one pet, several pets, trade comparisons, or pets near a certain value.",
+      "You can ask me about one pet, several pets, trade comparisons, Pet Wear, or items near a certain value.",
+      "",
+      "I can also understand many abbreviations, quantities, and common spelling mistakes.",
     ].join("\n"),
     intent: "greeting",
     reaction: "welcome",
-    typingDuration: 500,
+    typingDuration: 550,
     suggestions: [
       {
         id: "greeting-pet-values",
-        label: "Check multiple pets",
+        label: "Check multiple items",
         message:
           "How much are Frost Dragon, Owl, and Kangaroo?",
       },
       {
         id: "greeting-compare-trade",
         label: "Compare a trade",
-        message: "Frost Dragon for Owl",
+        message:
+          "2 Frost Dragons vs 1 Owl",
       },
       {
         id: "greeting-nearby-value",
@@ -78,12 +88,14 @@ function createHandsomeResponse(): NichResponse {
       {
         id: "handsome-compare",
         label: "Compare a trade",
-        message: "Frost Dragon for Owl",
+        message:
+          "Frost Dragon for Owl",
       },
       {
         id: "handsome-help",
         label: "What can you do?",
-        message: "What can you do?",
+        message:
+          "What can you do?",
       },
     ],
   };
@@ -98,14 +110,15 @@ function createThanksResponse(): NichResponse {
     suggestions: [
       {
         id: "thanks-another-pet",
-        label: "Check more pets",
+        label: "Check more items",
         message:
           "How much are Owl, Crow, and Parrot?",
       },
       {
         id: "thanks-compare",
-        label: "Compare a trade",
-        message: "Frost Dragon for Owl",
+        label: "Compare another trade",
+        message:
+          "2 Frost Dragons vs 1 Owl",
       },
     ],
   };
@@ -125,12 +138,12 @@ function createCalculatorResponse(): NichResponse {
     text: [
       "Here’s how to use the Trade Calculator:",
       "",
-      "1. Add the pets you are offering under Your Offer.",
-      "2. Add the pets you are receiving under Their Offer.",
-      "3. Choose Normal, Neon, or Mega for each pet.",
+      "1. Add the items you are offering under Your Offer.",
+      "2. Add the items you are receiving under Their Offer.",
+      "3. Choose Normal, Neon, or Mega when that variant is available.",
       "4. Compare both totals and check the Win, Fair, or Lose result.",
       "",
-      "Always double-check values before completing a trade. 🐾",
+      "Always double-check current values and demand before completing a trade. 🐾",
     ].join("\n"),
     intent: "calculatorHelp",
     reaction: "calculator",
@@ -145,11 +158,12 @@ function createCalculatorResponse(): NichResponse {
       {
         id: "calculator-compare-trade",
         label: "Compare a trade",
-        message: "Frost Dragon for Owl",
+        message:
+          "2 Frost Dragons vs 1 Owl",
       },
       {
         id: "calculator-pet-value",
-        label: "Check pet values",
+        label: "Check item values",
         message:
           "How much are Frost Dragon, Owl, and Kangaroo?",
       },
@@ -162,7 +176,7 @@ function createTradeAdviceResponse(): NichResponse {
     text: [
       "A fair trade is one where both offers have similar total values.",
       "",
-      "Small differences can still be fair depending on demand, rarity, and how easy a pet is to trade.",
+      "Small differences can still be fair depending on demand, rarity, and how easy each item is to trade.",
       "",
       "Use the calculator as a guide, but always check current demand before accepting. ⚖️",
     ].join("\n"),
@@ -172,8 +186,9 @@ function createTradeAdviceResponse(): NichResponse {
     suggestions: [
       {
         id: "trade-compare-example",
-        label: "Compare pets",
-        message: "Frost Dragon for Owl",
+        label: "Compare a trade",
+        message:
+          "2 Frost Dragons vs 1 Owl",
       },
       {
         id: "trade-calculator-help",
@@ -183,7 +198,7 @@ function createTradeAdviceResponse(): NichResponse {
       },
       {
         id: "trade-check-values",
-        label: "Check pet values",
+        label: "Check item values",
         message:
           "How much are Frost Dragon, Owl, and Kangaroo?",
       },
@@ -196,19 +211,21 @@ function createHelpResponse(): NichResponse {
     text: [
       "I can help you with:",
       "",
-      "🐾 Checking one or several pet values",
-      "✨ Checking Normal, Neon, or Mega values",
-      "⚖️ Comparing pets for a Win, Fair, or Lose result",
-      "🔎 Finding pets near a certain value",
+      "🐾 Checking one or several Pet values",
+      "🎩 Checking Pet Wear values",
+      "✨ Checking Normal, Neon, or Mega variants",
+      "🔢 Understanding quantities such as 2 Frost Dragons",
+      "⚖️ Comparing offers for a Win, Fair, or Lose result",
+      "🔎 Finding items near a certain value",
       "🧮 Using the Trade Calculator",
-      "💬 Remembering pets from recent messages",
+      "💬 Remembering items and trades from recent messages",
       "🧭 Finding pages and features on CSBT HUB",
       "",
-      "I can also distinguish between value lookups, nearby searches, trade comparisons, and website questions when a message could mean more than one thing.",
+      "When a name could mean several items, I’ll ask you to choose instead of guessing.",
     ].join("\n"),
     intent: "help",
     reaction: "wave",
-    typingDuration: 650,
+    typingDuration: 700,
     suggestions: [
       {
         id: "help-multiple-values",
@@ -220,7 +237,7 @@ function createHelpResponse(): NichResponse {
         id: "help-trade-comparison",
         label: "Compare trade",
         message:
-          "Neon Turtle vs Mega Unicorn",
+          "2 Frost Dragons vs 1 Owl",
       },
       {
         id: "help-website-pages",
@@ -237,7 +254,7 @@ function createFallbackResponse(): NichResponse {
     text: [
       "I couldn’t understand that yet.",
       "",
-      "Try giving me one or more pet names, comparing pets, finding pets near a value, or asking about the Trade Calculator. 🐾",
+      "Try giving me one or more item names, comparing two offers, finding items near a value, or asking about the Trade Calculator. 🐾",
       "",
       "Example: “How much are frost drag, owl, and kanga?”",
     ].join("\n"),
@@ -248,18 +265,204 @@ function createFallbackResponse(): NichResponse {
       {
         id: "fallback-help",
         label: "What can you do?",
-        message: "What can you do?",
+        message:
+          "What can you do?",
       },
       {
         id: "fallback-pets",
-        label: "Check multiple pets",
+        label: "Check multiple items",
         message:
           "How much are Frost Dragon, Owl, and Kangaroo?",
       },
       {
         id: "fallback-trade",
         label: "Compare trade",
-        message: "Frost Dragon for Owl",
+        message:
+          "2 Frost Dragons vs 1 Owl",
+      },
+    ],
+  };
+}
+
+function getCategoryLabel(
+  category: "PET" | "PETWEAR",
+) {
+  return category === "PETWEAR"
+    ? "Pet Wear"
+    : "Pet";
+}
+
+function getVariantLabel(
+  analysis: NichMessageAnalysis,
+  category: "PET" | "PETWEAR",
+) {
+  if (
+    category === "PETWEAR" ||
+    !analysis.requestedVariant
+  ) {
+    return "";
+  }
+
+  return `${capitalize(
+    analysis.requestedVariant,
+  )} `;
+}
+
+function createClarificationResponse(
+  analysis: NichMessageAnalysis,
+): NichResponse {
+  const candidates =
+    analysis.clarificationCandidates
+      .slice(0, 5);
+
+  const query =
+    analysis.itemQuery ||
+    analysis.originalMessage;
+
+  const candidateLines =
+    candidates.map(
+      (candidate, index) =>
+        `${index + 1}. ${candidate.pet.NAME} — ${getCategoryLabel(
+          candidate.pet.CATEGORY,
+        )}`,
+    );
+
+  return {
+    text: [
+      `I found several possible matches for “${query}.”`,
+      "",
+      ...candidateLines,
+      "",
+      "Which one did you mean?",
+    ].join("\n"),
+    intent: "petLookup",
+    reaction: "searchEmpty",
+    typingDuration:
+      Math.min(
+        650 +
+          candidates.length * 90,
+        1100,
+      ),
+    suggestions:
+      candidates
+        .slice(0, 3)
+        .map(
+          (candidate, index) => ({
+            id:
+              `clarify-item-${candidate.pet.ID}-${index}`,
+            label:
+              candidate.pet.CATEGORY ===
+              "PETWEAR"
+                ? `${candidate.pet.NAME} · Pet Wear`
+                : candidate.pet.NAME,
+            message:
+              `What is ${getVariantLabel(
+                analysis,
+                candidate.pet.CATEGORY,
+              )}${candidate.pet.NAME} worth?`,
+          }),
+        ),
+  };
+}
+
+function createContextNeededResponse(
+  analysis: NichMessageAnalysis,
+): NichResponse {
+  const variantLabel =
+    analysis.requestedVariant
+      ? capitalize(
+          analysis.requestedVariant,
+        )
+      : null;
+
+  const lines =
+    variantLabel
+      ? [
+          `I understand that you mean the ${variantLabel} variant, but I don’t have a recent item to apply it to.`,
+          "",
+          `Include the item name, for example: “What is ${variantLabel} Frost Dragon worth?”`,
+        ]
+      : [
+          "I understand that this is a follow-up, but I don’t have a recent item or trade to apply it to.",
+          "",
+          "Include the item name or the full trade so I can answer correctly.",
+        ];
+
+  return {
+    text: lines.join("\n"),
+    intent: "petLookup",
+    reaction: "searchEmpty",
+    typingDuration: 600,
+    suggestions: [
+      {
+        id: "context-needed-value",
+        label:
+          variantLabel
+            ? `Check ${variantLabel} Frost`
+            : "Check Frost Dragon",
+        message:
+          variantLabel
+            ? `What is ${variantLabel} Frost Dragon worth?`
+            : "What is Frost Dragon worth?",
+      },
+      {
+        id: "context-needed-trade",
+        label: "Compare a trade",
+        message:
+          "2 Frost Dragons vs 1 Owl",
+      },
+    ],
+  };
+}
+
+function createItemNotFoundResponse(
+  analysis: NichMessageAnalysis,
+): NichResponse {
+  const query =
+    analysis.itemQuery ||
+    analysis.originalMessage;
+
+  const categoryText =
+    analysis.requestedCategory ===
+    "PETWEAR"
+      ? "Pet Wear item"
+      : analysis.requestedCategory ===
+          "PET"
+        ? "Pet"
+        : "item";
+
+  return {
+    text: [
+      `I couldn’t find a matching ${categoryText} for “${query}.”`,
+      "",
+      "Try the complete official name, a common abbreviation, or check the spelling.",
+      "",
+      "Examples:",
+      "• Frost Dragon",
+      "• NFR Turtle",
+      "• Pet Wear value of Cowboy Hat",
+    ].join("\n"),
+    intent: "petLookup",
+    reaction: "searchEmpty",
+    typingDuration: 650,
+    suggestions: [
+      {
+        id: "not-found-frost",
+        label: "Try Frost Dragon",
+        message:
+          "What is Frost Dragon worth?",
+      },
+      {
+        id: "not-found-petwear",
+        label: "Try Pet Wear",
+        message:
+          "Show me Pet Wear values",
+      },
+      {
+        id: "not-found-help",
+        label: "What can you do?",
+        message:
+          "What can you do?",
       },
     ],
   };
@@ -270,7 +473,11 @@ function isGreeting(message: string) {
     message === "hi" ||
     message === "hello" ||
     message === "hey" ||
+    message === "hiya" ||
     message === "yo" ||
+    message === "good morning" ||
+    message === "good afternoon" ||
+    message === "good evening" ||
     message.startsWith("hi nich") ||
     message.startsWith("hello nich") ||
     message.startsWith("hey nich")
@@ -290,9 +497,15 @@ function isHandsomeQuestion(message: string) {
     message === "sino ang pogi" ||
     message === "sino pinaka pogi" ||
     message === "sino ang pinaka pogi" ||
-    message.includes("who do you think is handsome") ||
-    message.includes("who is the handsomest") ||
-    message.includes("sino ang handsome")
+    message.includes(
+      "who do you think is handsome",
+    ) ||
+    message.includes(
+      "who is the handsomest",
+    ) ||
+    message.includes(
+      "sino ang handsome",
+    )
   );
 }
 
@@ -300,9 +513,13 @@ function isThanks(message: string) {
   return (
     message === "thanks" ||
     message === "thank you" ||
+    message === "thank u" ||
     message === "ty" ||
+    message === "salamat" ||
     message.includes("thanks nich") ||
-    message.includes("thank you nich")
+    message.includes(
+      "thank you nich",
+    )
   );
 }
 
@@ -311,8 +528,13 @@ function isGoodbye(message: string) {
     message === "bye" ||
     message === "goodbye" ||
     message === "see you" ||
-    message.includes("see you later") ||
-    message.includes("later nich")
+    message === "cya" ||
+    message.includes(
+      "see you later",
+    ) ||
+    message.includes(
+      "later nich",
+    )
   );
 }
 
@@ -327,7 +549,9 @@ function isCalculatorHelp(message: string) {
     message.includes(
       "calculator help",
     ) ||
-    message.includes("how to trade")
+    message.includes(
+      "how to trade",
+    )
   );
 }
 
@@ -339,7 +563,9 @@ function isTradeAdvice(message: string) {
     message.includes(
       "how do i know if a trade is fair",
     ) ||
-    message.includes("win fair lose") ||
+    message.includes(
+      "win fair lose",
+    ) ||
     message.includes(
       "explain trade values",
     )
@@ -350,9 +576,15 @@ function isHelpRequest(message: string) {
   return (
     message === "help" ||
     message === "help me" ||
-    message.includes("what can you do") ||
+    message === "commands" ||
+    message.includes(
+      "what can you do",
+    ) ||
     message.includes(
       "what can i ask you",
+    ) ||
+    message.includes(
+      "show examples",
     )
   );
 }
@@ -366,7 +598,8 @@ function attachConversationMetadata(
     ...response,
     context: {
       ...response.context,
-      lastUserMessage: originalMessage,
+      lastUserMessage:
+        originalMessage,
       lastResolvedMessage:
         resolvedMessage,
     },
@@ -407,11 +640,12 @@ function runScoredFeatureRoutes(
     scoreFeatureIntents(analysis);
 
   for (const candidate of candidates) {
-    const response = runFeatureIntent(
-      candidate.intent,
-      input,
-      analysis,
-    );
+    const response =
+      runFeatureIntent(
+        candidate.intent,
+        input,
+        analysis,
+      );
 
     if (response) {
       return response;
@@ -421,75 +655,167 @@ function runScoredFeatureRoutes(
   return null;
 }
 
+function didContextResolverChangeMessage(
+  originalMessage: string,
+  resolvedMessage: string,
+) {
+  return (
+    normalizeText(
+      originalMessage,
+    ) !==
+    normalizeText(
+      resolvedMessage,
+    )
+  );
+}
+
 export function routeNichMessage(
   input: NichBrainInput,
 ): NichResponse {
   const originalMessage =
     input.message.trim();
 
+  /**
+   * Analyze the user's original wording before context resolution. This lets
+   * the router recognize unresolved follow-ups such as "what about neon?"
+   */
+  const originalAnalysis =
+    analyzeNichMessage(
+      originalMessage,
+    );
+
   const resolution =
     resolveContextualMessage(input);
 
-  const resolvedInput: NichBrainInput = {
-    message: resolution.message,
-    context: input.context,
-  };
+  const resolvedInput:
+    NichBrainInput = {
+      message: resolution.message,
+      context: input.context,
+    };
 
+  /**
+   * Analyze the resolved message as the authoritative version for value
+   * lookups and trade calculations.
+   */
   const analysis =
     analyzeNichMessage(
       resolvedInput.message,
     );
 
   const normalizedMessage =
-    normalizeText(resolution.message);
+    normalizeText(
+      resolution.message,
+    );
+
+  const contextWasApplied =
+    didContextResolverChangeMessage(
+      originalMessage,
+      resolution.message,
+    );
 
   let response: NichResponse;
 
   if (!normalizedMessage) {
-    response = createFallbackResponse();
+    response =
+      createFallbackResponse();
   } else if (
-    isGreeting(normalizedMessage)
+    isGreeting(normalizedMessage) ||
+    analysis.isGreeting
   ) {
-    response = createGreetingResponse();
+    response =
+      createGreetingResponse();
   } else if (
-    isHandsomeQuestion(normalizedMessage)
+    isHandsomeQuestion(
+      normalizedMessage,
+    )
   ) {
-    response = createHandsomeResponse();
+    response =
+      createHandsomeResponse();
   } else if (
     isThanks(normalizedMessage)
   ) {
-    response = createThanksResponse();
+    response =
+      createThanksResponse();
   } else if (
     isGoodbye(normalizedMessage)
   ) {
-    response = createGoodbyeResponse();
+    response =
+      createGoodbyeResponse();
   } else if (
-    isCalculatorHelp(normalizedMessage)
+    isCalculatorHelp(
+      normalizedMessage,
+    )
   ) {
     response =
       createCalculatorResponse();
   } else if (
-    isTradeAdvice(normalizedMessage)
+    isTradeAdvice(
+      normalizedMessage,
+    )
   ) {
     response =
       createTradeAdviceResponse();
   } else if (
-    isHelpRequest(normalizedMessage)
+    isHelpRequest(
+      normalizedMessage,
+    ) ||
+    analysis.isHelpRequest
   ) {
-    response = createHelpResponse();
-  } else {
     response =
+      createHelpResponse();
+  } else {
+    const websiteResponse =
       createWebsiteKnowledgeResponse(
         resolvedInput.message,
-      ) ??
-      runScoredFeatureRoutes(
-        resolvedInput,
-        analysis,
-      ) ??
-      createSmartFallbackResponse(
-        resolvedInput,
-        analysis,
       );
+
+    if (websiteResponse) {
+      response = websiteResponse;
+    } else if (
+      analysis.clarificationNeeded
+    ) {
+      /**
+       * Ambiguous names are handled before petLookup so Nich does not choose
+       * the wrong item with false confidence.
+       */
+      response =
+        createClarificationResponse(
+          analysis,
+        );
+    } else if (
+      originalAnalysis.requiresContext &&
+      !contextWasApplied
+    ) {
+      /**
+       * A follow-up with no usable conversation context receives a clear
+       * request for the missing item or trade.
+       */
+      response =
+        createContextNeededResponse(
+          originalAnalysis,
+        );
+    } else if (
+      analysis.primaryIntent ===
+        "itemLookup" &&
+      analysis.itemResolution
+        ?.status === "notFound" &&
+      analysis.pets.length === 0
+    ) {
+      response =
+        createItemNotFoundResponse(
+          analysis,
+        );
+    } else {
+      response =
+        runScoredFeatureRoutes(
+          resolvedInput,
+          analysis,
+        ) ??
+        createSmartFallbackResponse(
+          resolvedInput,
+          analysis,
+        );
+    }
   }
 
   return attachConversationMetadata(

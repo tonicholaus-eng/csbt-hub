@@ -3,17 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-  "dev": "next dev",
-  "build": "next build",
-  "start": "next start",
-  "lint": "eslint",
-  "data:validate": "tsx scripts/validatePets.ts",
-  "data:convert": "tsx scripts/convert.ts",
-  "data:add-images": "tsx scripts/addImages.ts",
-  "images:import": "node scripts/import-pet-images.mjs",
-  "generate:data": "node scripts/generate-trading-items.js"
-},
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "data:validate": "tsx scripts/validatePets.ts",
+    "data:convert": "tsx scripts/convert.ts",
+    "data:add-images": "tsx scripts/addImages.ts",
+    "images:import": "node scripts/import-pet-images.mjs",
+    "generate:data": "node scripts/generate-trading-items.js"
+  },
   "dependencies": {
+    "@supabase/supabase-js": "^2.111.0",
     "axios": "^1.18.1",
     "cheerio": "^1.2.0",
     "framer-motion": "^12.42.2",

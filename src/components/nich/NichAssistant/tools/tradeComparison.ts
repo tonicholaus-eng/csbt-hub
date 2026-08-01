@@ -6,9 +6,13 @@ import type {
 
 import {
   findPetInMessage,
+  findPetsInMessage,
   formatPetValue,
   getRawPetVariantValue,
+  isPetWearRecord,
   normalizeText,
+  parseTradeValueNumber,
+  type PetRecord,
   type PetVariant,
 } from "./petSearch";
 
@@ -46,9 +50,29 @@ type TradePetDetails = {
   hasNoPotionWarning: boolean;
 };
 
+type QuantityResult = {
+  quantity: number;
+  itemText: string;
+};
+
 const MISSING_FLY_ADJUSTMENT = -20;
 const MISSING_RIDE_ADJUSTMENT = -10;
 const MAX_ITEMS_PER_SIDE = 9;
+
+const QUANTITY_WORDS: Record<
+  string,
+  number
+> = {
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+};
 
 function getNumericValue(
   value:
@@ -57,41 +81,7 @@ function getNumericValue(
     | null
     | undefined,
 ): number | null {
-  if (
-    value === undefined ||
-    value === null ||
-    String(value).trim() === ""
-  ) {
-    return null;
-  }
-
-  if (
-    typeof value === "number" &&
-    Number.isFinite(value)
-  ) {
-    return value;
-  }
-
-  const numbers = String(value)
-    .replace(/,/g, "")
-    .match(/\d+(?:\.\d+)?/g)
-    ?.map(Number)
-    .filter(Number.isFinite);
-
-  if (!numbers?.length) {
-    return null;
-  }
-
-  if (numbers.length === 1) {
-    return numbers[0];
-  }
-
-  const total = numbers.reduce(
-    (sum, number) => sum + number,
-    0,
-  );
-
-  return total / numbers.length;
+  return parseTradeValueNumber(value);
 }
 
 function formatNumericValue(
@@ -141,6 +131,7 @@ function detectTradeCode(
   const codes = [
     "mfr",
     "nfr",
+    "np",
     "fr",
     "mf",
     "mr",
@@ -157,12 +148,37 @@ function detectTradeCode(
   );
 }
 
+function containsNoPotion(
+  text: string,
+) {
+  return (
+    containsWholePhrase(
+      text,
+      "no potion",
+    ) ||
+    containsWholePhrase(
+      text,
+      "no pot",
+    ) ||
+    containsWholePhrase(
+      text,
+      "np",
+    )
+  );
+}
+
 function containsWrittenPotion(
   text: string,
 ) {
   return (
-    containsWholePhrase(text, "fly") ||
-    containsWholePhrase(text, "ride") ||
+    containsWholePhrase(
+      text,
+      "fly",
+    ) ||
+    containsWholePhrase(
+      text,
+      "ride",
+    ) ||
     containsWholePhrase(
       text,
       "fly ride",
@@ -178,10 +194,16 @@ function detectWrittenPotionStatus(
   text: string,
 ): NichPotionStatus {
   const hasFly =
-    containsWholePhrase(text, "fly");
+    containsWholePhrase(
+      text,
+      "fly",
+    );
 
   const hasRide =
-    containsWholePhrase(text, "ride");
+    containsWholePhrase(
+      text,
+      "ride",
+    );
 
   if (hasFly && hasRide) {
     return "flyRide";
@@ -202,6 +224,14 @@ function createWrittenCode(
   variant: PetVariant,
   text: string,
 ) {
+  if (containsNoPotion(text)) {
+    return variant === "mega"
+      ? "M"
+      : variant === "neon"
+        ? "N"
+        : "NP";
+  }
+
   const potionStatus =
     detectWrittenPotionStatus(text);
 
@@ -224,7 +254,10 @@ function createWrittenCode(
 
     case "unspecified":
     default:
-      return variantPrefix || "Normal";
+      return (
+        variantPrefix ||
+        "Normal"
+      );
   }
 }
 
@@ -299,6 +332,14 @@ function detectTradePetDetails(
         hasNoPotionWarning: true,
       };
 
+    case "np":
+      return {
+        variant: "normal",
+        potionStatus: "unspecified",
+        code: "NP",
+        hasNoPotionWarning: true,
+      };
+
     case "fr":
       return {
         variant: "normal",
@@ -325,12 +366,17 @@ function detectTradePetDetails(
   }
 
   if (
-    containsWholePhrase(text, "mega")
+    containsWholePhrase(
+      text,
+      "mega",
+    )
   ) {
     return {
       variant: "mega",
       potionStatus:
-        detectWrittenPotionStatus(text),
+        detectWrittenPotionStatus(
+          text,
+        ),
       code: createWrittenCode(
         "mega",
         text,
@@ -341,18 +387,32 @@ function detectTradePetDetails(
   }
 
   if (
-    containsWholePhrase(text, "neon")
+    containsWholePhrase(
+      text,
+      "neon",
+    )
   ) {
     return {
       variant: "neon",
       potionStatus:
-        detectWrittenPotionStatus(text),
+        detectWrittenPotionStatus(
+          text,
+        ),
       code: createWrittenCode(
         "neon",
         text,
       ),
       hasNoPotionWarning:
         !containsWrittenPotion(text),
+    };
+  }
+
+  if (containsNoPotion(text)) {
+    return {
+      variant: "normal",
+      potionStatus: "unspecified",
+      code: "NP",
+      hasNoPotionWarning: true,
     };
   }
 
@@ -380,6 +440,26 @@ function detectTradePetDetails(
     potionStatus: "unspecified",
     code: "Normal",
     hasNoPotionWarning: true,
+  };
+}
+
+function normalizeDetailsForItem(
+  pet: PetRecord,
+  details: TradePetDetails,
+): TradePetDetails {
+  if (!isPetWearRecord(pet)) {
+    return details;
+  }
+
+  /**
+   * Pet Wear has only one database value and never receives potion or
+   * Normal/Neon/Mega adjustments.
+   */
+  return {
+    variant: "normal",
+    potionStatus: "unspecified",
+    code: "Item",
+    hasNoPotionWarning: false,
   };
 }
 
@@ -411,39 +491,191 @@ function normalizeTradeSeparators(
     .replace(
       /\bride\s+and\s+fly\b/gi,
       "ride fly",
+    )
+    .replace(/[×]/g, "x");
+}
+
+function extractQuantity(
+  text: string,
+): QuantityResult {
+  let itemText = text.trim();
+  let quantity = 1;
+
+  const leadingNumeric =
+    itemText.match(
+      /^(?:x\s*)?(\d+)\s*(?:x\s*)?\s+(.+)$/i,
     );
+
+  if (leadingNumeric) {
+    const parsedQuantity =
+      Number(leadingNumeric[1]);
+
+    if (
+      Number.isInteger(
+        parsedQuantity,
+      ) &&
+      parsedQuantity >= 1 &&
+      parsedQuantity <=
+        MAX_ITEMS_PER_SIDE
+    ) {
+      quantity =
+        parsedQuantity;
+      itemText =
+        leadingNumeric[2].trim();
+    }
+  } else {
+    const leadingWord =
+      itemText.match(
+        /^(one|two|three|four|five|six|seven|eight|nine)\s+(.+)$/i,
+      );
+
+    if (leadingWord) {
+      quantity =
+        QUANTITY_WORDS[
+          leadingWord[1].toLowerCase()
+        ] ?? 1;
+
+      itemText =
+        leadingWord[2].trim();
+    }
+  }
+
+  const trailingQuantity =
+    itemText.match(
+      /^(.+?)\s+x\s*(\d+)$/i,
+    );
+
+  if (trailingQuantity) {
+    const parsedQuantity =
+      Number(
+        trailingQuantity[2],
+      );
+
+    if (
+      Number.isInteger(
+        parsedQuantity,
+      ) &&
+      parsedQuantity >= 1 &&
+      parsedQuantity <=
+        MAX_ITEMS_PER_SIDE
+    ) {
+      quantity =
+        parsedQuantity;
+      itemText =
+        trailingQuantity[1].trim();
+    }
+  }
+
+  return {
+    quantity,
+    itemText,
+  };
+}
+
+function splitStrongTradeSeparators(
+  value: string,
+) {
+  return value
+    .split(
+      /\r?\n|,|;|\+|\s+\/\s+/gi,
+    )
+    .map((item) =>
+      item.trim(),
+    )
+    .filter(Boolean);
+}
+
+function splitConjunctionChunk(
+  chunk: string,
+) {
+  const potentialItems =
+    chunk
+      .split(
+        /\s+\b(?:and|with)\b\s+/gi,
+      )
+      .map((item) =>
+        item.trim(),
+      )
+      .filter(Boolean);
+
+  if (
+    potentialItems.length <= 1
+  ) {
+    return [chunk];
+  }
+
+  const allPartsRecognized =
+    potentialItems.every(
+      (item) =>
+        Boolean(
+          findPetInMessage(
+            extractQuantity(
+              item,
+            ).itemText,
+          ),
+        ),
+    );
+
+  if (allPartsRecognized) {
+    return potentialItems;
+  }
+
+  /**
+   * Keep official names containing "and" intact unless the complete chunk
+   * clearly contains several database items.
+   */
+  const detectedItems =
+    findPetsInMessage(chunk);
+
+  return detectedItems.length > 1
+    ? potentialItems
+    : [chunk];
 }
 
 function splitTradeSideIntoItems(
   value: string,
 ) {
   const normalizedValue =
-    normalizeTradeSeparators(value);
+    normalizeTradeSeparators(
+      value,
+    );
 
-  return normalizedValue
-    .split(
-      /\r?\n|,|;|\+|\s+\/\s+|\s+\band\b\s+|\s+\bwith\b\s+/gi,
+  return splitStrongTradeSeparators(
+    normalizedValue,
+  )
+    .flatMap(
+      splitConjunctionChunk,
     )
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .slice(0, MAX_ITEMS_PER_SIDE);
+    .map((item) =>
+      item.trim(),
+    )
+    .filter(Boolean);
 }
 
 function parseTradeItem(
   text: string,
 ): ParsedTradeItem | null {
+  const {
+    itemText,
+  } = extractQuantity(text);
+
   const result =
-    findPetInMessage(text);
+    findPetInMessage(itemText);
 
   if (!result) {
     return null;
   }
 
   const details =
-    detectTradePetDetails(text);
+    normalizeDetailsForItem(
+      result.pet,
+      detectTradePetDetails(
+        itemText,
+      ),
+    );
 
   return {
-    text,
+    text: itemText,
     petName: result.pet.PETS,
     variant: details.variant,
     potionStatus:
@@ -455,28 +687,78 @@ function parseTradeItem(
 function parseTradeSide(
   text: string,
 ) {
-  return splitTradeSideIntoItems(text)
-    .map(parseTradeItem)
-    .filter(
-      (
-        item,
-      ): item is ParsedTradeItem =>
-        item !== null,
-    );
+  const chunks =
+    splitTradeSideIntoItems(text);
+
+  if (
+    chunks.length === 0
+  ) {
+    return [];
+  }
+
+  const parsedItems:
+    ParsedTradeItem[] = [];
+
+  for (const chunk of chunks) {
+    const quantity =
+      extractQuantity(
+        chunk,
+      ).quantity;
+
+    const parsedItem =
+      parseTradeItem(chunk);
+
+    if (!parsedItem) {
+      /**
+       * Never silently ignore an unknown chunk. A partial trade comparison is
+       * more dangerous than returning a clarification request.
+       */
+      return [];
+    }
+
+    for (
+      let count = 0;
+      count < quantity;
+      count += 1
+    ) {
+      if (
+        parsedItems.length >=
+        MAX_ITEMS_PER_SIDE
+      ) {
+        return parsedItems;
+      }
+
+      parsedItems.push({
+        ...parsedItem,
+        text: parsedItem.text,
+      });
+    }
+  }
+
+  return parsedItems;
 }
 
 function createTradeItem(
   text: string,
 ): NichTradeItem | null {
+  const {
+    itemText,
+  } = extractQuantity(text);
+
   const result =
-    findPetInMessage(text);
+    findPetInMessage(itemText);
 
   if (!result) {
     return null;
   }
 
   const details =
-    detectTradePetDetails(text);
+    normalizeDetailsForItem(
+      result.pet,
+      detectTradePetDetails(
+        itemText,
+      ),
+    );
 
   const rawValue =
     getRawPetVariantValue(
@@ -492,14 +774,18 @@ function createTradeItem(
   }
 
   const potionAdjustment =
-    getPotionAdjustment(
-      details.potionStatus,
-    );
+    isPetWearRecord(result.pet)
+      ? 0
+      : getPotionAdjustment(
+          details.potionStatus,
+        );
 
-  const adjustedValue = Math.max(
-    0,
-    baseValue + potionAdjustment,
-  );
+  const adjustedValue =
+    Math.max(
+      0,
+      baseValue +
+        potionAdjustment,
+    );
 
   return {
     petName: result.pet.PETS,
@@ -513,7 +799,9 @@ function createTradeItem(
     potionAdjustment,
     value: adjustedValue,
     displayValue:
-      formatNumericValue(adjustedValue),
+      formatNumericValue(
+        adjustedValue,
+      ),
     hasNoPotionWarning:
       details.hasNoPotionWarning,
   };
@@ -521,15 +809,51 @@ function createTradeItem(
 
 function createTradeItems(
   text: string,
-) {
-  return splitTradeSideIntoItems(text)
-    .map(createTradeItem)
-    .filter(
-      (
-        item,
-      ): item is NichTradeItem =>
-        item !== null,
-    );
+): NichTradeItem[] | null {
+  const chunks =
+    splitTradeSideIntoItems(text);
+
+  if (
+    chunks.length === 0
+  ) {
+    return null;
+  }
+
+  const items:
+    NichTradeItem[] = [];
+
+  for (const chunk of chunks) {
+    const quantity =
+      extractQuantity(
+        chunk,
+      ).quantity;
+
+    const item =
+      createTradeItem(chunk);
+
+    if (!item) {
+      return null;
+    }
+
+    for (
+      let count = 0;
+      count < quantity;
+      count += 1
+    ) {
+      if (
+        items.length >=
+        MAX_ITEMS_PER_SIDE
+      ) {
+        return items;
+      }
+
+      items.push({
+        ...item,
+      });
+    }
+  }
+
+  return items;
 }
 
 function sumTradeItems(
@@ -547,39 +871,52 @@ export function compareTrade(
   requestText: string,
 ): NichTradeComparison | null {
   const offeredItems =
-    createTradeItems(offerText);
+    createTradeItems(
+      offerText,
+    );
 
   const requestedItems =
-    createTradeItems(requestText);
+    createTradeItems(
+      requestText,
+    );
 
   if (
-    offeredItems.length === 0 ||
-    requestedItems.length === 0
+    !offeredItems?.length ||
+    !requestedItems?.length
   ) {
     return null;
   }
 
   const offeredValue =
-    sumTradeItems(offeredItems);
+    sumTradeItems(
+      offeredItems,
+    );
 
   const requestedValue =
-    sumTradeItems(requestedItems);
+    sumTradeItems(
+      requestedItems,
+    );
 
   const difference =
-    requestedValue - offeredValue;
+    requestedValue -
+    offeredValue;
 
-  const comparisonBase = Math.max(
-    offeredValue,
-    requestedValue,
-    1,
-  );
+  const comparisonBase =
+    Math.max(
+      offeredValue,
+      requestedValue,
+      1,
+    );
 
   const differencePercent =
-    (difference / comparisonBase) * 100;
+    (difference /
+      comparisonBase) *
+    100;
 
-  const absolutePercent = Math.abs(
-    differencePercent,
-  );
+  const absolutePercent =
+    Math.abs(
+      differencePercent,
+    );
 
   let verdict:
     NichTradeComparison["verdict"];
@@ -598,7 +935,8 @@ export function compareTrade(
 
     // Keep these fields so older Nich code remains compatible.
     offered: offeredItems[0],
-    requested: requestedItems[0],
+    requested:
+      requestedItems[0],
 
     offeredValue,
     requestedValue,
@@ -612,17 +950,21 @@ const tradeSeparators = [
   /\s+versus\s+/i,
   /\s+against\s+/i,
   /\s+compared\s+to\s+/i,
+  /\s+in\s+exchange\s+for\s+/i,
   /\s+for\s+/i,
   /\s+vs\.?\s+/i,
+  /\s*<->\s*/i,
+  /\s*=>\s*/i,
 ];
 
 const YOUR_OWNER_PATTERN = [
   "my offer",
-  "your offer",
   "im giving",
   "i am giving",
+  "i give",
   "im trading",
   "i am trading",
+  "i offer",
   "i have",
   "mine",
   "my",
@@ -636,7 +978,13 @@ const THEIR_OWNER_PATTERN = [
   "their offer",
   "his offer",
   "her offer",
-  "your offer",
+  "they are giving",
+  "theyre giving",
+  "they give",
+  "he is giving",
+  "hes giving",
+  "she is giving",
+  "shes giving",
   "other persons offer",
   "other person",
   "other trader",
@@ -677,7 +1025,7 @@ function cleanTradeSide(
       "",
     )
     .replace(
-      /\s+(?:fair|good|bad|a win|a lose|win|lose|worth it|worth|better)\??$/i,
+      /\s+(?:fair|good|bad|a win|a lose|win|lose|worth it|worth|better|wfl|op|up|overpay|underpay)\??$/i,
       "",
     )
     .trim();
@@ -716,12 +1064,57 @@ function splitOwnershipTradeMessage(
   }
 
   const offerText =
-    cleanTradeSide(match[1]);
+    cleanTradeSide(
+      match[1],
+    );
 
   const requestText =
-    cleanTradeSide(match[2]);
+    cleanTradeSide(
+      match[2],
+    );
 
-  if (!offerText || !requestText) {
+  if (
+    !offerText ||
+    !requestText
+  ) {
+    return null;
+  }
+
+  return {
+    offerText,
+    requestText,
+  };
+}
+
+function splitLabelledTradeMessage(
+  message: string,
+) {
+  const withoutWfl =
+    stripWflPrefix(message);
+
+  const labelledMatch =
+    withoutWfl.match(
+      /^(?:my|your)\s+offer\s*:\s*(.+?)\s+(?:their|his|her)\s+offer\s*:\s*(.+)$/i,
+    );
+
+  if (!labelledMatch) {
+    return null;
+  }
+
+  const offerText =
+    cleanTradeSide(
+      labelledMatch[1],
+    );
+
+  const requestText =
+    cleanTradeSide(
+      labelledMatch[2],
+    );
+
+  if (
+    !offerText ||
+    !requestText
+  ) {
     return null;
   }
 
@@ -734,8 +1127,19 @@ function splitOwnershipTradeMessage(
 function splitTradeMessage(
   message: string,
 ) {
+  const labelledTrade =
+    splitLabelledTradeMessage(
+      message,
+    );
+
+  if (labelledTrade) {
+    return labelledTrade;
+  }
+
   const ownershipTrade =
-    splitOwnershipTradeMessage(message);
+    splitOwnershipTradeMessage(
+      message,
+    );
 
   if (ownershipTrade) {
     return ownershipTrade;
@@ -747,20 +1151,47 @@ function splitTradeMessage(
   for (
     const separator of tradeSeparators
   ) {
-    const parts =
-      withoutWfl.split(separator);
+    const separatorMatch =
+      withoutWfl.match(separator);
 
-    if (parts.length !== 2) {
+    if (
+      !separatorMatch ||
+      separatorMatch.index ===
+        undefined
+    ) {
+      continue;
+    }
+
+    const start =
+      separatorMatch.index;
+
+    const end =
+      start +
+      separatorMatch[0].length;
+
+    const offerText =
+      cleanTradeSide(
+        withoutWfl.slice(
+          0,
+          start,
+        ),
+      );
+
+    const requestText =
+      cleanTradeSide(
+        withoutWfl.slice(end),
+      );
+
+    if (
+      !offerText ||
+      !requestText
+    ) {
       continue;
     }
 
     return {
-      offerText: cleanTradeSide(
-        parts[0],
-      ),
-      requestText: cleanTradeSide(
-        parts[1],
-      ),
+      offerText,
+      requestText,
     };
   }
 

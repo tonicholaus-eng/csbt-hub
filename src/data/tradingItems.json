@@ -5045,7 +5045,7 @@
     "CATEGORY": "PET",
     "IMAGE": "https://elvebredd.com/images/pets/Peppermint%20Penguin.png",
     "INGAME_VALUE": 26.5,
-    "NORMAL": 280,
+    "NORMAL": 350,
     "NEON": 1100,
     "MEGA": 3000
   },
@@ -6655,8 +6655,8 @@
     "CATEGORY": "PET",
     "IMAGE": "https://elvebredd.com/images/pets/Strawberry%20Shortcake%20Bat%20Dragon.png",
     "INGAME_VALUE": 32.5,
-    "NORMAL": 420,
-    "NEON": 1000,
+    "NORMAL": 450,
+    "NEON": 1250,
     "MEGA": 4000
   },
   {
@@ -7105,7 +7105,7 @@
     "CATEGORY": "PET",
     "IMAGE": "https://elvebredd.com/images/pets/Turtle.png",
     "INGAME_VALUE": 25,
-    "NORMAL": 300,
+    "NORMAL": 350,
     "NEON": 700,
     "MEGA": 1700
   },

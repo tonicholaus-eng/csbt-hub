@@ -1,11 +1,16 @@
 import {
   formatPetValue,
   getAllPetRecords,
+  getAvailablePetVariants,
+  getRawPetVariantValue,
+  parseTradeValueNumber,
+  type PetRecord,
   type PetVariant,
 } from "./petSearch";
 
 export type NearbyPetResult = {
   name: string;
+  category: PetRecord["CATEGORY"];
   variant: PetVariant;
   value: string;
   centerValue: number;
@@ -19,113 +24,216 @@ function getValueCenter(
     | null
     | undefined,
 ): number | null {
-  if (
-    value === undefined ||
-    value === null ||
-    String(value).trim() === ""
-  ) {
-    return null;
-  }
+  return parseTradeValueNumber(value);
+}
 
-  const numbers = String(value)
-    .replace(/,/g, "")
-    .match(/\d+(?:\.\d+)?/g)
-    ?.map(Number)
-    .filter((number) =>
-      Number.isFinite(number),
-    );
-
-  if (!numbers?.length) {
-    return null;
-  }
-
-  if (numbers.length === 1) {
-    return numbers[0];
-  }
-
-  return (
-    numbers[0] + numbers[1]
-  ) / 2;
+function getVariantValue(
+  pet: PetRecord,
+  variant: PetVariant,
+) {
+  return getRawPetVariantValue(
+    pet,
+    variant,
+  );
 }
 
 export function findPetsNearValue(
   targetValue: number,
   limit = 5,
 ): NearbyPetResult[] {
-  if (!Number.isFinite(targetValue)) {
+  if (
+    !Number.isFinite(
+      targetValue,
+    ) ||
+    targetValue < 0
+  ) {
     return [];
   }
 
-  const matches: NearbyPetResult[] = [];
+  const safeLimit = Math.min(
+    Math.max(1, limit),
+    20,
+  );
 
-  for (const pet of getAllPetRecords()) {
-    const variants = [
-      {
-        variant: "normal" as const,
-        value: pet.NORMAL,
-      },
-      {
-        variant: "neon" as const,
-        value: pet.NEON,
-      },
-      {
-        variant: "mega" as const,
-        value: pet.MEGA,
-      },
-    ];
+  const matches:
+    NearbyPetResult[] = [];
 
-    for (const item of variants) {
+  const seen =
+    new Set<string>();
+
+  for (
+    const pet of getAllPetRecords()
+  ) {
+    const variants =
+      getAvailablePetVariants(
+        pet,
+      );
+
+    for (const variant of variants) {
+      const rawValue =
+        getVariantValue(
+          pet,
+          variant,
+        );
+
       const centerValue =
-        getValueCenter(item.value);
+        getValueCenter(
+          rawValue,
+        );
 
       if (centerValue === null) {
         continue;
       }
 
+      const key =
+        `${pet.ID}:${variant}`;
+
+      if (seen.has(key)) {
+        continue;
+      }
+
+      seen.add(key);
+
       matches.push({
         name: pet.PETS,
-        variant: item.variant,
-        value: formatPetValue(
-          item.value,
-        ),
+        category: pet.CATEGORY,
+        variant,
+        value:
+          formatPetValue(
+            rawValue,
+          ),
         centerValue,
-        difference: Math.abs(
-          centerValue - targetValue,
-        ),
+        difference:
+          Math.abs(
+            centerValue -
+              targetValue,
+          ),
       });
     }
   }
 
   return matches
     .sort(
-      (firstMatch, secondMatch) =>
-        firstMatch.difference -
-        secondMatch.difference,
+      (
+        firstMatch,
+        secondMatch,
+      ) => {
+        if (
+          firstMatch.difference !==
+          secondMatch.difference
+        ) {
+          return (
+            firstMatch.difference -
+            secondMatch.difference
+          );
+        }
+
+        const firstRelative =
+          firstMatch.difference /
+          Math.max(
+            firstMatch.centerValue,
+            targetValue,
+            1,
+          );
+
+        const secondRelative =
+          secondMatch.difference /
+          Math.max(
+            secondMatch.centerValue,
+            targetValue,
+            1,
+          );
+
+        if (
+          firstRelative !==
+          secondRelative
+        ) {
+          return (
+            firstRelative -
+            secondRelative
+          );
+        }
+
+        return firstMatch.name.localeCompare(
+          secondMatch.name,
+        );
+      },
     )
-    .slice(0, Math.max(1, limit));
+    .slice(0, safeLimit);
 }
 
-export function extractNearbyTargetValue(
-  message: string,
-): number | null {
-  const normalizedMessage = message
-    .toLowerCase()
-    .replace(/,/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+function parseCompactTarget(
+  rawValue: string,
+) {
+  const normalizedValue =
+    rawValue
+      .toLowerCase()
+      .replace(/,/g, "")
+      .trim();
 
   const match =
-    normalizedMessage.match(
-      /(?:around|near|about|close to|value|worth)\s+(\d+(?:\.\d+)?)/,
+    normalizedValue.match(
+      /^(\d+(?:\.\d+)?)\s*([km])?$/,
     );
 
   if (!match) {
     return null;
   }
 
-  const targetValue = Number(match[1]);
+  const number =
+    Number(match[1]);
 
-  return Number.isFinite(targetValue)
-    ? targetValue
-    : null;
+  if (!Number.isFinite(number)) {
+    return null;
+  }
+
+  const multiplier =
+    match[2] === "k"
+      ? 1_000
+      : match[2] === "m"
+        ? 1_000_000
+        : 1;
+
+  return number * multiplier;
+}
+
+export function extractNearbyTargetValue(
+  message: string,
+): number | null {
+  const normalizedMessage =
+    message
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const patterns = [
+    /(?:around|near|about|close to|similar to|value of|worth)\s+(\d[\d,]*(?:\.\d+)?\s*[km]?)/i,
+    /(\d[\d,]*(?:\.\d+)?\s*[km]?)\s+(?:value|worth)\b/i,
+    /(?:find|show|search)\s+(?:pets?|items?|pet ?wears?)?\s*(?:around|near)?\s*(\d[\d,]*(?:\.\d+)?\s*[km]?)/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match =
+      normalizedMessage.match(
+        pattern,
+      );
+
+    if (!match) {
+      continue;
+    }
+
+    const targetValue =
+      parseCompactTarget(
+        match[1],
+      );
+
+    if (
+      targetValue !== null &&
+      targetValue >= 0
+    ) {
+      return targetValue;
+    }
+  }
+
+  return null;
 }

@@ -240,11 +240,12 @@ export default function Home() {
       {/* Bottom fade */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[500px] bg-gradient-to-t from-sky-100/65 via-violet-50/20 to-transparent transition-colors duration-300 dark:from-slate-950/70 dark:via-blue-950/10" />
 
-      {/* Main content */}
-      <div className="relative z-10 min-w-0">
-        <Navbar />
+      {/* Navigation */}
+      <Navbar />
 
-        <div className="mx-auto w-full max-w-7xl px-3 pb-24 pt-6 sm:px-6 sm:pb-32 sm:pt-8">
+      {/* Main content — offset for the fixed desktop sidebar */}
+      <div className="relative z-10 min-w-0 transition-[padding] duration-300 lg:pl-72">
+        <div className="mx-auto w-full max-w-[1500px] px-3 pb-24 pt-6 sm:px-6 sm:pb-32 sm:pt-8 lg:px-8 lg:pt-8">
           <Hero totalPets={totalItems} />
 
           {/* Quick actions */}

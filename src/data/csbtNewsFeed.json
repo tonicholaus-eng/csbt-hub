@@ -1,0 +1,36 @@
+[
+  {
+    "id": "csbt-values-update",
+    "author": "CSBT Admin",
+    "authorInitials": "CA",
+    "postedAt": "Latest update",
+    "category": "Value Update",
+    "text": "The CSBT Pet and Pet Wear value list has been updated.\n\nAlways double-check the latest values before confirming a trade.",
+    "reactions": 0,
+    "comments": 0,
+    "postUrl": "https://www.facebook.com/groups/5352107604807631",
+    "pinned": true
+  },
+  {
+    "id": "csbt-wfl-reminder",
+    "author": "CSBT Community",
+    "authorInitials": "C",
+    "postedAt": "Community reminder",
+    "category": "Trading",
+    "text": "Need help with a trade? Post both sides clearly and include the correct variants such as FR, NFR, MFR, or NP so members can give a more accurate W/F/L response.",
+    "reactions": 0,
+    "comments": 0,
+    "postUrl": "https://www.facebook.com/groups/5352107604807631"
+  },
+  {
+    "id": "csbt-private-feed",
+    "author": "CSBT Community",
+    "authorInitials": "C",
+    "postedAt": "Group notice",
+    "category": "Community",
+    "text": "The original Facebook feed is private. Log in and join the CSBT group to see member posts, screenshots, comments, reactions, and live trading discussions.",
+    "reactions": 0,
+    "comments": 0,
+    "postUrl": "https://www.facebook.com/groups/5352107604807631"
+  }
+]
