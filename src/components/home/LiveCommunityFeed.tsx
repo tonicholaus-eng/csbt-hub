@@ -28,6 +28,13 @@ const MAX_IMAGE_SIZE =
 const MAX_VISIBLE_POSTS = 100;
 const STORAGE_BUCKET =
   "community-images";
+const AVATAR_BUCKET =
+  "avatars";
+const MAX_AVATAR_SOURCE_SIZE =
+  5 * 1024 * 1024;
+const MAX_AVATAR_UPLOAD_SIZE =
+  750 * 1024;
+const AVATAR_SIZE = 512;
 
 let browserClient:
   | SupabaseClient
@@ -86,10 +93,297 @@ type CommunityPostChangePayload = {
   old: Partial<CommunityPostRow>;
 };
 
+type CommunityProfileRow = {
+  user_id: string;
+  display_name: string;
+  avatar_path: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type CommunityProfile =
+  CommunityProfileRow & {
+    avatar_url: string | null;
+  };
+
+type CommunityProfileChangePayload = {
+  new: Partial<CommunityProfileRow>;
+  old: Partial<CommunityProfileRow>;
+};
+
 type Notice = {
   type: "success" | "error" | "info";
   text: string;
 };
+
+type UserAccent = {
+  avatar: string;
+  ring: string;
+  card: string;
+  bar: string;
+  dot: string;
+  name: string;
+};
+
+type PostKind =
+  | "giveaway"
+  | "wfl"
+  | "trade"
+  | "value"
+  | "question"
+  | "media"
+  | "update";
+
+const USER_ACCENTS: readonly UserAccent[] = [
+  {
+    avatar:
+      "from-violet-500 via-fuchsia-500 to-pink-500",
+    ring:
+      "ring-violet-300/70 dark:ring-violet-400/35",
+    card:
+      "border-violet-200/80 bg-gradient-to-br from-violet-50/90 via-white/85 to-fuchsia-50/70 dark:border-violet-400/20 dark:from-violet-500/[0.09] dark:via-slate-950/72 dark:to-fuchsia-500/[0.05]",
+    bar:
+      "bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500",
+    dot:
+      "bg-violet-500",
+    name:
+      "text-violet-800 dark:text-violet-200",
+  },
+  {
+    avatar:
+      "from-cyan-500 via-sky-500 to-blue-600",
+    ring:
+      "ring-cyan-300/70 dark:ring-cyan-400/35",
+    card:
+      "border-cyan-200/80 bg-gradient-to-br from-cyan-50/90 via-white/85 to-blue-50/70 dark:border-cyan-400/20 dark:from-cyan-500/[0.09] dark:via-slate-950/72 dark:to-blue-500/[0.05]",
+    bar:
+      "bg-gradient-to-r from-cyan-500 via-sky-500 to-blue-600",
+    dot:
+      "bg-cyan-500",
+    name:
+      "text-cyan-800 dark:text-cyan-200",
+  },
+  {
+    avatar:
+      "from-emerald-500 via-teal-500 to-cyan-600",
+    ring:
+      "ring-emerald-300/70 dark:ring-emerald-400/35",
+    card:
+      "border-emerald-200/80 bg-gradient-to-br from-emerald-50/90 via-white/85 to-teal-50/70 dark:border-emerald-400/20 dark:from-emerald-500/[0.09] dark:via-slate-950/72 dark:to-teal-500/[0.05]",
+    bar:
+      "bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600",
+    dot:
+      "bg-emerald-500",
+    name:
+      "text-emerald-800 dark:text-emerald-200",
+  },
+  {
+    avatar:
+      "from-amber-400 via-orange-500 to-red-500",
+    ring:
+      "ring-amber-300/70 dark:ring-amber-400/35",
+    card:
+      "border-amber-200/80 bg-gradient-to-br from-amber-50/90 via-white/85 to-orange-50/70 dark:border-amber-400/20 dark:from-amber-500/[0.09] dark:via-slate-950/72 dark:to-orange-500/[0.05]",
+    bar:
+      "bg-gradient-to-r from-amber-400 via-orange-500 to-red-500",
+    dot:
+      "bg-amber-500",
+    name:
+      "text-amber-800 dark:text-amber-200",
+  },
+  {
+    avatar:
+      "from-rose-500 via-pink-500 to-fuchsia-600",
+    ring:
+      "ring-rose-300/70 dark:ring-rose-400/35",
+    card:
+      "border-rose-200/80 bg-gradient-to-br from-rose-50/90 via-white/85 to-pink-50/70 dark:border-rose-400/20 dark:from-rose-500/[0.09] dark:via-slate-950/72 dark:to-pink-500/[0.05]",
+    bar:
+      "bg-gradient-to-r from-rose-500 via-pink-500 to-fuchsia-600",
+    dot:
+      "bg-rose-500",
+    name:
+      "text-rose-800 dark:text-rose-200",
+  },
+  {
+    avatar:
+      "from-indigo-500 via-blue-500 to-cyan-500",
+    ring:
+      "ring-indigo-300/70 dark:ring-indigo-400/35",
+    card:
+      "border-indigo-200/80 bg-gradient-to-br from-indigo-50/90 via-white/85 to-sky-50/70 dark:border-indigo-400/20 dark:from-indigo-500/[0.09] dark:via-slate-950/72 dark:to-sky-500/[0.05]",
+    bar:
+      "bg-gradient-to-r from-indigo-500 via-blue-500 to-cyan-500",
+    dot:
+      "bg-indigo-500",
+    name:
+      "text-indigo-800 dark:text-indigo-200",
+  },
+  {
+    avatar:
+      "from-lime-500 via-green-500 to-emerald-600",
+    ring:
+      "ring-lime-300/70 dark:ring-lime-400/35",
+    card:
+      "border-lime-200/80 bg-gradient-to-br from-lime-50/90 via-white/85 to-emerald-50/70 dark:border-lime-400/20 dark:from-lime-500/[0.09] dark:via-slate-950/72 dark:to-emerald-500/[0.05]",
+    bar:
+      "bg-gradient-to-r from-lime-500 via-green-500 to-emerald-600",
+    dot:
+      "bg-lime-500",
+    name:
+      "text-lime-800 dark:text-lime-200",
+  },
+  {
+    avatar:
+      "from-red-500 via-orange-500 to-amber-500",
+    ring:
+      "ring-red-300/70 dark:ring-red-400/35",
+    card:
+      "border-red-200/80 bg-gradient-to-br from-red-50/90 via-white/85 to-amber-50/70 dark:border-red-400/20 dark:from-red-500/[0.09] dark:via-slate-950/72 dark:to-amber-500/[0.05]",
+    bar:
+      "bg-gradient-to-r from-red-500 via-orange-500 to-amber-500",
+    dot:
+      "bg-red-500",
+    name:
+      "text-red-800 dark:text-red-200",
+  },
+] as const;
+
+const POST_KIND_STYLES: Record<
+  PostKind,
+  {
+    label: string;
+    icon: string;
+    className: string;
+  }
+> = {
+  giveaway: {
+    label: "Giveaway",
+    icon: "🎁",
+    className:
+      "border-pink-200 bg-pink-50 text-pink-700 dark:border-pink-400/20 dark:bg-pink-400/10 dark:text-pink-300",
+  },
+  wfl: {
+    label: "W / F / L",
+    icon: "⚖️",
+    className:
+      "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-300",
+  },
+  trade: {
+    label: "Trade",
+    icon: "⇄",
+    className:
+      "border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-400/20 dark:bg-cyan-400/10 dark:text-cyan-300",
+  },
+  value: {
+    label: "Value update",
+    icon: "◇",
+    className:
+      "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-300",
+  },
+  question: {
+    label: "Question",
+    icon: "?",
+    className:
+      "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-400/20 dark:bg-violet-400/10 dark:text-violet-300",
+  },
+  media: {
+    label: "Screenshot",
+    icon: "▧",
+    className:
+      "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-300",
+  },
+  update: {
+    label: "Community update",
+    icon: "✦",
+    className:
+      "border-slate-200 bg-slate-100 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300",
+  },
+};
+
+function hashIdentity(value: string) {
+  let hash = 0;
+
+  for (
+    let index = 0;
+    index < value.length;
+    index += 1
+  ) {
+    hash =
+      (hash * 31 +
+        value.charCodeAt(index)) |
+      0;
+  }
+
+  return Math.abs(hash);
+}
+
+function getUserAccent(
+  userId: string,
+  displayName: string,
+): UserAccent {
+  const identity =
+    `${userId}:${displayName}`.toLowerCase();
+
+  return USER_ACCENTS[
+    hashIdentity(identity) %
+      USER_ACCENTS.length
+  ];
+}
+
+function detectPostKind(
+  post: CommunityPost,
+): PostKind {
+  const content =
+    post.content.toLowerCase();
+
+  if (
+    /\b(giveaway|give away|winner|prize|raffle)\b/i.test(
+      content,
+    )
+  ) {
+    return "giveaway";
+  }
+
+  if (
+    /\b(w\s*\/\s*f\s*\/\s*l|win\s*,?\s*fair\s*,?\s*lose|win or lose|fair or lose)\b/i.test(
+      content,
+    )
+  ) {
+    return "wfl";
+  }
+
+  if (
+    /\b(trade|trading|offer|offering|looking for|lf\b|downgrade|upgrade)\b/i.test(
+      content,
+    )
+  ) {
+    return "trade";
+  }
+
+  if (
+    /\b(value|values|price|prices|updated value|value update)\b/i.test(
+      content,
+    )
+  ) {
+    return "value";
+  }
+
+  if (
+    content.includes("?") ||
+    /\b(what|which|should|can someone|does anyone|how much|is this)\b/i.test(
+      content,
+    )
+  ) {
+    return "question";
+  }
+
+  if (post.image_url) {
+    return "media";
+  }
+
+  return "update";
+}
 
 function formatRelativeTime(
   isoDate: string,
@@ -228,6 +522,146 @@ function sanitizeFileExtension(
   }
 }
 
+async function compressAvatarImage(
+  file: File,
+): Promise<Blob> {
+  const objectUrl =
+    URL.createObjectURL(file);
+
+  try {
+    const image =
+      await new Promise<HTMLImageElement>(
+        (
+          resolve,
+          reject,
+        ) => {
+          const nextImage =
+            new Image();
+
+          nextImage.onload = () =>
+            resolve(nextImage);
+
+          nextImage.onerror = () =>
+            reject(
+              new Error(
+                "Your profile picture could not be opened.",
+              ),
+            );
+
+          nextImage.src = objectUrl;
+        },
+      );
+
+    const sourceSize = Math.min(
+      image.naturalWidth,
+      image.naturalHeight,
+    );
+
+    const sourceX = Math.max(
+      0,
+      Math.floor(
+        (image.naturalWidth -
+          sourceSize) /
+          2,
+      ),
+    );
+
+    const sourceY = Math.max(
+      0,
+      Math.floor(
+        (image.naturalHeight -
+          sourceSize) /
+          2,
+      ),
+    );
+
+    const canvas =
+      document.createElement("canvas");
+
+    canvas.width = AVATAR_SIZE;
+    canvas.height = AVATAR_SIZE;
+
+    const context =
+      canvas.getContext("2d");
+
+    if (!context) {
+      throw new Error(
+        "Your browser could not prepare the profile picture.",
+      );
+    }
+
+    context.imageSmoothingEnabled =
+      true;
+    context.imageSmoothingQuality =
+      "high";
+
+    context.drawImage(
+      image,
+      sourceX,
+      sourceY,
+      sourceSize,
+      sourceSize,
+      0,
+      0,
+      AVATAR_SIZE,
+      AVATAR_SIZE,
+    );
+
+    let compressedBlob:
+      | Blob
+      | null = null;
+
+    for (
+      const quality of [
+        0.82,
+        0.72,
+        0.62,
+        0.52,
+      ]
+    ) {
+      compressedBlob =
+        await new Promise<Blob | null>(
+          (resolve) => {
+            canvas.toBlob(
+              resolve,
+              "image/webp",
+              quality,
+            );
+          },
+        );
+
+      if (
+        compressedBlob &&
+        compressedBlob.size <=
+          MAX_AVATAR_UPLOAD_SIZE
+      ) {
+        break;
+      }
+    }
+
+    if (!compressedBlob) {
+      throw new Error(
+        "Your profile picture could not be compressed.",
+      );
+    }
+
+    if (
+      compressedBlob.size >
+      MAX_AVATAR_UPLOAD_SIZE
+    ) {
+      throw new Error(
+        "Your profile picture is still too large after compression. Try a simpler image.",
+      );
+    }
+
+    return compressedBlob;
+  } finally {
+    URL.revokeObjectURL(
+      objectUrl,
+    );
+  }
+}
+
 function ImageIcon() {
   return (
     <svg
@@ -358,6 +792,43 @@ function MessageIcon() {
         strokeLinejoin="round"
       />
     </svg>
+  );
+}
+
+function ProfileAvatar({
+  displayName,
+  avatarUrl,
+  accent,
+  size = "md",
+}: {
+  displayName: string;
+  avatarUrl?: string | null;
+  accent: UserAccent;
+  size?: "sm" | "md" | "lg";
+}) {
+  const sizeClass =
+    size === "sm"
+      ? "h-10 w-10 rounded-2xl text-xs"
+      : size === "lg"
+        ? "h-20 w-20 rounded-[24px] text-lg"
+        : "h-11 w-11 rounded-2xl text-xs sm:h-12 sm:w-12";
+
+  return (
+    <div
+      className={`relative flex shrink-0 items-center justify-center overflow-hidden bg-gradient-to-br font-black text-white shadow-md ring-2 ring-offset-2 ring-offset-white/70 dark:ring-offset-slate-950/70 ${sizeClass} ${accent.avatar} ${accent.ring}`}
+    >
+      {avatarUrl ? (
+        <img
+          src={avatarUrl}
+          alt={`${displayName}'s profile picture`}
+          className="h-full w-full object-cover"
+          loading="lazy"
+          referrerPolicy="no-referrer"
+        />
+      ) : (
+        getInitials(displayName)
+      )}
+    </div>
   );
 }
 
@@ -655,12 +1126,14 @@ function AuthPanel({
 
 function PostCard({
   post,
+  profile,
   currentUserId,
   now,
   shouldReduceMotion,
   onDelete,
 }: {
   post: CommunityPost;
+  profile?: CommunityProfile;
   currentUserId?: string;
   now: number;
   shouldReduceMotion: boolean | null;
@@ -680,6 +1153,24 @@ function PostCard({
           post.created_at,
         ).getTime(),
     ) > 1000;
+
+  const displayName =
+    profile?.display_name?.trim() ||
+    post.display_name;
+
+  const avatarUrl =
+    profile?.avatar_url ?? null;
+
+  const accent = getUserAccent(
+    post.user_id,
+    displayName,
+  );
+
+  const postKind =
+    detectPostKind(post);
+
+  const kindStyle =
+    POST_KIND_STYLES[postKind];
 
   return (
     <motion.article
@@ -709,73 +1200,119 @@ function PostCard({
             ? 0
             : 0.35,
       }}
-      className="group flex gap-3 rounded-2xl px-3 py-4 transition-colors hover:bg-slate-100/75 dark:hover:bg-white/[0.035] sm:gap-4 sm:px-4"
+      className={`group relative mb-3 overflow-hidden rounded-[24px] border p-3 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-lg sm:p-4 ${accent.card} ${
+        isOwner
+          ? "ring-1 ring-violet-400/20"
+          : ""
+      }`}
     >
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 via-fuchsia-500 to-blue-600 text-xs font-black text-white shadow-md sm:h-11 sm:w-11">
-        {getInitials(
-          post.display_name,
-        )}
-      </div>
+      <div
+        aria-hidden="true"
+        className={`absolute inset-x-0 top-0 h-1 ${accent.bar}`}
+      />
 
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <p className="font-black text-slate-900 dark:text-white">
-            {post.display_name}
-          </p>
+      <div className="flex min-w-0 gap-3 sm:gap-4">
+        <div className="relative shrink-0 pt-0.5">
+          <ProfileAvatar
+            displayName={displayName}
+            avatarUrl={avatarUrl}
+            accent={accent}
+          />
 
-          <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-            {formatRelativeTime(
-              post.created_at,
-              now,
-            )}
-            {edited ? " · edited" : ""}
-          </span>
-
-          {isOwner && (
-            <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-violet-700 dark:bg-violet-400/10 dark:text-violet-300">
-              You
-            </span>
-          )}
+          <span
+            aria-hidden="true"
+            className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white shadow-sm dark:border-slate-950 ${accent.dot}`}
+          />
         </div>
 
-        {post.content && (
-          <p className="mt-1.5 whitespace-pre-wrap break-words text-sm leading-6 text-slate-700 dark:text-slate-300 sm:text-[15px]">
-            {post.content}
-          </p>
-        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5">
+            <p
+              className={`min-w-0 truncate text-sm font-black sm:text-[15px] ${accent.name}`}
+            >
+              {displayName}
+            </p>
 
-        {post.image_url && (
-          <a
-            href={post.image_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-3 block max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 dark:border-white/10 dark:bg-slate-950"
-          >
-            <img
-              src={post.image_url}
-              alt={`Image posted by ${post.display_name}`}
-              loading="lazy"
-              className="max-h-[520px] w-full object-contain"
-            />
-          </a>
-        )}
+            {isOwner && (
+              <span className="rounded-full border border-violet-200 bg-violet-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-violet-700 dark:border-violet-400/20 dark:bg-violet-400/10 dark:text-violet-300">
+                You
+              </span>
+            )}
+
+            <span
+              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.08em] ${kindStyle.className}`}
+            >
+              <span aria-hidden="true">
+                {kindStyle.icon}
+              </span>
+              {kindStyle.label}
+            </span>
+
+            <span className="ml-auto shrink-0 text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+              {formatRelativeTime(
+                post.created_at,
+                now,
+              )}
+              {edited
+                ? " · edited"
+                : ""}
+            </span>
+
+            {isOwner && (
+              <button
+                type="button"
+                onClick={() =>
+                  onDelete(post)
+                }
+                aria-label="Delete your post"
+                className="ml-0 rounded-lg p-1.5 text-slate-400 opacity-100 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-400/10 dark:hover:text-red-300 sm:opacity-0 sm:group-hover:opacity-100"
+              >
+                <TrashIcon />
+              </button>
+            )}
+          </div>
+
+          {post.image_url ? (
+            <div className="mt-3">
+              {post.content && (
+                <p className="mb-3 whitespace-pre-wrap break-words text-sm leading-6 text-slate-700 dark:text-slate-200 sm:text-[15px]">
+                  {post.content}
+                </p>
+              )}
+
+              <a
+                href={post.image_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group/image relative block max-w-3xl overflow-hidden rounded-[20px] border border-white/80 bg-slate-100 shadow-sm transition duration-300 hover:shadow-xl dark:border-white/10 dark:bg-slate-950"
+              >
+                <img
+                  src={post.image_url}
+                  alt={`Image posted by ${displayName}`}
+                  loading="lazy"
+                  className="max-h-[560px] w-full object-contain transition duration-500 group-hover/image:scale-[1.01]"
+                />
+
+                <span className="pointer-events-none absolute bottom-3 right-3 translate-y-1 rounded-full bg-slate-950/75 px-3 py-1.5 text-[10px] font-black text-white opacity-0 shadow-lg backdrop-blur transition duration-200 group-hover/image:translate-y-0 group-hover/image:opacity-100">
+                  Open image ↗
+                </span>
+              </a>
+            </div>
+          ) : (
+            post.content && (
+              <div className="mt-3 rounded-2xl border border-white/75 bg-white/60 px-4 py-3 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-black/10">
+                <p className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-700 dark:text-slate-200 sm:text-[15px]">
+                  {post.content}
+                </p>
+              </div>
+            )
+          )}
+        </div>
       </div>
-
-      {isOwner && (
-        <button
-          type="button"
-          onClick={() =>
-            onDelete(post)
-          }
-          aria-label="Delete your post"
-          className="self-start rounded-xl p-2 text-slate-400 opacity-100 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-400/10 dark:hover:text-red-300 sm:opacity-0 sm:group-hover:opacity-100"
-        >
-          <TrashIcon />
-        </button>
-      )}
     </motion.article>
   );
 }
+
 
 export default function LiveCommunityFeed() {
   const shouldReduceMotion =
@@ -789,6 +1326,9 @@ export default function LiveCommunityFeed() {
   const fileInputRef =
     useRef<HTMLInputElement>(null);
 
+  const avatarInputRef =
+    useRef<HTMLInputElement>(null);
+
   const feedRef =
     useRef<HTMLDivElement>(null);
 
@@ -800,6 +1340,9 @@ export default function LiveCommunityFeed() {
 
   const [posts, setPosts] =
     useState<CommunityPost[]>([]);
+
+  const [profiles, setProfiles] =
+    useState<Record<string, CommunityProfile>>({});
 
   const [isFeedLoading, setIsFeedLoading] =
     useState(true);
@@ -819,6 +1362,15 @@ export default function LiveCommunityFeed() {
   const [imagePreviewUrl, setImagePreviewUrl] =
     useState<string | null>(null);
 
+  const [selectedAvatar, setSelectedAvatar] =
+    useState<File | null>(null);
+
+  const [avatarPreviewUrl, setAvatarPreviewUrl] =
+    useState<string | null>(null);
+
+  const [isSavingAvatar, setIsSavingAvatar] =
+    useState(false);
+
   const [notice, setNotice] =
     useState<Notice | null>(null);
 
@@ -826,6 +1378,33 @@ export default function LiveCommunityFeed() {
     useState(() => Date.now());
 
   const user = session?.user;
+
+  const currentProfile =
+    user
+      ? profiles[user.id]
+      : undefined;
+
+  const composerAvatarUrl =
+    avatarPreviewUrl ??
+    currentProfile?.avatar_url ??
+    null;
+
+  const composerAccent = useMemo(
+    () =>
+      user
+        ? getUserAccent(
+            user.id,
+            displayName ||
+              getDefaultDisplayName(
+                user,
+              ),
+          )
+        : USER_ACCENTS[0],
+    [
+      displayName,
+      user,
+    ],
+  );
 
   const createImageUrl = useCallback(
     (
@@ -862,6 +1441,124 @@ export default function LiveCommunityFeed() {
       }),
       [createImageUrl],
     );
+
+  const toCommunityProfile =
+    useCallback(
+      (
+        row: CommunityProfileRow,
+      ): CommunityProfile => {
+        if (
+          !supabase ||
+          !row.avatar_path
+        ) {
+          return {
+            ...row,
+            avatar_url: null,
+          };
+        }
+
+        const publicUrl =
+          supabase.storage
+            .from(AVATAR_BUCKET)
+            .getPublicUrl(
+              row.avatar_path,
+            ).data.publicUrl;
+
+        return {
+          ...row,
+          avatar_url:
+            `${publicUrl}?v=${encodeURIComponent(
+              row.updated_at,
+            )}`,
+        };
+      },
+      [supabase],
+    );
+
+  const mergeProfile = useCallback(
+    (
+      profile: CommunityProfile,
+    ) => {
+      setProfiles((currentProfiles) => ({
+        ...currentProfiles,
+        [profile.user_id]:
+          profile,
+      }));
+    },
+    [],
+  );
+
+  const loadProfiles = useCallback(
+    async (
+      userIds: string[],
+    ) => {
+      if (!supabase) {
+        return;
+      }
+
+      const uniqueUserIds = [
+        ...new Set(
+          userIds.filter(Boolean),
+        ),
+      ];
+
+      if (
+        uniqueUserIds.length === 0
+      ) {
+        return;
+      }
+
+      const {
+        data,
+        error,
+      } = await supabase
+        .from("profiles")
+        .select(
+          "user_id,display_name,avatar_path,created_at,updated_at",
+        )
+        .in(
+          "user_id",
+          uniqueUserIds,
+        );
+
+      if (error) {
+        console.error(
+          "Could not load community profiles:",
+          error.message,
+        );
+        return;
+      }
+
+      const nextProfiles =
+        (
+          data as CommunityProfileRow[]
+        ).map(
+          toCommunityProfile,
+        );
+
+      setProfiles(
+        (currentProfiles) => {
+          const mergedProfiles = {
+            ...currentProfiles,
+          };
+
+          for (
+            const profile of nextProfiles
+          ) {
+            mergedProfiles[
+              profile.user_id
+            ] = profile;
+          }
+
+          return mergedProfiles;
+        },
+      );
+    },
+    [
+      supabase,
+      toCommunityProfile,
+    ],
+  );
 
   const mergePost = useCallback(
     (
@@ -927,16 +1624,27 @@ export default function LiveCommunityFeed() {
           text: error.message,
         });
       } else {
+        const postRows =
+          data as CommunityPostRow[];
+
         setPosts(
-          (
-            data as CommunityPostRow[]
-          ).map(toCommunityPost),
+          postRows.map(
+            toCommunityPost,
+          ),
+        );
+
+        void loadProfiles(
+          postRows.map(
+            (post) =>
+              post.user_id,
+          ),
         );
       }
 
       setIsFeedLoading(false);
     },
     [
+      loadProfiles,
       supabase,
       toCommunityPost,
     ],
@@ -1004,6 +1712,7 @@ export default function LiveCommunityFeed() {
   useEffect(() => {
     if (!user) {
       setDisplayName("");
+      setSelectedAvatar(null);
       return;
     }
 
@@ -1019,6 +1728,19 @@ export default function LiveCommunityFeed() {
         ),
     );
   }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    void loadProfiles([
+      user.id,
+    ]);
+  }, [
+    loadProfiles,
+    user,
+  ]);
 
   useEffect(() => {
     void loadPosts();
@@ -1048,6 +1770,9 @@ export default function LiveCommunityFeed() {
             );
 
           mergePost(newPost);
+          void loadProfiles([
+            newPost.user_id,
+          ]);
           setNow(Date.now());
         },
       )
@@ -1105,9 +1830,103 @@ export default function LiveCommunityFeed() {
         .removeChannel(channel);
     };
   }, [
+    loadProfiles,
     mergePost,
     supabase,
     toCommunityPost,
+  ]);
+
+  useEffect(() => {
+    if (!supabase) {
+      return;
+    }
+
+    const profileChannel =
+      supabase
+        .channel(
+          "csbt-community-profiles",
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "profiles",
+          },
+          (
+            payload: CommunityProfileChangePayload,
+          ) => {
+            mergeProfile(
+              toCommunityProfile(
+                payload.new as CommunityProfileRow,
+              ),
+            );
+          },
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "profiles",
+          },
+          (
+            payload: CommunityProfileChangePayload,
+          ) => {
+            mergeProfile(
+              toCommunityProfile(
+                payload.new as CommunityProfileRow,
+              ),
+            );
+          },
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "DELETE",
+            schema: "public",
+            table: "profiles",
+          },
+          (
+            payload: CommunityProfileChangePayload,
+          ) => {
+            const deletedUserId =
+              (
+                payload.old as {
+                  user_id?: string;
+                }
+              ).user_id;
+
+            if (!deletedUserId) {
+              return;
+            }
+
+            setProfiles(
+              (currentProfiles) => {
+                const nextProfiles = {
+                  ...currentProfiles,
+                };
+
+                delete nextProfiles[
+                  deletedUserId
+                ];
+
+                return nextProfiles;
+              },
+            );
+          },
+        )
+        .subscribe();
+
+    return () => {
+      void supabase.removeChannel(
+        profileChannel,
+      );
+    };
+  }, [
+    mergeProfile,
+    supabase,
+    toCommunityProfile,
   ]);
 
   useEffect(() => {
@@ -1128,6 +1947,25 @@ export default function LiveCommunityFeed() {
         objectUrl,
       );
   }, [selectedImage]);
+
+  useEffect(() => {
+    if (!selectedAvatar) {
+      setAvatarPreviewUrl(null);
+      return;
+    }
+
+    const objectUrl =
+      URL.createObjectURL(
+        selectedAvatar,
+      );
+
+    setAvatarPreviewUrl(objectUrl);
+
+    return () =>
+      URL.revokeObjectURL(
+        objectUrl,
+      );
+  }, [selectedAvatar]);
 
   const handleImageSelection = (
     file?: File,
@@ -1161,6 +1999,241 @@ export default function LiveCommunityFeed() {
     setSelectedImage(file);
     setNotice(null);
   };
+
+  const handleAvatarSelection = (
+    file?: File,
+  ) => {
+    if (!file) {
+      return;
+    }
+
+    if (
+      ![
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+      ].includes(file.type)
+    ) {
+      setNotice({
+        type: "error",
+        text: "Profile pictures must be JPG, PNG, or WebP.",
+      });
+      return;
+    }
+
+    if (
+      file.size >
+      MAX_AVATAR_SOURCE_SIZE
+    ) {
+      setNotice({
+        type: "error",
+        text: "Profile pictures must be 5 MB or smaller.",
+      });
+      return;
+    }
+
+    setSelectedAvatar(file);
+    setNotice(null);
+  };
+
+  const handleSaveAvatar =
+    async () => {
+      if (
+        !supabase ||
+        !user ||
+        !selectedAvatar
+      ) {
+        return;
+      }
+
+      const cleanDisplayName =
+        (
+          displayName.trim() ||
+          getDefaultDisplayName(user)
+        ).slice(0, 32);
+
+      setIsSavingAvatar(true);
+      setNotice(null);
+
+      try {
+        const compressedAvatar =
+          await compressAvatarImage(
+            selectedAvatar,
+          );
+
+        const avatarPath =
+          `${user.id}/avatar.webp`;
+
+        const {
+          error: uploadError,
+        } = await supabase.storage
+          .from(AVATAR_BUCKET)
+          .upload(
+            avatarPath,
+            compressedAvatar,
+            {
+              cacheControl: "3600",
+              upsert: true,
+              contentType:
+                "image/webp",
+            },
+          );
+
+        if (uploadError) {
+          throw uploadError;
+        }
+
+        const {
+          data,
+          error,
+        } = await supabase
+          .from("profiles")
+          .upsert(
+            {
+              user_id: user.id,
+              display_name:
+                cleanDisplayName,
+              avatar_path:
+                avatarPath,
+              updated_at:
+                new Date().toISOString(),
+            },
+            {
+              onConflict:
+                "user_id",
+            },
+          )
+          .select(
+            "user_id,display_name,avatar_path,created_at,updated_at",
+          )
+          .single();
+
+        if (error) {
+          throw error;
+        }
+
+        mergeProfile(
+          toCommunityProfile(
+            data as CommunityProfileRow,
+          ),
+        );
+
+        setSelectedAvatar(null);
+        setNotice({
+          type: "success",
+          text: "Your profile picture was updated.",
+        });
+      } catch (error) {
+        setNotice({
+          type: "error",
+          text:
+            error instanceof Error
+              ? error.message
+              : "Your profile picture could not be updated.",
+        });
+      } finally {
+        setIsSavingAvatar(false);
+
+        if (
+          avatarInputRef.current
+        ) {
+          avatarInputRef.current.value =
+            "";
+        }
+      }
+    };
+
+  const handleRemoveAvatar =
+    async () => {
+      if (
+        !supabase ||
+        !user ||
+        !currentProfile?.avatar_path
+      ) {
+        return;
+      }
+
+      const confirmed =
+        window.confirm(
+          "Remove your profile picture?",
+        );
+
+      if (!confirmed) {
+        return;
+      }
+
+      setIsSavingAvatar(true);
+      setNotice(null);
+
+      try {
+        const {
+          error: removeError,
+        } = await supabase.storage
+          .from(AVATAR_BUCKET)
+          .remove([
+            currentProfile.avatar_path,
+          ]);
+
+        if (removeError) {
+          throw removeError;
+        }
+
+        const {
+          data,
+          error,
+        } = await supabase
+          .from("profiles")
+          .upsert(
+            {
+              user_id: user.id,
+              display_name:
+                (
+                  displayName.trim() ||
+                  getDefaultDisplayName(
+                    user,
+                  )
+                ).slice(0, 32),
+              avatar_path: null,
+              updated_at:
+                new Date().toISOString(),
+            },
+            {
+              onConflict:
+                "user_id",
+            },
+          )
+          .select(
+            "user_id,display_name,avatar_path,created_at,updated_at",
+          )
+          .single();
+
+        if (error) {
+          throw error;
+        }
+
+        mergeProfile(
+          toCommunityProfile(
+            data as CommunityProfileRow,
+          ),
+        );
+
+        setSelectedAvatar(null);
+        setNotice({
+          type: "success",
+          text: "Your profile picture was removed.",
+        });
+      } catch (error) {
+        setNotice({
+          type: "error",
+          text:
+            error instanceof Error
+              ? error.message
+              : "Your profile picture could not be removed.",
+        });
+      } finally {
+        setIsSavingAvatar(false);
+      }
+    };
 
   const handleCreatePost = async (
     event:
@@ -1277,6 +2350,48 @@ export default function LiveCommunityFeed() {
 
       if (error) {
         throw error;
+      }
+
+      const {
+        data: profileData,
+        error: profileError,
+      } = await supabase
+        .from("profiles")
+        .upsert(
+          {
+            user_id: user.id,
+            display_name:
+              cleanDisplayName,
+            updated_at:
+              new Date().toISOString(),
+          },
+          {
+            onConflict:
+              "user_id",
+            defaultToNull:
+              false,
+          },
+        )
+        .select(
+          "user_id,display_name,avatar_path,created_at,updated_at",
+        )
+        .single();
+
+      if (
+        profileError
+      ) {
+        console.error(
+          "Could not update the community profile:",
+          profileError.message,
+        );
+      } else if (
+        profileData
+      ) {
+        mergeProfile(
+          toCommunityProfile(
+            profileData as CommunityProfileRow,
+          ),
+        );
       }
 
       window.localStorage.setItem(
@@ -1552,7 +2667,7 @@ export default function LiveCommunityFeed() {
             <div className="min-w-0 border-b border-slate-200/80 dark:border-white/10 lg:border-b-0 lg:border-r">
               <div
                 ref={feedRef}
-                className="h-[560px] overflow-y-auto overscroll-contain px-2 py-3 sm:h-[650px] sm:px-4"
+                className="h-[560px] overflow-y-auto overscroll-contain px-3 py-4 sm:h-[650px] sm:px-5"
                 style={{
                   scrollbarGutter:
                     "stable",
@@ -1591,6 +2706,11 @@ export default function LiveCommunityFeed() {
                         <PostCard
                           key={post.id}
                           post={post}
+                          profile={
+                            profiles[
+                              post.user_id
+                            ]
+                          }
                           currentUserId={
                             user?.id
                           }
@@ -1657,24 +2777,133 @@ export default function LiveCommunityFeed() {
                   }
                   className="space-y-4"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 via-fuchsia-500 to-blue-600 text-xs font-black text-white">
-                      {getInitials(
-                        displayName ||
+                  <div className="rounded-[22px] border border-slate-200/85 bg-white/70 p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.035]">
+                    <input
+                      ref={avatarInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      onChange={(event) =>
+                        handleAvatarSelection(
+                          event.target
+                            .files?.[0],
+                        )
+                      }
+                    />
+
+                    <div className="flex items-start gap-4">
+                      <ProfileAvatar
+                        displayName={
+                          displayName ||
                           getDefaultDisplayName(
                             user,
-                          ),
-                      )}
-                    </div>
+                          )
+                        }
+                        avatarUrl={
+                          composerAvatarUrl
+                        }
+                        accent={
+                          composerAccent
+                        }
+                        size="lg"
+                      />
 
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-black text-slate-900 dark:text-white">
-                        Posting as a member
-                      </p>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-black text-slate-900 dark:text-white">
+                              Your community profile
+                            </p>
 
-                      <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-                        {user.email}
-                      </p>
+                            <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
+                              {user.email}
+                            </p>
+                          </div>
+
+                          {currentProfile
+                            ?.avatar_path &&
+                            !selectedAvatar && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  void handleRemoveAvatar()
+                                }
+                                disabled={
+                                  isSavingAvatar
+                                }
+                                className="rounded-lg px-2 py-1 text-[10px] font-black text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:text-red-300 dark:hover:bg-red-400/10"
+                              >
+                                Remove
+                              </button>
+                            )}
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              avatarInputRef
+                                .current
+                                ?.click()
+                            }
+                            disabled={
+                              isSavingAvatar
+                            }
+                            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-[11px] font-black text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+                          >
+                            {currentProfile
+                              ?.avatar_path
+                              ? "Change photo"
+                              : "Add photo"}
+                          </button>
+
+                          {selectedAvatar && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  void handleSaveAvatar()
+                                }
+                                disabled={
+                                  isSavingAvatar
+                                }
+                                className="rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-3 py-2 text-[11px] font-black text-white shadow-sm transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                {isSavingAvatar
+                                  ? "Saving…"
+                                  : "Save photo"}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedAvatar(
+                                    null,
+                                  );
+
+                                  if (
+                                    avatarInputRef
+                                      .current
+                                  ) {
+                                    avatarInputRef.current.value =
+                                      "";
+                                  }
+                                }}
+                                disabled={
+                                  isSavingAvatar
+                                }
+                                className="rounded-xl px-3 py-2 text-[11px] font-black text-slate-500 transition hover:bg-slate-100 disabled:opacity-50 dark:text-slate-400 dark:hover:bg-white/5"
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          )}
+                        </div>
+
+                        <p className="mt-2 text-[10px] leading-relaxed text-slate-400 dark:text-slate-500">
+                          JPG, PNG, or WebP. Your photo is cropped and compressed to WebP before upload.
+                        </p>
+                      </div>
                     </div>
                   </div>
 
