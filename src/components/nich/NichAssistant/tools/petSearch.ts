@@ -2,7 +2,9 @@ import tradingItemsData from "../../../../data/tradingItems.json";
 import type {
   TradeItem,
   TradeValue,
+  ValueSource,
 } from "../../../trade/types";
+import { getItemValue } from "../../../../lib/valueSystem";
 
 export type PetVariant =
   | "normal"
@@ -1251,7 +1253,7 @@ function parseCompactNumber(
 /**
  * Converts a CSBT value into one safe comparison number.
  *
- * - "30-40", "30 to 40", and "4000/3970" use the midpoint.
+ * - "30-40", "30 to 40", and "4000/3970" use the lower value.
  * - "1400+" uses 1400 as a conservative minimum.
  * - Missing and text-only values such as N/A or trash return null.
  */
@@ -1315,9 +1317,10 @@ export function parseTradeValueNumber(
       normalizedValue.includes("—"));
 
   if (looksLikeRange) {
-    return (
-      numbers[0] + numbers[1]
-    ) / 2;
+    return Math.min(
+      numbers[0],
+      numbers[1],
+    );
   }
 
   return numbers[0];
@@ -1345,12 +1348,13 @@ export function isPetWearRecord(
 
 export function getAvailablePetVariants(
   pet: PetRecord,
+  source: ValueSource = "GCASH",
 ): PetVariant[] {
   const variants: PetVariant[] = [];
 
   if (
     parseTradeValueNumber(
-      pet.NORMAL,
+      getRawPetVariantValue(pet, "normal", source),
     ) !== null
   ) {
     variants.push("normal");
@@ -1361,7 +1365,7 @@ export function getAvailablePetVariants(
   ) {
     if (
       parseTradeValueNumber(
-        pet.NEON,
+        getRawPetVariantValue(pet, "neon", source),
       ) !== null
     ) {
       variants.push("neon");
@@ -1369,7 +1373,7 @@ export function getAvailablePetVariants(
 
     if (
       parseTradeValueNumber(
-        pet.MEGA,
+        getRawPetVariantValue(pet, "mega", source),
       ) !== null
     ) {
       variants.push("mega");
@@ -1382,27 +1386,32 @@ export function getAvailablePetVariants(
 export function getRawPetVariantValue(
   pet: PetRecord,
   variant: PetVariant,
+  source: ValueSource = "GCASH",
 ): TradeValue {
-  switch (variant) {
-    case "normal":
-      return pet.NORMAL;
+  const valueType =
+    variant === "normal"
+      ? "NORMAL"
+      : variant === "neon"
+        ? "NEON"
+        : "MEGA";
 
-    case "neon":
-      return pet.NEON;
-
-    case "mega":
-      return pet.MEGA;
-  }
+  return getItemValue(
+    pet,
+    source,
+    valueType,
+  );
 }
 
 export function getPetVariantValue(
   pet: PetRecord,
   variant: PetVariant,
+  source: ValueSource = "GCASH",
 ) {
   return formatPetValue(
     getRawPetVariantValue(
       pet,
       variant,
+      source,
     ),
   );
 }

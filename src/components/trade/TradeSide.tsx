@@ -8,6 +8,7 @@ import {
 import TradePetCard from "./TradePetCard";
 import {
   SelectedTradeItem,
+  ValueSource,
   ValueType,
 } from "./types";
 
@@ -22,6 +23,7 @@ type Props = {
     id: string,
     valueType: ValueType,
   ) => void;
+  valueSource: ValueSource;
 };
 
 function formatTotal(total: number): string {
@@ -42,6 +44,7 @@ export default function TradeSide({
   onAdd,
   onRemove,
   onValueTypeChange,
+  valueSource,
 }: Props) {
   const shouldReduceMotion =
     useReducedMotion();
@@ -274,6 +277,7 @@ export default function TradeSide({
                             valueType,
                           )
                         }
+                        valueSource={valueSource}
                       />
                     </motion.div>
                   ),

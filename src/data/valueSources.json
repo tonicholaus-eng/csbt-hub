@@ -1,0 +1,18 @@
+{
+  "defaultSource": "GCASH",
+  "sources": {
+    "GCASH": {
+      "label": "GCash Value",
+      "description": "CSBT community cash values from source-data/trading-data.xlsx."
+    },
+    "ELVE": {
+      "label": "Elve Shark Value",
+      "source": "Elvebredd",
+      "valueSystem": "Shark",
+      "sourceUrl": "https://www.elvebredd.com/adopt-me-calculator",
+      "updatedAt": "2026-07-28T21:42:32Z",
+      "sourceVersion": 472,
+      "recordCount": 1716
+    }
+  }
+}

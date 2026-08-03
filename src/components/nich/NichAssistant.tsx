@@ -1,10 +1,12 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 
 import NichButton from "./NichAssistant/NichButton";
-import NichChat from "./NichAssistant/NichChat";
-import NichIntroMascot from "./NichIntroMascot";
+
+const NichChat = dynamic(() => import("./NichAssistant/NichChat"), { ssr: false });
+const NichIntroMascot = dynamic(() => import("./NichIntroMascot"), { ssr: false });
 
 const NICH_INTRO_STORAGE_KEY =
   "csbt-nich-intro-completed";
@@ -13,6 +15,8 @@ export default function NichAssistant() {
   const [isOpen, setIsOpen] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [showIntro, setShowIntro] =
+    useState(false);
+  const [chatLoaded, setChatLoaded] =
     useState(false);
 
   useEffect(() => {
@@ -31,6 +35,7 @@ export default function NichAssistant() {
   }, []);
 
   function toggleChat() {
+    setChatLoaded(true);
     setIsOpen(
       (currentValue) => !currentValue,
     );
@@ -66,11 +71,13 @@ export default function NichAssistant() {
 
       {!showIntro && (
         <>
-          <NichChat
-            variant="floating"
-            open={isOpen}
-            onClose={closeChat}
-          />
+          {chatLoaded && (
+            <NichChat
+              variant="floating"
+              open={isOpen}
+              onClose={closeChat}
+            />
+          )}
 
           <NichButton
             open={isOpen}

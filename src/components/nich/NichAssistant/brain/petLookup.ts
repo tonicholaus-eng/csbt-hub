@@ -2,155 +2,153 @@ import type {
   NichBrainInput,
   NichContextPet,
   NichResponse,
+  NichValueSource,
 } from "./types";
-
+import {
+  VALUE_SOURCE_LABELS,
+  detectValueSource,
+} from "../../../../lib/valueSystem";
 import {
   analyzeNichMessage,
   type NichMessageAnalysis,
 } from "./messageAnalysis";
-
 import {
   detectPetVariant,
   findPetByName,
   formatPetValue,
+  getAvailablePetVariants,
   getPetVariantValue,
   getRawPetVariantValue,
+  isPetWearRecord,
   normalizeText,
+  parseTradeValueNumber,
   type PetMessageMatch,
   type PetRecord,
   type PetVariant,
 } from "../tools/petSearch";
+import { formatNumber, slugify } from "./language";
 
-function capitalizeVariant(
-  variant: PetVariant,
-) {
-  return (
-    variant.charAt(0).toUpperCase() +
-    variant.slice(1)
-  );
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-function parseNumericValue(
-  value:
-    | string
-    | number
-    | null
-    | undefined,
-) {
-  if (
-    value === undefined ||
-    value === null
-  ) {
-    return undefined;
+type AggregatedMatch = PetMessageMatch & { quantity: number };
+
+function aggregateMatches(matches: PetMessageMatch[]): AggregatedMatch[] {
+  const grouped = new Map<string, AggregatedMatch>();
+
+  for (const match of matches) {
+    const key = `${match.pet.ID}:${match.variant ?? "all"}`;
+    const existing = grouped.get(key);
+
+    if (existing) {
+      existing.quantity += match.quantity ?? 1;
+      continue;
+    }
+
+    grouped.set(key, {
+      ...match,
+      quantity: Math.max(1, Math.floor(match.quantity ?? 1)),
+    });
   }
 
-  if (
-    typeof value === "number" &&
-    Number.isFinite(value)
-  ) {
-    return value;
-  }
-
-  const normalizedValue = String(value)
-    .replace(/,/g, "")
-    .match(/-?\d+(?:\.\d+)?/);
-
-  if (!normalizedValue) {
-    return undefined;
-  }
-
-  const numericValue = Number(
-    normalizedValue[0],
-  );
-
-  return Number.isFinite(numericValue)
-    ? numericValue
-    : undefined;
+  return Array.from(grouped.values());
 }
 
-function createAllValuesText(
+function formatValueWithQuantity(
+  rawValue: string | number | null | undefined,
+  quantity: number,
+): { valueText: string; totalText?: string; numericValue?: number } {
+  const displayValue = formatPetValue(rawValue);
+  const numericValue = parseTradeValueNumber(rawValue);
+
+  if (quantity <= 1 || numericValue === null) {
+    return { valueText: displayValue, numericValue: numericValue ?? undefined };
+  }
+
+  return {
+    valueText: displayValue,
+    totalText: `${formatNumber(numericValue * quantity)} total`,
+    numericValue: numericValue * quantity,
+  };
+}
+
+function createVariantBlock(
   pet: PetRecord,
-) {
+  variant: PetVariant,
+  quantity: number,
+  source: NichValueSource,
+): string {
+  const label = capitalize(variant);
+  const rawValue = getRawPetVariantValue(pet, variant, source);
+  const formatted = formatValueWithQuantity(rawValue, quantity);
+  const title = quantity > 1 ? `${quantity} × ${label} ${pet.PETS}` : `${label} ${pet.PETS}`;
+
   return [
-    `🐾 ${pet.PETS}`,
+    `🐾 ${title}`,
     "",
-    `Normal: ${formatPetValue(pet.NORMAL)}`,
-    `Neon: ${formatPetValue(pet.NEON)}`,
-    `Mega: ${formatPetValue(pet.MEGA)}`,
+    `${label} value: ${formatted.valueText}`,
+    ...(formatted.totalText ? [`Combined value: ${formatted.totalText}`] : []),
   ].join("\n");
 }
 
-function createVariantValueText(
+function createAllValuesBlock(
   pet: PetRecord,
-  variant: PetVariant,
-) {
-  const label =
-    capitalizeVariant(variant);
+  quantity: number,
+  source: NichValueSource,
+): string {
+  const variants = getAvailablePetVariants(pet, source);
+  const title = quantity > 1 ? `${quantity} × ${pet.PETS}` : pet.PETS;
+  const lines = variants.map((variant) => {
+    const rawValue = getRawPetVariantValue(pet, variant, source);
+    const formatted = formatValueWithQuantity(rawValue, quantity);
+    const total = formatted.totalText ? ` · ${formatted.totalText}` : "";
+    return `${capitalize(variant)}: ${formatted.valueText}${total}`;
+  });
 
-  return [
-    `🐾 ${label} ${pet.PETS}`,
-    "",
-    `${label} value: ${getPetVariantValue(
-      pet,
-      variant,
-    )}`,
-  ].join("\n");
+  return [`🐾 ${title}`, "", ...lines].join("\n");
 }
 
 function createMatchText(
-  match: PetMessageMatch,
-) {
-  if (match.variant) {
-    return createVariantValueText(
-      match.pet,
-      match.variant,
-    );
-  }
-
-  return createAllValuesText(match.pet);
+  match: AggregatedMatch,
+  source: NichValueSource,
+): string {
+  return match.variant
+    ? createVariantBlock(match.pet, match.variant, match.quantity, source)
+    : createAllValuesBlock(match.pet, match.quantity, source);
 }
 
 function createPetSuggestions(
-  petName: string,
+  pet: PetRecord,
+  source: NichValueSource,
   selectedVariant?: PetVariant,
 ) {
-  const variants: PetVariant[] = [
-    "normal",
-    "neon",
-    "mega",
-  ];
-
-  return variants
-    .filter(
-      (variant) =>
-        variant !== selectedVariant,
-    )
-    .map((variant) => ({
-      id: `${petName}-${variant}`
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, ""),
-      label: `${capitalizeVariant(
-        variant,
-      )} value`,
-      message: `What is the ${variant} ${petName} worth?`,
-    }));
-}
-
-function isVariantOnlyFollowUp(
-  message: string,
-) {
-  const variant =
-    detectPetVariant(message);
-
-  if (!variant) {
-    return false;
+  if (isPetWearRecord(pet)) {
+    return [
+      {
+        id: `${slugify(pet.PETS)}-nearby`,
+        label: "Find similar value",
+        message: `Find items around the value of ${pet.PETS}`,
+      },
+    ];
   }
 
-  const normalizedMessage =
-    normalizeText(message);
+  return getAvailablePetVariants(pet, source)
+    .filter((variant) => variant !== selectedVariant)
+    .map((variant) => ({
+      id: `${slugify(pet.PETS)}-${variant}`,
+      label: `${capitalize(variant)} value`,
+      message: `What is the ${variant} ${pet.PETS} worth using ${source === "ELVE" ? "Elve Shark" : "GCash"}?`,
+    }))
+    .slice(0, 3);
+}
 
-  const followUpWords = new Set([
+function isVariantOnlyFollowUp(message: string): boolean {
+  const variant = detectPetVariant(message);
+  if (!variant) return false;
+
+  const normalized = normalizeText(message);
+  return new Set([
     variant,
     `the ${variant}`,
     `${variant} value`,
@@ -160,217 +158,143 @@ function isVariantOnlyFollowUp(
     `how about ${variant}`,
     `and ${variant}`,
     `and the ${variant}`,
-  ]);
-
-  if (
-    followUpWords.has(normalizedMessage)
-  ) {
-    return true;
-  }
-
-  return (
-    normalizedMessage.startsWith(
-      "what about",
-    ) ||
-    normalizedMessage.startsWith(
-      "how about",
-    )
-  );
+  ]).has(normalized);
 }
 
 function createVariantFollowUpMatch(
   message: string,
   lastPetName?: string,
 ): PetMessageMatch | undefined {
-  if (
-    !lastPetName ||
-    !isVariantOnlyFollowUp(message)
-  ) {
-    return undefined;
-  }
+  if (!lastPetName || !isVariantOnlyFollowUp(message)) return undefined;
 
-  const pet =
-    findPetByName(lastPetName);
-
-  const variant =
-    detectPetVariant(message);
-
-  if (!pet || !variant) {
-    return undefined;
-  }
+  const pet = findPetByName(lastPetName);
+  const variant = detectPetVariant(message);
+  if (!pet || !variant) return undefined;
 
   return {
     pet,
     matchedName: pet.PETS,
     variant,
     lineIndex: 0,
+    quantity: 1,
+    confidence: 1,
+    matchKind: "exact",
   };
 }
 
-function createPetFollowUpMatches(
+function applyRememberedVariant(
   message: string,
   matches: PetMessageMatch[],
   lastVariant?: PetVariant,
-) {
-  const normalizedMessage =
-    normalizeText(message);
-
+): PetMessageMatch[] {
+  const normalized = normalizeText(message);
   const looksLikeFollowUp =
-    normalizedMessage.startsWith("and ") ||
-    normalizedMessage.startsWith(
-      "what about ",
-    ) ||
-    normalizedMessage.startsWith(
-      "how about ",
-    );
+    normalized.startsWith("and ") ||
+    normalized.startsWith("what about ") ||
+    normalized.startsWith("how about ");
 
-  if (
-    !looksLikeFollowUp ||
-    !lastVariant
-  ) {
-    return matches;
-  }
-
+  if (!looksLikeFollowUp || !lastVariant) return matches;
   return matches.map((match) => ({
     ...match,
-    variant:
-      match.variant ?? lastVariant,
+    variant: match.variant ?? lastVariant,
   }));
 }
 
-function buildResponseText(
-  matches: PetMessageMatch[],
-) {
-  if (matches.length === 1) {
-    return [
-      createMatchText(matches[0]),
-      "",
-      "These are the current CSBT values in the database.",
-    ].join("\n");
+function getAnalysisMatches(analysis: NichMessageAnalysis): PetMessageMatch[] {
+  if (analysis.pets.length > 0) {
+    return analysis.pets;
   }
 
-  const petBlocks = matches.map(
-    (match) => createMatchText(match),
-  );
+  if (analysis.itemResolution?.status !== "matched") {
+    return [];
+  }
 
+  const match = analysis.itemResolution.match;
   return [
-    `I found ${matches.length} pets:`,
-    "",
-    petBlocks.join("\n\n"),
-    "",
-    "These are the current CSBT values in the database.",
-  ].join("\n");
+    {
+      pet: match.pet,
+      matchedName: match.matchedName,
+      variant: analysis.requestedVariant ?? undefined,
+      lineIndex: 0,
+      quantity: 1,
+      confidence: match.confidence,
+      matchKind: match.matchKind,
+    },
+  ];
 }
 
 function createContextPet(
-  match: PetMessageMatch,
+  match: AggregatedMatch,
+  source: NichValueSource,
 ): NichContextPet {
-  const rememberedVariant =
-    match.variant ?? "normal";
-
-  const rawValue =
-    getRawPetVariantValue(
-      match.pet,
-      rememberedVariant,
-    );
+  const variant = match.variant ?? "normal";
+  const rawValue = getRawPetVariantValue(match.pet, variant, source);
+  const numeric = parseTradeValueNumber(rawValue);
 
   return {
     petName: match.pet.PETS,
-    variant: rememberedVariant,
-    value: parseNumericValue(rawValue),
+    variant,
+    ...(numeric !== null ? { value: numeric * match.quantity } : {}),
     displayValue:
-      formatPetValue(rawValue),
+      match.quantity > 1 && numeric !== null
+        ? formatNumber(numeric * match.quantity)
+        : formatPetValue(rawValue),
   };
-}
-
-function createRecentPets(
-  matches: PetMessageMatch[],
-) {
-  return matches.map(createContextPet);
-}
-
-function getLastNumericValue(
-  matches: PetMessageMatch[],
-) {
-  const lastMatch =
-    matches[matches.length - 1];
-
-  if (!lastMatch) {
-    return undefined;
-  }
-
-  const variant =
-    lastMatch.variant ?? "normal";
-
-  return parseNumericValue(
-    getRawPetVariantValue(
-      lastMatch.pet,
-      variant,
-    ),
-  );
 }
 
 export function createPetLookupResponse(
   input: NichBrainInput,
   providedAnalysis?: NichMessageAnalysis,
 ): NichResponse | null {
-  const analysis =
-    providedAnalysis ??
-    analyzeNichMessage(input.message);
-
-  const matchesWithMemory =
-    createPetFollowUpMatches(
-      input.message,
-      analysis.pets,
-      input.context.lastVariant,
-    );
-
+  const analysis = providedAnalysis ?? analyzeNichMessage(input.message);
+  const source = detectValueSource(
+    input.message,
+    input.context.lastValueSource ?? "GCASH",
+  ) as NichValueSource;
+  const initialMatches = getAnalysisMatches(analysis);
+  const matchesWithMemory = applyRememberedVariant(
+    input.message,
+    initialMatches,
+    input.context.lastVariant,
+  );
   const variantFollowUp =
     matchesWithMemory.length === 0
-      ? createVariantFollowUpMatch(
-          input.message,
-          input.context.lastPetName,
-        )
+      ? createVariantFollowUpMatch(input.message, input.context.lastPetName)
       : undefined;
+  const matches = aggregateMatches(
+    variantFollowUp ? [variantFollowUp] : matchesWithMemory,
+  );
 
-  const matches = variantFollowUp
-    ? [variantFollowUp]
-    : matchesWithMemory;
+  if (matches.length === 0) return null;
 
-  if (matches.length === 0) {
-    return null;
-  }
+  const blocks = matches.map((match) => createMatchText(match, source));
+  const lastMatch = matches.at(-1)!;
+  const recentPets = matches.map((match) => createContextPet(match, source));
+  const lastContextPet = recentPets.at(-1)!;
+  const totalQuantity = matches.reduce((total, match) => total + match.quantity, 0);
 
-  const lastMatch =
-    matches[matches.length - 1];
-
-  const recentPets =
-    createRecentPets(matches);
+  const text = [
+    ...(matches.length > 1
+      ? [`I found ${matches.length} item types (${totalQuantity} total items):`, ""]
+      : []),
+    blocks.join("\n\n"),
+    "",
+    `Source: ${VALUE_SOURCE_LABELS[source]}. Demand can still affect real trades.`,
+  ].join("\n");
 
   return {
-    text: buildResponseText(matches),
+    text,
     intent: "petLookup",
     reaction: "searchFound",
-    typingDuration:
-      matches.length > 1
-        ? Math.min(
-            650 + matches.length * 100,
-            1200,
-          )
-        : 600,
-    suggestions: createPetSuggestions(
-      lastMatch.pet.PETS,
-      lastMatch.variant,
-    ),
+    typingDuration: Math.min(500 + matches.length * 100, 1_100),
+    suggestions: createPetSuggestions(lastMatch.pet, source, lastMatch.variant),
     context: {
-      lastPetName:
-        lastMatch.pet.PETS,
-      lastVariant:
-        lastMatch.variant ?? "normal",
+      lastPetName: lastMatch.pet.PETS,
+      lastVariant: lastMatch.variant ?? "normal",
       recentPets,
-      lastNumericValue:
-        getLastNumericValue(matches),
+      lastNumericValue: lastContextPet.value,
       lastIntent: "petLookup",
+      lastValueSource: source,
     },
   };
 }

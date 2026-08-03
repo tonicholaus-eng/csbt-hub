@@ -6,9 +6,13 @@ import {
   useReducedMotion,
 } from "framer-motion";
 
+import type { ValueSource } from "./types";
+import { VALUE_SOURCE_LABELS } from "../../lib/valueSystem";
+
 type Props = {
   yourTotal: number;
   theirTotal: number;
+  valueSource: ValueSource;
 };
 
 type TradeResult =
@@ -27,10 +31,7 @@ type ResultConfig = {
 };
 
 function formatValue(value: number) {
-  if (!Number.isFinite(value)) {
-    return "0";
-  }
-
+  if (!Number.isFinite(value)) return "0";
   return new Intl.NumberFormat("en-US", {
     maximumFractionDigits: 2,
   }).format(value);
@@ -39,19 +40,33 @@ function formatValue(value: number) {
 function getTradeResult(
   yourTotal: number,
   theirTotal: number,
+  valueSource: ValueSource,
 ): ResultConfig {
+  const sourceLabel = VALUE_SOURCE_LABELS[valueSource];
+
   if (yourTotal === 0 && theirTotal === 0) {
     return {
       title: "READY",
       emoji: "🧮",
-      color:
-        "from-slate-500 via-slate-600 to-slate-800",
-      glow:
-        "shadow-slate-400/30 dark:shadow-black/30",
-      message:
-        "Add items to both sides to calculate your trade.",
-      explanation:
-        "Start adding items to compare both offers instantly.",
+      color: "from-slate-500 via-slate-600 to-slate-800",
+      glow: "shadow-slate-400/30 dark:shadow-black/30",
+      message: "Add items to both sides to calculate your trade.",
+      explanation: `This calculator is currently using ${sourceLabel}.`,
+    };
+  }
+
+  const difference = Math.abs(theirTotal - yourTotal);
+  const baseline = Math.max(yourTotal, theirTotal, 1);
+  const differencePercent = (difference / baseline) * 100;
+
+  if (differencePercent <= 5) {
+    return {
+      title: "FAIR",
+      emoji: "🤝",
+      color: "from-yellow-400 via-orange-400 to-amber-500",
+      glow: "shadow-yellow-400/40 dark:shadow-orange-950/40",
+      message: `The offers are within ${differencePercent.toFixed(1)}% of each other.`,
+      explanation: `Fair-range result using ${sourceLabel}. Demand can still affect the real trade.`,
     };
   }
 
@@ -59,50 +74,27 @@ function getTradeResult(
     return {
       title: "WIN",
       emoji: "🏆",
-      color:
-        "from-green-500 via-emerald-500 to-green-700",
-      glow:
-        "shadow-green-400/40 dark:shadow-green-950/40",
-      message: `You're underpaying by ${formatValue(
-        theirTotal - yourTotal,
-      )}.`,
-      explanation:
-        "Great trade! You're receiving more value than you're giving.",
-    };
-  }
-
-  if (yourTotal > theirTotal) {
-    return {
-      title: "LOSE",
-      emoji: "💸",
-      color:
-        "from-red-500 via-pink-500 to-red-700",
-      glow:
-        "shadow-red-400/40 dark:shadow-red-950/40",
-      message: `You're overpaying by ${formatValue(
-        yourTotal - theirTotal,
-      )}.`,
-      explanation:
-        "Be careful! You're giving more value than you're receiving.",
+      color: "from-green-500 via-emerald-500 to-green-700",
+      glow: "shadow-green-400/40 dark:shadow-green-950/40",
+      message: `You're underpaying by ${formatValue(difference)}.`,
+      explanation: `You're receiving more ${sourceLabel} than you're giving.`,
     };
   }
 
   return {
-    title: "FAIR",
-    emoji: "🤝",
-    color:
-      "from-yellow-400 via-orange-400 to-amber-500",
-    glow:
-      "shadow-yellow-400/40 dark:shadow-orange-950/40",
-    message: "Both offers have equal value.",
-    explanation:
-      "This trade is balanced based on the current CSBT values.",
+    title: "LOSE",
+    emoji: "💸",
+    color: "from-red-500 via-pink-500 to-red-700",
+    glow: "shadow-red-400/40 dark:shadow-red-950/40",
+    message: `You're overpaying by ${formatValue(difference)}.`,
+    explanation: `You're giving more ${sourceLabel} than you're receiving.`,
   };
 }
 
 export default function TradeSummary({
   yourTotal,
   theirTotal,
+  valueSource,
 }: Props) {
   const shouldReduceMotion =
     useReducedMotion();
@@ -122,6 +114,7 @@ export default function TradeSummary({
   const result = getTradeResult(
     safeYourTotal,
     safeTheirTotal,
+    valueSource,
   );
 
   const difference = Math.abs(

@@ -7,11 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "data:validate": "tsx scripts/validatePets.ts",
+    "test:nich": "tsx scripts/test-nich-brain.ts",
+    "data:validate": "node scripts/validate-trading-data.js",
     "data:convert": "tsx scripts/convert.ts",
     "data:add-images": "tsx scripts/addImages.ts",
     "images:import": "node scripts/import-pet-images.mjs",
-    "generate:data": "node scripts/generate-trading-items.js"
+    "generate:data": "node scripts/generate-trading-items.js",
+    "update:elve": "node scripts/update-elve-shark-values.js",
+    "refresh:values": "npm run update:elve && npm run generate:data && npm run data:validate"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.111.0",

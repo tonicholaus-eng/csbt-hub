@@ -1,0 +1,28 @@
+{
+  "generatedAt": "2026-08-03T08:53:43.482385+00:00",
+  "pets": 763,
+  "petWear": 940,
+  "total": 1703,
+  "warnings": [
+    "2023 Uplift Butterfly: no matching Elve Shark snapshot record.",
+    "Brown Pheasant: no matching Elve Shark snapshot record.",
+    "Dango Penguin: no matching Elve Shark snapshot record.",
+    "Malayan Tapir: no matching Elve Shark snapshot record.",
+    "Mecha R4BBIT - 1.15: no matching Elve Shark snapshot record.",
+    "Pet Rock: no matching Elve Shark snapshot record.",
+    "Woolly Rhino: no matching Elve Shark snapshot record.",
+    "Dylan: no matching Elve Shark snapshot record.",
+    "Echo brown wizard hat: no matching Elve Shark snapshot record.",
+    "Jade Moth Wing: no matching Elve Shark snapshot record.",
+    "Pirate Hat \\u0026 Friend: no matching Elve Shark snapshot record.",
+    "Purple \\u0026 Green Beads: no matching Elve Shark snapshot record.",
+    "Red \\u0026 Yellow Beads: no matching Elve Shark snapshot record.",
+    "Socks \\u0026 Sandals: no matching Elve Shark snapshot record.",
+    "Sun \\u0026 Moon Earrings: no matching Elve Shark snapshot record.",
+    "Wrapped Doll: no matching Elve Shark snapshot record.",
+    "Fire Mare GCash mega: invalid value 'S'; stored as null.",
+    "Puma GCash mega: range '8-10' normalized to lower bound 8.0.",
+    "Purrowl GCash regular: range '1-2' normalized to lower bound 1.0.",
+    "Purrowl GCash neon: range '7-9' normalized to lower bound 7.0."
+  ]
+}

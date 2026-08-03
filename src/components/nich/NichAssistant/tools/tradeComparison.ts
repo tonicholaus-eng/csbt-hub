@@ -3,6 +3,7 @@ import type {
   NichTradeComparison,
   NichTradeItem,
 } from "../brain/types";
+import type { ValueSource } from "../../../trade/types";
 
 import {
   findPetInMessage,
@@ -465,7 +466,9 @@ function normalizeDetailsForItem(
 
 function getPotionAdjustment(
   potionStatus: NichPotionStatus,
+  source: ValueSource,
 ) {
+  if (source === "ELVE") return 0;
   switch (potionStatus) {
     case "flyOnly":
       return MISSING_RIDE_ADJUSTMENT;
@@ -740,6 +743,7 @@ function parseTradeSide(
 
 function createTradeItem(
   text: string,
+  source: ValueSource,
 ): NichTradeItem | null {
   const {
     itemText,
@@ -764,6 +768,7 @@ function createTradeItem(
     getRawPetVariantValue(
       result.pet,
       details.variant,
+      source,
     );
 
   const baseValue =
@@ -778,6 +783,7 @@ function createTradeItem(
       ? 0
       : getPotionAdjustment(
           details.potionStatus,
+          source,
         );
 
   const adjustedValue =
@@ -809,6 +815,7 @@ function createTradeItem(
 
 function createTradeItems(
   text: string,
+  source: ValueSource,
 ): NichTradeItem[] | null {
   const chunks =
     splitTradeSideIntoItems(text);
@@ -829,7 +836,7 @@ function createTradeItems(
       ).quantity;
 
     const item =
-      createTradeItem(chunk);
+      createTradeItem(chunk, source);
 
     if (!item) {
       return null;
@@ -869,15 +876,18 @@ function sumTradeItems(
 export function compareTrade(
   offerText: string,
   requestText: string,
+  source: ValueSource = "GCASH",
 ): NichTradeComparison | null {
   const offeredItems =
     createTradeItems(
       offerText,
+      source,
     );
 
   const requestedItems =
     createTradeItems(
       requestText,
+      source,
     );
 
   if (
@@ -943,6 +953,7 @@ export function compareTrade(
     difference,
     differencePercent,
     verdict,
+    valueSource: source,
   };
 }
 

@@ -18,13 +18,19 @@ import tradingItemsData from "../../data/tradingItems.json";
 import {
   ItemCategory,
   TradeItem,
-  TradeValue,
+  ValueSource,
 } from "./types";
+import {
+  VALUE_SOURCE_SHORT_LABELS,
+  formatTradeValue,
+  getItemValue,
+} from "../../lib/valueSystem";
 
 type Props = {
   open: boolean;
   onClose: () => void;
   onSelect: (item: TradeItem) => void;
+  valueSource: ValueSource;
 };
 
 type CategoryFilter =
@@ -115,20 +121,6 @@ function ItemImage({
   );
 }
 
-function displayValue(
-  value: TradeValue,
-) {
-  if (
-    value === null ||
-    value === undefined ||
-    String(value).trim() === ""
-  ) {
-    return "—";
-  }
-
-  return String(value);
-}
-
 function getCategoryLabel(
   category: ItemCategory,
 ) {
@@ -149,6 +141,7 @@ export default function AddPetModal({
   open,
   onClose,
   onSelect,
+  valueSource,
 }: Props) {
   const shouldReduceMotion =
     useReducedMotion();
@@ -734,13 +727,17 @@ export default function AddPetModal({
                       {item.NAME}
                     </h3>
 
-                    <div className="relative z-10 mt-3 w-full space-y-2 text-[10px] font-bold sm:mt-4 sm:text-xs">
+                    <p className="relative z-10 mt-2 text-center text-[10px] font-black uppercase tracking-wide text-slate-400 dark:text-slate-500 sm:text-xs">
+                      {VALUE_SOURCE_SHORT_LABELS[valueSource]} values
+                    </p>
+
+                    <div className="relative z-10 mt-2 w-full space-y-2 text-[10px] font-bold sm:mt-3 sm:text-xs">
                       <div className="flex items-center justify-between gap-2 rounded-lg bg-yellow-100 px-2 py-2 text-yellow-800 dark:bg-amber-400/10 dark:text-amber-300 sm:rounded-xl sm:px-3">
-                        <span>Normal</span>
+                        <span>Regular</span>
 
                         <span className="min-w-0 truncate text-right font-black">
-                          {displayValue(
-                            item.NORMAL,
+                          {formatTradeValue(
+                            getItemValue(item, valueSource, "NORMAL"),
                           )}
                         </span>
                       </div>
@@ -752,8 +749,8 @@ export default function AddPetModal({
                             <span>Neon</span>
 
                             <span className="min-w-0 truncate text-right font-black">
-                              {displayValue(
-                                item.NEON,
+                              {formatTradeValue(
+                                getItemValue(item, valueSource, "NEON"),
                               )}
                             </span>
                           </div>
@@ -762,8 +759,8 @@ export default function AddPetModal({
                             <span>Mega</span>
 
                             <span className="min-w-0 truncate text-right font-black">
-                              {displayValue(
-                                item.MEGA,
+                              {formatTradeValue(
+                                getItemValue(item, valueSource, "MEGA"),
                               )}
                             </span>
                           </div>

@@ -6,14 +6,21 @@ import { motion, useReducedMotion } from "framer-motion";
 
 import {
   SelectedTradeItem,
-  TradeValue,
+  ValueSource,
   ValueType,
 } from "./types";
+import {
+  VALUE_SOURCE_SHORT_LABELS,
+  formatTradeValue,
+  getItemValue,
+  hasItemValue,
+} from "../../lib/valueSystem";
 
 type Props = {
   selectedItem: SelectedTradeItem;
   onRemove: () => void;
   onValueTypeChange: (valueType: ValueType) => void;
+  valueSource: ValueSource;
 };
 
 type ItemImageProps = {
@@ -60,25 +67,11 @@ function ItemImage({ src, name, category }: ItemImageProps) {
   );
 }
 
-function formatValue(value: TradeValue) {
-  if (value === null || value === undefined || String(value).trim() === "") {
-    return "—";
-  }
-  return String(value);
-}
-
-function hasValue(value: TradeValue) {
-  if (value === null || value === undefined) return false;
-
-  const match = String(value).replace(/,/g, "").match(/-?\d+(?:\.\d+)?/);
-
-  return !!match && Number(match[0]) > 0;
-}
-
 export default function TradePetCard({
   selectedItem,
   onRemove,
   onValueTypeChange,
+  valueSource,
 }: Props) {
   const shouldReduceMotion = useReducedMotion();
   const { item, valueType } = selectedItem;
@@ -115,7 +108,7 @@ export default function TradePetCard({
           </h4>
 
           <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            {item.CATEGORY === "PET" ? "Pet" : "Pet Wear"} • Current CSBT Value
+            {item.CATEGORY === "PET" ? "Pet" : "Pet Wear"} • {VALUE_SOURCE_SHORT_LABELS[valueSource]} Value
           </p>
 
           <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -124,9 +117,9 @@ export default function TradePetCard({
               onChange={(e) => onValueTypeChange(e.target.value as ValueType)}
               className={`cursor-pointer rounded-full border px-3 py-1.5 text-xs font-black ${badgeColors[valueType]}`}
             >
-              <option value="NORMAL" disabled={!hasValue(item.NORMAL)}>Normal</option>
-              <option value="NEON" disabled={!hasValue(item.NEON)}>Neon</option>
-              <option value="MEGA" disabled={!hasValue(item.MEGA)}>Mega</option>
+              <option value="NORMAL" disabled={!hasItemValue(item, valueSource, "NORMAL")}>Regular</option>
+              <option value="NEON" disabled={!hasItemValue(item, valueSource, "NEON")}>Neon</option>
+              <option value="MEGA" disabled={!hasItemValue(item, valueSource, "MEGA")}>Mega</option>
             </select>
 
             <motion.span
@@ -135,7 +128,7 @@ export default function TradePetCard({
               animate={{ opacity: 1, scale: 1 }}
               className="rounded-full bg-slate-100 px-4 py-1.5 text-sm font-black tabular-nums text-slate-700 dark:bg-white/10 dark:text-white"
             >
-              {formatValue(item[valueType])}
+              {formatTradeValue(getItemValue(item, valueSource, valueType))}
             </motion.span>
           </div>
         </div>

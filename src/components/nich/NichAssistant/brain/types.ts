@@ -1,9 +1,8 @@
 import type { NichReactionKey } from "../../NichReactions";
 
-export type PetVariant =
-  | "normal"
-  | "neon"
-  | "mega";
+export type PetVariant = "normal" | "neon" | "mega";
+
+export type NichValueSource = "GCASH" | "ELVE";
 
 export type NichPotionStatus =
   | "flyRide"
@@ -22,7 +21,10 @@ export type NichNavigationPath =
   | "/values"
   | "/calculator"
   | "/nich"
-  | "/about";
+  | "/about"
+  | "/community"
+  | "/seminar"
+  | "/trading-servers";
 
 export type NichNavigationAction = {
   href: NichNavigationPath;
@@ -34,62 +36,30 @@ export type NichTradeItem = {
   petName: string;
   variant: PetVariant;
 
-  /**
-   * Short trade code such as:
-   * FR, NFR, MFR, F, R, NF, NR, MF, or MR.
-   */
+  /** FR, NFR, MFR, F, R, NF, NR, MF, MR, or a normal variant code. */
   petCode: string;
-
-  /**
-   * Potion information detected from the trade message.
-   */
   potionStatus: NichPotionStatus;
 
-  /**
-   * Original database value before potion adjustments.
-   */
+  /** Original database value before potion adjustments. */
   baseValue: number;
   baseDisplayValue: string;
 
-  /**
-   * Adjustment caused by a missing potion.
-   *
-   * Missing Fly: -20
-   * Missing Ride: -10
-   */
+  /** Missing Fly = -20, missing Ride = -10. */
   potionAdjustment: number;
 
-  /**
-   * Final value used by the W/F/L calculation.
-   */
+  /** Final value used by the W/F/L calculator. */
   value: number;
   displayValue: string;
 
-  /**
-   * True when no potion letters were provided.
-   *
-   * The original value is used, but Nich displays a warning.
-   */
+  /** True when no Fly/Ride letters were supplied. */
   hasNoPotionWarning: boolean;
 };
 
 export type NichTradeComparison = {
-  /**
-   * Every pet detected on the user's side.
-   */
   offeredItems: NichTradeItem[];
-
-  /**
-   * Every pet detected on the other trader's side.
-   */
   requestedItems: NichTradeItem[];
 
-  /**
-   * Backward-compatible first items.
-   *
-   * Existing code that reads comparison.offered or
-   * comparison.requested will continue to work.
-   */
+  /** Backward-compatible first items. */
   offered: NichTradeItem;
   requested: NichTradeItem;
 
@@ -98,6 +68,7 @@ export type NichTradeComparison = {
   difference: number;
   differencePercent: number;
   verdict: "win" | "fair" | "lose";
+  valueSource?: NichValueSource;
 };
 
 export type NichContextPet = {
@@ -108,62 +79,26 @@ export type NichContextPet = {
 };
 
 export type NichConversationContext = {
-  /**
-   * The most recently referenced individual pet.
-   */
+  /** Most recently focused individual item. */
   lastPetName?: string;
-
-  /**
-   * The most recently referenced pet variant.
-   */
   lastVariant?: PetVariant;
 
-  /**
-   * Ordered pets from the latest lookup or comparison.
-   *
-   * This allows follow-ups such as:
-   * - "the first one"
-   * - "the second pet"
-   * - "compare those"
-   */
+  /** Ordered items from the latest lookup, ranking, nearby search, or trade. */
   recentPets?: NichContextPet[];
 
-  /**
-   * Most recently relevant numeric pet value.
-   *
-   * Used for follow-ups such as:
-   * - "show pets around that value"
-   */
+  /** Last value used by nearby-search follow-ups. */
   lastNumericValue?: number;
 
-  /**
-   * The most recent completed trade comparison.
-   */
+  /** Last explicitly selected value system. GCash remains the default. */
+  lastValueSource?: NichValueSource;
+
+  /** Last completed deterministic W/F/L result. */
   lastTradeComparison?: NichTradeComparison;
 
-  /**
-   * The intent that answered the previous message.
-   */
   lastIntent?: NichIntent;
-
-  /**
-   * The user's previous original message.
-   */
   lastUserMessage?: string;
-
-  /**
-   * The message after contextual references were resolved.
-   */
   lastResolvedMessage?: string;
-
-  /**
-   * Number of completed user-assistant turns.
-   */
   turnCount?: number;
-
-  /**
-   * Timestamp of the most recent context update.
-   */
   lastUpdatedAt?: number;
 };
 

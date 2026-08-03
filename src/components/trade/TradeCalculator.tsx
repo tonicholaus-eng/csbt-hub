@@ -12,8 +12,10 @@ import TradeSummary from "./TradeSummary";
 import {
   SelectedTradeItem,
   TradeItem,
+  ValueSource,
   ValueType,
 } from "./types";
+import { getItemValue, parseTradeValue } from "../../lib/valueSystem";
 
 type TradeSideType = "your" | "their";
 
@@ -38,89 +40,43 @@ const valueOptions: {
 function parseItemValue(
   item: TradeItem,
   valueType: ValueType,
+  valueSource: ValueSource,
 ) {
-  const rawValue = item[valueType];
-
-  if (
-    rawValue === null ||
-    rawValue === undefined
-  ) {
-    return 0;
-  }
-
-  const normalizedValue = String(rawValue)
-    .trim()
-    .replace(/,/g, "");
-
-  if (!normalizedValue) {
-    return 0;
-  }
-
-  const firstNumber =
-    normalizedValue.match(
-      /-?\d+(?:\.\d+)?/,
-    );
-
-  if (!firstNumber) {
-    return 0;
-  }
-
-  const numericValue = Number(
-    firstNumber[0],
-  );
-
-  return Number.isFinite(numericValue)
-    ? numericValue
-    : 0;
+  return parseTradeValue(
+    getItemValue(item, valueSource, valueType),
+  ) ?? 0;
 }
 
 function hasItemValue(
   item: TradeItem,
   valueType: ValueType,
+  valueSource: ValueSource,
 ) {
-  return (
-    parseItemValue(item, valueType) > 0
-  );
+  return parseItemValue(item, valueType, valueSource) > 0;
 }
 
 function getStartingValueType(
   item: TradeItem,
   preferredValueType: ValueType,
+  valueSource: ValueSource,
 ): ValueType {
-  if (
-    hasItemValue(
-      item,
-      preferredValueType,
-    )
-  ) {
+  if (hasItemValue(item, preferredValueType, valueSource)) {
     return preferredValueType;
   }
 
-  const valueTypes: ValueType[] = [
-    "NORMAL",
-    "NEON",
-    "MEGA",
-  ];
-
-  return (
-    valueTypes.find((valueType) =>
-      hasItemValue(item, valueType),
-    ) ?? preferredValueType
-  );
+  const valueTypes: ValueType[] = ["NORMAL", "NEON", "MEGA"];
+  return valueTypes.find((valueType) => hasItemValue(item, valueType, valueSource)) ?? preferredValueType;
 }
 
 function createSelectedItem(
   item: TradeItem,
   defaultValueType: ValueType,
+  valueSource: ValueSource,
 ): SelectedTradeItem {
   return {
     id: crypto.randomUUID(),
     item,
-    valueType:
-      getStartingValueType(
-        item,
-        defaultValueType,
-      ),
+    valueType: getStartingValueType(item, defaultValueType, valueSource),
   };
 }
 
@@ -140,6 +96,9 @@ export default function TradeCalculator() {
   ] = useState<ValueType>(
     "NORMAL",
   );
+
+  const [valueSource, setValueSource] =
+    useState<ValueSource>("GCASH");
 
   const [
     yourItems,
@@ -166,10 +125,11 @@ export default function TradeCalculator() {
           parseItemValue(
             selectedItem.item,
             selectedItem.valueType,
+            valueSource,
           ),
         0,
       ),
-    [yourItems],
+    [yourItems, valueSource],
   );
 
   const theirTotal = useMemo(
@@ -183,10 +143,11 @@ export default function TradeCalculator() {
           parseItemValue(
             selectedItem.item,
             selectedItem.valueType,
+            valueSource,
           ),
         0,
       ),
-    [theirItems],
+    [theirItems, valueSource],
   );
 
   const tradeIsEmpty =
@@ -207,6 +168,7 @@ export default function TradeCalculator() {
       createSelectedItem(
         item,
         defaultValueType,
+        valueSource,
       );
 
     if (activeSide === "your") {
@@ -298,6 +260,21 @@ export default function TradeCalculator() {
     );
   }
 
+  function changeValueSource(nextSource: ValueSource) {
+    setValueSource(nextSource);
+    const normalizeItems = (items: SelectedTradeItem[]) =>
+      items.map((selectedItem) => ({
+        ...selectedItem,
+        valueType: getStartingValueType(
+          selectedItem.item,
+          selectedItem.valueType,
+          nextSource,
+        ),
+      }));
+    setYourItems(normalizeItems);
+    setTheirItems(normalizeItems);
+  }
+
   function swapSides() {
     const previousYourItems =
       yourItems;
@@ -370,25 +347,49 @@ export default function TradeCalculator() {
         </h2>
 
         <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-slate-500 dark:text-slate-400 sm:text-lg">
-          Compare both offers instantly using the latest CSBT values before accepting a trade.
+          Compare both offers using either GCash or Elve Shark values before accepting a trade.
         </p>
       </div>
 
       <div className="mx-auto mt-9 flex max-w-3xl flex-col items-stretch justify-center gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
 
         <select
+          value={valueSource}
+          onChange={(event) =>
+            changeValueSource(event.target.value as ValueSource)
+          }
+          aria-label="Value source"
+          className="min-h-14 cursor-pointer rounded-2xl border-2 border-cyan-300 bg-white/95 px-5 py-3.5 font-bold text-slate-800 shadow-sm outline-none transition duration-200 hover:border-cyan-400 hover:shadow-md focus:border-cyan-400 focus:ring-4 focus:ring-cyan-300/25 dark:border-cyan-400/40 dark:bg-slate-950/90 dark:text-slate-100 dark:hover:border-cyan-300/70 dark:focus:border-cyan-300 dark:focus:ring-cyan-400/20 dark:[color-scheme:dark]"
+        >
+          <option
+            value="GCASH"
+            className="bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100"
+          >
+            💸 GCash Values
+          </option>
+          <option
+            value="ELVE"
+            className="bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100"
+          >
+            🦈 Elve Shark Values
+          </option>
+        </select>
+
+        <select
           value={defaultValueType}
-          onChange={(e) =>
+          onChange={(event) =>
             setDefaultValueType(
-              e.target.value as ValueType
+              event.target.value as ValueType
             )
           }
-          className="min-h-14 rounded-2xl border-2 border-yellow-300 bg-white/90 px-5 py-3.5 font-bold shadow-sm"
+          aria-label="Default pet variant"
+          className="min-h-14 cursor-pointer rounded-2xl border-2 border-amber-300 bg-white/95 px-5 py-3.5 font-bold text-slate-800 shadow-sm outline-none transition duration-200 hover:border-amber-400 hover:shadow-md focus:border-amber-400 focus:ring-4 focus:ring-amber-300/25 dark:border-amber-400/45 dark:bg-slate-950/90 dark:text-slate-100 dark:hover:border-amber-300/75 dark:focus:border-amber-300 dark:focus:ring-amber-400/20 dark:[color-scheme:dark]"
         >
           {valueOptions.map((option) => (
             <option
               key={option.value}
               value={option.value}
+              className="bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100"
             >
               {option.label}
             </option>
@@ -429,6 +430,7 @@ export default function TradeCalculator() {
           onValueTypeChange={
             updateYourValueType
           }
+          valueSource={valueSource}
         />
 
         <div className="flex items-center justify-center">
@@ -462,6 +464,7 @@ export default function TradeCalculator() {
           onValueTypeChange={
             updateTheirValueType
           }
+          valueSource={valueSource}
         />
 
       </div>
@@ -469,6 +472,7 @@ export default function TradeCalculator() {
       <TradeSummary
         yourTotal={yourTotal}
         theirTotal={theirTotal}
+        valueSource={valueSource}
       />
 
     </div>
@@ -480,6 +484,7 @@ export default function TradeCalculator() {
       setModalOpen(false)
     }
     onSelect={addItem}
+    valueSource={valueSource}
   />
 </>
 );

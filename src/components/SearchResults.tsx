@@ -9,6 +9,7 @@ import {
 } from "framer-motion";
 
 import type { TradeItem } from "./trade/types";
+import { formatTradeValue, getItemValue } from "../lib/valueSystem";
 
 type Props = {
   pets: TradeItem[];
@@ -218,30 +219,15 @@ export default function SearchResults({
                         : "Current Normal, Neon, and Mega trading values."}
                     </p>
 
-                    <div
-                      className={`mt-4 grid gap-2.5 ${
-                        item.CATEGORY === "PET"
-                          ? "grid-cols-1 sm:grid-cols-3"
-                          : "grid-cols-1"
-                      }`}
-                    >
+                    <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
                       <ValueCard
-                        label="Normal"
-                        value={item.NORMAL}
+                        label="GCash Regular"
+                        value={formatTradeValue(getItemValue(item, "GCASH", "NORMAL"))}
                       />
-
-                      {item.CATEGORY === "PET" && (
-                        <>
-                          <ValueCard
-                            label="Neon"
-                            value={item.NEON}
-                          />
-                          <ValueCard
-                            label="Mega"
-                            value={item.MEGA}
-                          />
-                        </>
-                      )}
+                      <ValueCard
+                        label="Elve Shark Regular"
+                        value={formatTradeValue(getItemValue(item, "ELVE", "NORMAL"))}
+                      />
                     </div>
                   </div>
 

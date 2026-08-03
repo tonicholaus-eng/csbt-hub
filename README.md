@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CSBT HUB with NICH Free AI
 
-## Getting Started
+This Next.js project contains the CSBT price checker and the NICH assistant.
 
-First, run the development server:
+## NICH intelligence design
+
+NICH uses a zero-payment hybrid system:
+
+1. The deterministic CSBT engine controls exact pet values, nearby-value searches, trade totals, and W/F/L verdicts.
+2. Ollama runs a local open model during development or when the site is hosted on the same computer.
+3. Gemini's free tier powers natural conversation on a publicly deployed website.
+4. When every AI provider is unavailable, the original local NICH engine still answers.
+
+There is no OpenAI dependency and no paid API key is required.
+
+
+## Dual value systems
+
+CSBT keeps two independent sources:
+
+- **GCash Value** — Regular, Neon, and Mega from `source-data/trading-data.xlsx`.
+- **Elve Shark Value** — Regular, Neon, and Mega from the validated local Elve snapshot.
+
+Ranges in the master workbook use the lower bound, so `7-9` becomes `7`. GCash and Elve values are never mixed in one trade calculation.
+
+Useful commands:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run generate:data
+npm run data:validate
+npm run update:elve
+npm run refresh:values
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The daily GitHub Actions updater is defined in `.github/workflows/update-elve-shark-values.yml`. See `VALUE_SYSTEMS.md` for setup, validation, and backup behavior.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Local setup
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+On Windows, double-click:
 
-## Learn More
+```text
+SETUP_FREE_AI.bat
+```
 
-To learn more about Next.js, take a look at the following resources:
+Or run manually:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+ollama pull qwen3.5:4b
+copy .env.example .env.local
+npm install
+npm run dev
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Open `http://localhost:3000`.
 
-## Deploy on Vercel
+## Public website setup
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Read `WEBSITE_DEPLOYMENT.md`. The deployed website uses a server-side Gemini free-tier key, while exact CSBT calculations remain local and deterministic.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Important
+
+- Ollama is unlimited but only available to a site that can reach the Ollama server.
+- A public serverless website cannot reach Ollama running at `127.0.0.1` on your personal computer.
+- Gemini's free tier is hosted and suitable for the website, but it has quotas.
+- Do not commit `.env.local`, API keys, passwords, `node_modules`, or `.next`.

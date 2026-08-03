@@ -20,6 +20,7 @@ import routeNichMessage from "./brain/router";
 import type {
   NichConversationContext,
   NichIntent,
+  NichResponse,
   NichSuggestion,
   NichTradeComparison,
   NichTradeItem,
@@ -789,6 +790,7 @@ export default function NichChat({
   const responseTimeoutRef = useRef<number | null>(null);
   const navigationTimeoutRef = useRef<number | null>(null);
   const copyResetTimeoutRef = useRef<number | null>(null);
+  const requestSequenceRef = useRef(0);
 
   const clearPendingActions = useCallback(() => {
     if (responseTimeoutRef.current !== null) {
@@ -815,6 +817,7 @@ export default function NichChat({
 
   const clearChat = useCallback(() => {
     clearPendingActions();
+    requestSequenceRef.current += 1;
 
     setInput("");
     setIsTyping(false);
@@ -1064,7 +1067,7 @@ export default function NichChat({
   }, [clearPendingActions]);
 
   const sendMessage = useCallback(
-    (messageText: string) => {
+    async (messageText: string) => {
       const trimmedMessage = messageText.trim();
 
       if (!trimmedMessage || isTyping) {
@@ -1078,10 +1081,31 @@ export default function NichChat({
         navigationTimeoutRef.current = null;
       }
 
-      const response = routeNichMessage({
-        message: trimmedMessage,
-        context: conversationContext,
-      });
+      const requestId =
+        requestSequenceRef.current + 1;
+
+      requestSequenceRef.current = requestId;
+
+      /*
+       * The local brain remains the guaranteed fallback and the source of
+       * exact CSBT values. The server may enhance this response with a free
+       * local Ollama model or the optional Gemini free tier.
+       */
+      let response: NichResponse =
+        routeNichMessage({
+          message: trimmedMessage,
+          context: conversationContext,
+        });
+
+      const history = messages
+        .slice(-14)
+        .map((message) => ({
+          role:
+            message.sender === "user"
+              ? ("user" as const)
+              : ("assistant" as const),
+          content: message.text,
+        }));
 
       const userMessage: ChatMessage = {
         id: createMessageId(),
@@ -1104,14 +1128,88 @@ export default function NichChat({
         window.clearTimeout(
           responseTimeoutRef.current,
         );
+        responseTimeoutRef.current = null;
+      }
+
+      const requestController =
+        new AbortController();
+
+      const requestTimeout =
+        window.setTimeout(() => {
+          requestController.abort();
+        }, 130_000);
+
+      try {
+        const apiResponse = await fetch(
+          "/api/nich",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            signal:
+              requestController.signal,
+            body: JSON.stringify({
+              message: trimmedMessage,
+              context: conversationContext,
+              history,
+            }),
+          },
+        );
+
+        if (apiResponse.ok) {
+          const payload =
+            (await apiResponse.json()) as {
+              response?: NichResponse;
+            };
+
+          if (
+            payload.response &&
+            typeof payload.response.text ===
+              "string" &&
+            typeof payload.response.intent ===
+              "string" &&
+            typeof payload.response.reaction ===
+              "string"
+          ) {
+            response = payload.response;
+          }
+        }
+      } catch {
+        /*
+         * Network failures are intentionally silent here because the local
+         * NICH brain already produced a complete fallback response.
+         */
+      } finally {
+        window.clearTimeout(
+          requestTimeout,
+        );
+      }
+
+      if (
+        requestSequenceRef.current !==
+        requestId
+      ) {
+        return;
       }
 
       const typingDuration = shouldReduceMotion
         ? 0
-        : response.typingDuration ?? 600;
+        : Math.min(
+            response.typingDuration ?? 350,
+            700,
+          );
 
       responseTimeoutRef.current =
         window.setTimeout(() => {
+          if (
+            requestSequenceRef.current !==
+            requestId
+          ) {
+            return;
+          }
+
           const nichMessage: ChatMessage = {
             id: createMessageId(),
             sender: "nich",
@@ -1160,6 +1258,7 @@ export default function NichChat({
     [
       conversationContext,
       isTyping,
+      messages,
       onClose,
       react,
       router,

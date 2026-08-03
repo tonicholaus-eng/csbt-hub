@@ -1,7 +1,4 @@
-import {
-  extractNearbyTargetValue,
-} from "../tools/nearbySearch";
-
+import { extractNearbyTargetValue } from "../tools/nearbySearch";
 import {
   detectPetVariant,
   findPetsInMessage,
@@ -12,18 +9,25 @@ import {
   type PetSearchResolution,
   type PetVariant,
 } from "../tools/petSearch";
-
 import {
   parseTradeMessage,
   type ParsedTradeQuery,
 } from "../tools/tradeComparison";
+import {
+  containsWholePhrase,
+  includesAnyWholePhrase,
+  isExactPhrase,
+  startsWithAnyPhrase,
+  wordCount,
+} from "./language";
 
 export type NichMessageAction =
   | "compare"
   | "lookup"
   | "nearby"
   | "trade"
-  | "variant";
+  | "variant"
+  | "advice";
 
 export type NichPrimaryIntent =
   | "tradeComparison"
@@ -31,8 +35,10 @@ export type NichPrimaryIntent =
   | "itemLookup"
   | "variantFollowUp"
   | "conversationFollowUp"
+  | "tradeAdvice"
   | "help"
   | "greeting"
+  | "generalQuestion"
   | "unknown";
 
 export type NichFollowUpKind =
@@ -42,39 +48,16 @@ export type NichFollowUpKind =
   | "generic"
   | null;
 
-export type NichRequestedCategory =
-  | "PET"
-  | "PETWEAR"
-  | null;
+export type NichRequestedCategory = "PET" | "PETWEAR" | null;
 
 export type NichMessageAnalysis = {
   originalMessage: string;
   normalizedMessage: string;
-
-  /**
-   * Exact, alias, and high-confidence fuzzy matches found throughout
-   * the message. Quantity and confidence are supplied by petSearch.ts.
-   */
   pets: PetMessageMatch[];
-
-  /**
-   * Numeric values mentioned by the user. Compact values such as 1.5k
-   * are converted to 1500.
-   */
   numbers: number[];
-
-  /**
-   * Backward-compatible actions consumed by the existing Nich brain.
-   */
   actions: NichMessageAction[];
-
   tradeQuery: ParsedTradeQuery | null;
   nearbyTargetValue: number | null;
-
-  /**
-   * New intelligence metadata. Existing response files can ignore these
-   * fields until they are upgraded.
-   */
   primaryIntent: NichPrimaryIntent;
   requestedVariant: PetVariant | null;
   requestedCategory: NichRequestedCategory;
@@ -88,29 +71,27 @@ export type NichMessageAnalysis = {
   requiresContext: boolean;
   isGreeting: boolean;
   isHelpRequest: boolean;
+  isDirectLookup: boolean;
+  isGeneralQuestion: boolean;
+  hasTradeStructure: boolean;
+  isStandaloneNumber: boolean;
   hasMultipleItemReferences: boolean;
   totalDetectedQuantity: number;
 };
 
-const LOOKUP_PHRASES = [
+const LOOKUP_TERMS = [
   "how much",
-  "what is",
-  "what are",
-  "whats",
-  "what's",
   "worth",
   "value",
   "values",
   "price",
   "prices",
   "check",
-  "show me",
-  "tell me",
   "look up",
   "lookup",
 ] as const;
 
-const COMPARISON_PHRASES = [
+const EXPLICIT_COMPARISON_TERMS = [
   "compare",
   "versus",
   "against",
@@ -118,16 +99,24 @@ const COMPARISON_PHRASES = [
   "wfl",
   "w f l",
   "win fair lose",
-  "win",
-  "lose",
-  "fair",
   "overpay",
   "underpay",
-  "over",
-  "under",
 ] as const;
 
-const NEARBY_PHRASES = [
+const TRADE_SIDE_TERMS = [
+  "my offer",
+  "your offer",
+  "their offer",
+  "his offer",
+  "her offer",
+  "me",
+  "mine",
+  "them",
+  "offering",
+  "looking for",
+] as const;
+
+const NEARBY_TERMS = [
   "around",
   "near",
   "close to",
@@ -139,25 +128,29 @@ const NEARBY_PHRASES = [
   "items value",
 ] as const;
 
-const HELP_PHRASES = [
-  "help",
-  "commands",
-  "what can you do",
-  "how do i use",
-  "how to use",
-  "examples",
-  "show examples",
-] as const;
-
-const GREETING_PHRASES = [
-  "hi",
-  "hello",
-  "hey",
-  "hiya",
-  "yo",
-  "good morning",
-  "good afternoon",
-  "good evening",
+const ADVICE_TERMS = [
+  "demand",
+  "tradeable",
+  "tradable",
+  "tradeability",
+  "liquidity",
+  "upgrade",
+  "downgrade",
+  "strategy",
+  "negotiate",
+  "negotiation",
+  "counteroffer",
+  "long term",
+  "investment",
+  "risk",
+  "risky",
+  "scam",
+  "safe trade",
+  "why is",
+  "why are",
+  "explain why",
+  "good to trade",
+  "bad trade",
 ] as const;
 
 const FOLLOW_UP_PREFIXES = [
@@ -171,6 +164,7 @@ const FOLLOW_UP_PREFIXES = [
   "same",
   "that one",
   "this one",
+  "the other one",
   "it",
   "them",
   "those",
@@ -185,6 +179,7 @@ const TRADE_MODIFIER_WORDS = [
   "include",
   "take out",
   "put",
+  "drop",
 ] as const;
 
 const ITEM_QUERY_REMOVALS = [
@@ -196,7 +191,6 @@ const ITEM_QUERY_REMOVALS = [
   "what are",
   "whats the value of",
   "whats",
-  "what's",
   "show me the value of",
   "show me",
   "tell me the value of",
@@ -218,6 +212,20 @@ const ITEM_QUERY_REMOVALS = [
   "please",
   "pls",
   "for me",
+  "using",
+  "use",
+  "gcash",
+  "g cash",
+  "cash",
+  "php",
+  "peso",
+  "pesos",
+  "elve",
+  "elvebredd",
+  "elve shark",
+  "shark",
+  "in game",
+  "in-game",
   "pet wear",
   "petwear",
   "petwears",
@@ -245,274 +253,196 @@ const ITEM_QUERY_REMOVALS = [
   "np",
 ] as const;
 
-function escapeRegExp(
-  value: string,
-) {
-  return value.replace(
-    /[.*+?^${}()|[\]\\]/g,
-    "\\$&",
-  );
-}
-
-function containsWholePhrase(
-  message: string,
-  phrase: string,
-) {
-  const normalizedPhrase =
-    normalizeText(phrase);
-
-  if (
-    !message ||
-    !normalizedPhrase
-  ) {
-    return false;
-  }
-
-  return new RegExp(
-    `(?:^|\\s)${escapeRegExp(
-      normalizedPhrase,
-    )}(?=$|\\s)`,
-    "i",
-  ).test(message);
-}
-
-function includesAnyWholePhrase(
-  message: string,
-  phrases: readonly string[],
-) {
-  return phrases.some((phrase) =>
-    containsWholePhrase(
-      message,
-      phrase,
-    ),
-  );
-}
-
-function extractNumbers(
-  message: string,
-) {
+function extractNumbers(message: string): number[] {
   const matches = message
     .replace(/,/g, "")
-    .match(
-      /-?\d+(?:\.\d+)?\s*[km]?/gi,
-    );
+    .match(/-?\d+(?:\.\d+)?\s*[km]?/gi);
 
   if (!matches) {
     return [];
   }
 
   return matches
-    .map((rawMatch) => {
-      const compactMatch =
-        rawMatch
-          .trim()
-          .toLowerCase()
-          .match(
-            /^(-?\d+(?:\.\d+)?)\s*([km])?$/,
-          );
+    .map((raw) => {
+      const match = raw
+        .trim()
+        .toLowerCase()
+        .match(/^(-?\d+(?:\.\d+)?)\s*([km])?$/);
 
-      if (!compactMatch) {
+      if (!match) {
         return null;
       }
 
-      const numericValue =
-        Number(compactMatch[1]);
-
-      if (
-        !Number.isFinite(
-          numericValue,
-        )
-      ) {
+      const base = Number(match[1]);
+      if (!Number.isFinite(base)) {
         return null;
       }
 
-      const multiplier =
-        compactMatch[2] === "k"
-          ? 1_000
-          : compactMatch[2] === "m"
-            ? 1_000_000
-            : 1;
-
-      return (
-        numericValue * multiplier
-      );
+      const multiplier = match[2] === "k" ? 1_000 : match[2] === "m" ? 1_000_000 : 1;
+      return base * multiplier;
     })
-    .filter(
-      (
-        value,
-      ): value is number =>
-        value !== null &&
-        Number.isFinite(value),
-    );
+    .filter((value): value is number => value !== null && Number.isFinite(value));
 }
 
-function getRequestedCategory(
-  normalizedMessage: string,
-): NichRequestedCategory {
-  if (
-    includesAnyWholePhrase(
-      normalizedMessage,
-      [
-        "pet wear",
-        "petwear",
-        "petwears",
-      ],
+function stripValueSourceLanguage(message: string): string {
+  return message
+    .replace(
+      /\b(?:using|use|with|on|from|according\s+to)\s+(?:the\s+)?(?:elvebredd|elve)(?:\s+shark)?(?:\s+values?)?\b/gi,
+      " ",
     )
-  ) {
+    .replace(/\b(?:elvebredd|elve)\s+shark\s+values?\b/gi, " ")
+    .replace(/\b(?:gcash|g\s*cash)\s+values?\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getRequestedCategory(normalizedMessage: string): NichRequestedCategory {
+  if (includesAnyWholePhrase(normalizedMessage, ["pet wear", "petwear", "petwears"])) {
     return "PETWEAR";
   }
 
-  if (
-    includesAnyWholePhrase(
-      normalizedMessage,
-      [
-        "pet only",
-        "pets only",
-      ],
-    )
-  ) {
+  if (includesAnyWholePhrase(normalizedMessage, ["pet only", "pets only"])) {
     return "PET";
   }
 
   return null;
 }
 
-function isGreetingMessage(
-  normalizedMessage: string,
-) {
-  if (!normalizedMessage) {
-    return false;
-  }
-
-  return GREETING_PHRASES.some(
-    (greeting) =>
-      normalizedMessage ===
-        normalizeText(greeting) ||
-      normalizedMessage.startsWith(
-        `${normalizeText(greeting)} `,
-      ),
-  );
+function isGreetingMessage(normalizedMessage: string): boolean {
+  return isExactPhrase(normalizedMessage, [
+    "hi",
+    "hello",
+    "hey",
+    "hiya",
+    "yo",
+    "good morning",
+    "good afternoon",
+    "good evening",
+    "hi nich",
+    "hello nich",
+    "hey nich",
+  ]);
 }
 
-function isHelpMessage(
-  normalizedMessage: string,
-) {
-  return includesAnyWholePhrase(
-    normalizedMessage,
-    HELP_PHRASES,
+function isHelpMessage(normalizedMessage: string): boolean {
+  if (
+    isExactPhrase(normalizedMessage, [
+      "help",
+      "help me",
+      "commands",
+      "what can you do",
+      "what can i ask you",
+      "how do i use nich",
+      "how to use nich",
+      "show examples",
+      "give me examples",
+      "examples",
+    ])
+  ) {
+    return true;
+  }
+
+  return (
+    wordCount(normalizedMessage) <= 7 &&
+    startsWithAnyPhrase(normalizedMessage, ["show me examples of your commands"])
   );
 }
 
 function detectFollowUpKind(
   normalizedMessage: string,
-  requestedVariant:
-    | PetVariant
-    | null,
+  requestedVariant: PetVariant | null,
   pets: PetMessageMatch[],
-  tradeQuery:
-    | ParsedTradeQuery
-    | null,
+  tradeQuery: ParsedTradeQuery | null,
 ): NichFollowUpKind {
-  if (
-    !normalizedMessage ||
-    tradeQuery
-  ) {
+  if (!normalizedMessage || tradeQuery) {
     return null;
   }
 
-  const words =
-    normalizedMessage.split(" ");
-
-  const isShortVariantMessage =
-    requestedVariant !== null &&
-    pets.length === 0 &&
-    words.length <= 5;
-
-  if (isShortVariantMessage) {
+  const words = normalizedMessage.split(" ");
+  if (requestedVariant !== null && pets.length === 0 && words.length <= 6) {
     return "variant";
   }
 
   if (
-    TRADE_MODIFIER_WORDS.some(
-      (modifier) =>
-        containsWholePhrase(
-          normalizedMessage,
-          modifier,
-        ),
-    )
+    TRADE_MODIFIER_WORDS.some((word) => containsWholePhrase(normalizedMessage, word)) &&
+    (startsWithAnyPhrase(normalizedMessage, ["what if", "add", "remove", "replace", "swap"]) ||
+      includesAnyWholePhrase(normalizedMessage, ["my side", "their side", "my offer", "their offer"]))
   ) {
     return "modifyTrade";
   }
 
-  if (
-    FOLLOW_UP_PREFIXES.some(
-      (prefix) =>
-        normalizedMessage ===
-          normalizeText(prefix) ||
-        normalizedMessage.startsWith(
-          `${normalizeText(prefix)} `,
-        ),
-    )
-  ) {
-    if (
-      includesAnyWholePhrase(
-        normalizedMessage,
-        [
-          "it",
-          "that one",
-          "this one",
-          "them",
-          "those",
-          "same",
-        ],
-      )
-    ) {
-      return "pronoun";
-    }
-
-    return "generic";
+  if (startsWithAnyPhrase(normalizedMessage, FOLLOW_UP_PREFIXES)) {
+    return includesAnyWholePhrase(normalizedMessage, [
+      "it",
+      "that one",
+      "this one",
+      "the other one",
+      "them",
+      "those",
+      "same",
+    ])
+      ? "pronoun"
+      : "generic";
   }
 
   return null;
 }
 
-function removeWholePhrase(
-  value: string,
-  phrase: string,
-) {
-  const normalizedPhrase =
-    normalizeText(phrase);
-
+function removeWholePhrase(value: string, phrase: string): string {
+  const normalizedPhrase = normalizeText(phrase);
   if (!normalizedPhrase) {
     return value;
   }
 
-  return value.replace(
-    new RegExp(
-      `(?:^|\\s)${escapeRegExp(
-        normalizedPhrase,
-      )}(?=$|\\s)`,
-      "gi",
-    ),
-    " ",
+  const escaped = normalizedPhrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return value.replace(new RegExp(`(?:^|\\s)${escaped}(?=$|\\s)`, "gi"), " ");
+}
+
+function isAdviceQuestion(normalizedMessage: string): boolean {
+  return includesAnyWholePhrase(normalizedMessage, ADVICE_TERMS);
+}
+
+function isConciseItemRequest(
+  normalizedMessage: string,
+  pets: PetMessageMatch[],
+  requestedVariant: PetVariant | null,
+): boolean {
+  if (pets.length === 0 || wordCount(normalizedMessage) > 8) {
+    return false;
+  }
+
+  if (isAdviceQuestion(normalizedMessage)) {
+    return false;
+  }
+
+  if (includesAnyWholePhrase(normalizedMessage, LOOKUP_TERMS)) {
+    return true;
+  }
+
+  if (requestedVariant && wordCount(normalizedMessage) <= 5) {
+    return true;
+  }
+
+  const petWords = pets.reduce(
+    (total, pet) => total + normalizeText(pet.matchedName).split(" ").length,
+    0,
   );
+
+  return wordCount(normalizedMessage) <= petWords + 3;
 }
 
 function extractItemQuery(
   normalizedMessage: string,
-  tradeQuery:
-    | ParsedTradeQuery
-    | null,
-  nearbyTargetValue:
-    | number
-    | null,
+  shouldExtract: boolean,
+  tradeQuery: ParsedTradeQuery | null,
+  nearbyTargetValue: number | null,
   isGreeting: boolean,
   isHelpRequest: boolean,
-  followUpKind:
-    NichFollowUpKind,
-) {
+  followUpKind: NichFollowUpKind,
+): string | null {
   if (
     !normalizedMessage ||
+    !shouldExtract ||
     tradeQuery ||
     nearbyTargetValue !== null ||
     isGreeting ||
@@ -522,397 +452,177 @@ function extractItemQuery(
     return null;
   }
 
-  let candidate =
-    normalizedMessage;
-
-  const removals = [
-    ...ITEM_QUERY_REMOVALS,
-  ].sort(
-    (
-      firstPhrase,
-      secondPhrase,
-    ) =>
-      secondPhrase.length -
-      firstPhrase.length,
-  );
+  let candidate = normalizedMessage;
+  const removals = [...ITEM_QUERY_REMOVALS].sort((a, b) => b.length - a.length);
 
   for (const phrase of removals) {
-    candidate =
-      removeWholePhrase(
-        candidate,
-        phrase,
-      );
+    candidate = removeWholePhrase(candidate, phrase);
   }
 
   candidate = candidate
-    .replace(
-      /\b\d+(?:\.\d+)?\s*[km]?\b/gi,
-      " ",
-    )
-    .replace(
-      /\b(?:x|times|copies|copy)\b/gi,
-      " ",
-    )
+    .replace(/\b\d+(?:\.\d+)?\s*[km]?\b/gi, " ")
+    .replace(/\b(?:x|times|copies|copy)\b/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
 
-  if (!candidate) {
-    return null;
-  }
-
-  const candidateWords =
-    candidate.split(" ");
-
-  /**
-   * Avoid treating full conversational sentences as a pet name. Direct
-   * item queries are normally short, while broad sentences should be
-   * handled by another intent or clarification layer.
-   */
-  if (candidateWords.length > 7) {
-    return null;
-  }
-
-  return candidate;
-}
-
-function detectActions(
-  normalizedMessage: string,
-  pets: PetMessageMatch[],
-  tradeQuery: ParsedTradeQuery | null,
-  nearbyTargetValue: number | null,
-  itemResolution:
-    | PetSearchResolution
-    | null,
-  requestedVariant:
-    | PetVariant
-    | null,
-) {
-  const actions =
-    new Set<NichMessageAction>();
-
-  const hasComparisonLanguage =
-    includesAnyWholePhrase(
-      normalizedMessage,
-      COMPARISON_PHRASES,
-    );
-
-  const hasTradeSideLanguage =
-    includesAnyWholePhrase(
-      normalizedMessage,
-      [
-        "me",
-        "mine",
-        "my offer",
-        "your offer",
-        "them",
-        "their offer",
-        "his offer",
-        "her offer",
-        "offering",
-        "looking for",
-      ],
-    );
-
-  if (
-    tradeQuery ||
-    hasComparisonLanguage ||
-    (
-      pets.length >= 2 &&
-      hasTradeSideLanguage
-    )
-  ) {
-    actions.add("compare");
-  }
-
-  if (tradeQuery) {
-    actions.add("trade");
-  }
-
-  if (
-    nearbyTargetValue !== null &&
-    includesAnyWholePhrase(
-      normalizedMessage,
-      NEARBY_PHRASES,
-    )
-  ) {
-    actions.add("nearby");
-  }
-
-  const hasLookupLanguage =
-    includesAnyWholePhrase(
-      normalizedMessage,
-      LOOKUP_PHRASES,
-    );
-
-  if (
-    (
-      pets.length > 0 ||
-      itemResolution !== null
-    ) &&
-    !tradeQuery &&
-    nearbyTargetValue === null
-  ) {
-    actions.add("lookup");
-  } else if (
-    hasLookupLanguage &&
-    !tradeQuery
-  ) {
-    actions.add("lookup");
-  }
-
-  if (
-    requestedVariant !== null
-  ) {
-    actions.add("variant");
-  }
-
-  return Array.from(actions);
+  return candidate && wordCount(candidate) <= 7 ? candidate : null;
 }
 
 function calculateConfidence(
   pets: PetMessageMatch[],
-  itemResolution:
-    | PetSearchResolution
-    | null,
-  tradeQuery:
-    | ParsedTradeQuery
-    | null,
-) {
+  itemResolution: PetSearchResolution | null,
+  tradeQuery: ParsedTradeQuery | null,
+): number {
   if (tradeQuery) {
-    /**
-     * Parsing a full trade is deterministic, but the item matches inside
-     * it may still be fuzzy. Use the lowest detected item confidence.
-     */
-    const petConfidences =
-      pets
-        .map(
-          (pet) =>
-            pet.confidence,
-        )
-        .filter(
-          (
-            confidence,
-          ): confidence is number =>
-            confidence !==
-              undefined &&
-            Number.isFinite(
-              confidence,
-            ),
-        );
-
-    if (
-      petConfidences.length > 0
-    ) {
-      return Math.min(
-        ...petConfidences,
-      );
-    }
-
-    return 0.9;
+    const confidences = pets
+      .map((pet) => pet.confidence)
+      .filter((value): value is number => value !== undefined && Number.isFinite(value));
+    return confidences.length ? Math.min(...confidences) : 0.9;
   }
 
-  if (pets.length > 0) {
-    const confidences =
-      pets.map(
-        (pet) =>
-          pet.confidence ?? 1,
-      );
-
-    return Math.min(
-      ...confidences,
-    );
+  if (pets.length) {
+    return Math.min(...pets.map((pet) => pet.confidence ?? 1));
   }
 
-  if (
-    itemResolution?.status ===
-    "matched"
-  ) {
-    return (
-      itemResolution.match
-        .confidence
-    );
+  if (itemResolution?.status === "matched") {
+    return itemResolution.match.confidence;
   }
 
-  if (
-    itemResolution?.status ===
-      "ambiguous" &&
-    itemResolution.candidates[0]
-  ) {
-    return Math.min(
-      itemResolution
-        .candidates[0]
-        .confidence,
-      0.74,
-    );
+  if (itemResolution?.status === "ambiguous") {
+    return Math.min(itemResolution.candidates[0]?.confidence ?? 0, 0.74);
   }
 
   return 0;
 }
 
-function determinePrimaryIntent(
-  actions: NichMessageAction[],
-  isGreeting: boolean,
-  isHelpRequest: boolean,
-  followUpKind:
-    NichFollowUpKind,
-  clarificationNeeded: boolean,
-) {
-  if (
-    actions.includes("trade") ||
-    actions.includes("compare")
-  ) {
-    return "tradeComparison" as const;
-  }
+function determinePrimaryIntent(args: {
+  actions: NichMessageAction[];
+  isGreeting: boolean;
+  isHelpRequest: boolean;
+  followUpKind: NichFollowUpKind;
+  clarificationNeeded: boolean;
+  isGeneralQuestion: boolean;
+}): NichPrimaryIntent {
+  const { actions, isGreeting, isHelpRequest, followUpKind, clarificationNeeded, isGeneralQuestion } = args;
 
-  if (
-    actions.includes("nearby")
-  ) {
-    return "nearbySearch" as const;
-  }
-
-  if (
-    clarificationNeeded ||
-    actions.includes("lookup")
-  ) {
-    return "itemLookup" as const;
-  }
-
-  if (
-    followUpKind === "variant"
-  ) {
-    return "variantFollowUp" as const;
-  }
-
-  if (followUpKind) {
-    return "conversationFollowUp" as const;
-  }
-
-  if (isHelpRequest) {
-    return "help" as const;
-  }
-
-  if (isGreeting) {
-    return "greeting" as const;
-  }
-
-  return "unknown" as const;
+  if (actions.includes("trade")) return "tradeComparison";
+  if (actions.includes("nearby")) return "nearbySearch";
+  if (clarificationNeeded || actions.includes("lookup")) return "itemLookup";
+  if (followUpKind === "variant") return "variantFollowUp";
+  if (followUpKind) return "conversationFollowUp";
+  if (actions.includes("advice")) return "tradeAdvice";
+  if (isHelpRequest) return "help";
+  if (isGreeting) return "greeting";
+  if (isGeneralQuestion) return "generalQuestion";
+  return "unknown";
 }
 
-export function analyzeNichMessage(
-  message: string,
-): NichMessageAnalysis {
-  const originalMessage =
-    message.trim();
+export function analyzeNichMessage(message: string): NichMessageAnalysis {
+  const originalMessage = message.trim();
+  const normalizedMessage = normalizeText(originalMessage);
+  const itemDetectionMessage = stripValueSourceLanguage(originalMessage);
+  const normalizedItemMessage = normalizeText(itemDetectionMessage);
+  const pets = findPetsInMessage(itemDetectionMessage);
+  const tradeQuery = parseTradeMessage(originalMessage);
+  const nearbyTargetValue = extractNearbyTargetValue(originalMessage);
+  const requestedVariant = detectPetVariant(originalMessage) ?? null;
+  const requestedCategory = getRequestedCategory(normalizedMessage);
+  const isGreeting = isGreetingMessage(normalizedMessage);
+  const isHelpRequest = isHelpMessage(normalizedMessage);
+  const isAdvice = isAdviceQuestion(normalizedMessage);
+  const followUpKind = detectFollowUpKind(
+    normalizedMessage,
+    requestedVariant,
+    pets,
+    tradeQuery,
+  );
 
-  const normalizedMessage =
-    normalizeText(originalMessage);
+  const hasExplicitComparison = includesAnyWholePhrase(
+    normalizedMessage,
+    EXPLICIT_COMPARISON_TERMS,
+  );
+  const hasTradeSideLanguage = includesAnyWholePhrase(normalizedMessage, TRADE_SIDE_TERMS);
+  const hasTradeStructure = Boolean(
+    tradeQuery ||
+      (pets.length >= 2 && (hasExplicitComparison || hasTradeSideLanguage)),
+  );
+  const isDirectLookup = isConciseItemRequest(
+    normalizedItemMessage,
+    pets,
+    requestedVariant,
+  );
 
-  const pets =
-    findPetsInMessage(
-      originalMessage,
-    );
-
-  const tradeQuery =
-    parseTradeMessage(
-      originalMessage,
-    );
-
-  const nearbyTargetValue =
-    extractNearbyTargetValue(
-      originalMessage,
-    );
-
-  const requestedVariant =
-    detectPetVariant(
-      originalMessage,
-    ) ?? null;
-
-  const requestedCategory =
-    getRequestedCategory(
-      normalizedMessage,
-    );
-
-  const isGreeting =
-    isGreetingMessage(
-      normalizedMessage,
-    );
-
-  const isHelpRequest =
-    isHelpMessage(
-      normalizedMessage,
-    );
-
-  const followUpKind =
-    detectFollowUpKind(
-      normalizedMessage,
-      requestedVariant,
-      pets,
-      tradeQuery,
-    );
-
-  const itemQuery =
-    extractItemQuery(
-      normalizedMessage,
-      tradeQuery,
-      nearbyTargetValue,
-      isGreeting,
-      isHelpRequest,
-      followUpKind,
-    );
-
-  const itemResolution =
-    itemQuery
-      ? resolvePetSearch(
-          itemQuery,
-          requestedCategory ??
-            undefined,
-        )
-      : null;
-
-  const clarificationNeeded =
-    itemResolution?.status ===
-    "ambiguous";
-
+  const itemQuery = extractItemQuery(
+    normalizedItemMessage,
+    isDirectLookup || (pets.length === 0 && includesAnyWholePhrase(normalizedMessage, LOOKUP_TERMS)),
+    tradeQuery,
+    nearbyTargetValue,
+    isGreeting,
+    isHelpRequest,
+    followUpKind,
+  );
+  const itemResolution = itemQuery
+    ? resolvePetSearch(itemQuery, requestedCategory ?? undefined)
+    : null;
+  const clarificationNeeded = itemResolution?.status === "ambiguous";
   const clarificationCandidates =
-    itemResolution?.status ===
-    "ambiguous"
-      ? itemResolution.candidates
-      : [];
+    itemResolution?.status === "ambiguous" ? itemResolution.candidates : [];
 
-  const actions =
-    detectActions(
-      normalizedMessage,
-      pets,
-      tradeQuery,
-      nearbyTargetValue,
-      itemResolution,
-      requestedVariant,
-    );
+  const actions = new Set<NichMessageAction>();
+  if (tradeQuery) {
+    actions.add("trade");
+    actions.add("compare");
+  } else if (hasTradeStructure) {
+    actions.add("compare");
+  }
 
-  const primaryIntent =
-    determinePrimaryIntent(
-      actions,
-      isGreeting,
-      isHelpRequest,
-      followUpKind,
-      clarificationNeeded,
-    );
+  if (
+    nearbyTargetValue !== null &&
+    includesAnyWholePhrase(normalizedMessage, NEARBY_TERMS)
+  ) {
+    actions.add("nearby");
+  }
 
-  const isFollowUp =
-    followUpKind !== null;
+  if (
+    !tradeQuery &&
+    nearbyTargetValue === null &&
+    (isDirectLookup || itemResolution !== null)
+  ) {
+    actions.add("lookup");
+  }
+
+  if (requestedVariant !== null) actions.add("variant");
+  if (isAdvice) actions.add("advice");
+
+  const numbers = extractNumbers(originalMessage);
+  const isStandaloneNumber = /^-?\d+(?:\.\d+)?\s*[km]?$/.test(
+    normalizedMessage.replace(/,/g, ""),
+  );
+  const isGeneralQuestion =
+    !isGreeting &&
+    !isHelpRequest &&
+    !tradeQuery &&
+    nearbyTargetValue === null &&
+    !isDirectLookup &&
+    (/[?]$/.test(originalMessage) || /^(?:why|how|should|can|could|would|is|are|do|does|what)\b/i.test(originalMessage));
+
+  const primaryIntent = determinePrimaryIntent({
+    actions: Array.from(actions),
+    isGreeting,
+    isHelpRequest,
+    followUpKind,
+    clarificationNeeded,
+    isGeneralQuestion,
+  });
 
   return {
     originalMessage,
     normalizedMessage,
     pets,
-    numbers:
-      extractNumbers(
-        originalMessage,
-      ),
-    actions,
+    numbers,
+    actions: Array.from(actions),
     tradeQuery,
     nearbyTargetValue,
-
     primaryIntent,
     requestedVariant,
     requestedCategory,
@@ -920,29 +630,18 @@ export function analyzeNichMessage(
     itemResolution,
     clarificationNeeded,
     clarificationCandidates,
-    confidence:
-      calculateConfidence(
-        pets,
-        itemResolution,
-        tradeQuery,
-      ),
-    isFollowUp,
+    confidence: calculateConfidence(pets, itemResolution, tradeQuery),
+    isFollowUp: followUpKind !== null,
     followUpKind,
-    requiresContext:
-      isFollowUp &&
-      pets.length === 0 &&
-      !tradeQuery,
+    requiresContext: followUpKind !== null && pets.length === 0 && !tradeQuery,
     isGreeting,
     isHelpRequest,
-    hasMultipleItemReferences:
-      pets.length > 1,
-    totalDetectedQuantity:
-      pets.reduce(
-        (total, pet) =>
-          total +
-          (pet.quantity ?? 1),
-        0,
-      ),
+    isDirectLookup,
+    isGeneralQuestion,
+    hasTradeStructure,
+    isStandaloneNumber,
+    hasMultipleItemReferences: pets.length > 1,
+    totalDetectedQuantity: pets.reduce((total, pet) => total + (pet.quantity ?? 1), 0),
   };
 }
 

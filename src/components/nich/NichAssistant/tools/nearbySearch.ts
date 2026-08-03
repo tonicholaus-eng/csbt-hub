@@ -7,6 +7,7 @@ import {
   type PetRecord,
   type PetVariant,
 } from "./petSearch";
+import type { ValueSource } from "../../../trade/types";
 
 export type NearbyPetResult = {
   name: string;
@@ -30,16 +31,19 @@ function getValueCenter(
 function getVariantValue(
   pet: PetRecord,
   variant: PetVariant,
+  source: ValueSource,
 ) {
   return getRawPetVariantValue(
     pet,
     variant,
+    source,
   );
 }
 
 export function findPetsNearValue(
   targetValue: number,
   limit = 5,
+  source: ValueSource = "GCASH",
 ): NearbyPetResult[] {
   if (
     !Number.isFinite(
@@ -67,6 +71,7 @@ export function findPetsNearValue(
     const variants =
       getAvailablePetVariants(
         pet,
+        source,
       );
 
     for (const variant of variants) {
@@ -74,6 +79,7 @@ export function findPetsNearValue(
         getVariantValue(
           pet,
           variant,
+          source,
         );
 
       const centerValue =
