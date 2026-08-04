@@ -69,17 +69,6 @@ function main() {
 
     if (
       (item.CATEGORY === "EGG" || item.CATEGORY === "TOY") &&
-      (
-        item.GCASH_NORMAL !== null ||
-        item.GCASH_NEON !== null ||
-        item.GCASH_MEGA !== null
-      )
-    ) {
-      errors.push(`${item.NAME}: Elve-only Eggs and Toys must not have GCash values.`);
-    }
-
-    if (
-      (item.CATEGORY === "EGG" || item.CATEGORY === "TOY") &&
       !(typeof item.ELVE_NORMAL === "number" && item.ELVE_NORMAL > 0)
     ) {
       errors.push(`${item.NAME}: ${item.CATEGORY} must have a positive Elve regular value.`);

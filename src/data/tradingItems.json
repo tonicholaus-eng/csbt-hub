@@ -29415,13 +29415,13 @@
     "GCASH_NORMAL": null,
     "GCASH_NEON": null,
     "GCASH_MEGA": null,
-    "ELVE_NORMAL": 0.8,
+    "ELVE_NORMAL": 1.05,
     "ELVE_NEON": null,
     "ELVE_MEGA": null,
     "NORMAL": null,
     "NEON": null,
     "MEGA": null,
-    "INGAME_VALUE": 0.8
+    "INGAME_VALUE": 1.05
   },
   {
     "ID": "toy-captains-wheel-throw-toy",
@@ -29447,13 +29447,13 @@
     "GCASH_NORMAL": null,
     "GCASH_NEON": null,
     "GCASH_MEGA": null,
-    "ELVE_NORMAL": 0.02,
+    "ELVE_NORMAL": 0.004,
     "ELVE_NEON": null,
     "ELVE_MEGA": null,
     "NORMAL": null,
     "NEON": null,
     "MEGA": null,
-    "INGAME_VALUE": 0.02
+    "INGAME_VALUE": 0.004
   },
   {
     "ID": "toy-carrot-bushel",
@@ -30439,13 +30439,13 @@
     "GCASH_NORMAL": null,
     "GCASH_NEON": null,
     "GCASH_MEGA": null,
-    "ELVE_NORMAL": 0.005,
+    "ELVE_NORMAL": 0.04,
     "ELVE_NEON": null,
     "ELVE_MEGA": null,
     "NORMAL": null,
     "NEON": null,
     "MEGA": null,
-    "INGAME_VALUE": 0.005
+    "INGAME_VALUE": 0.04
   },
   {
     "ID": "toy-cupids-bow-grappling-hook",
@@ -31207,13 +31207,13 @@
     "GCASH_NORMAL": null,
     "GCASH_NEON": null,
     "GCASH_MEGA": null,
-    "ELVE_NORMAL": 0.05,
+    "ELVE_NORMAL": 0.025,
     "ELVE_NEON": null,
     "ELVE_MEGA": null,
     "NORMAL": null,
     "NEON": null,
     "MEGA": null,
-    "INGAME_VALUE": 0.05
+    "INGAME_VALUE": 0.025
   },
   {
     "ID": "toy-fairground-pogo",
@@ -34087,13 +34087,13 @@
     "GCASH_NORMAL": null,
     "GCASH_NEON": null,
     "GCASH_MEGA": null,
-    "ELVE_NORMAL": 0.01,
+    "ELVE_NORMAL": 0.004,
     "ELVE_NEON": null,
     "ELVE_MEGA": null,
     "NORMAL": null,
     "NEON": null,
     "MEGA": null,
-    "INGAME_VALUE": 0.01
+    "INGAME_VALUE": 0.004
   },
   {
     "ID": "toy-lunar-lantern",
@@ -36263,13 +36263,13 @@
     "GCASH_NORMAL": null,
     "GCASH_NEON": null,
     "GCASH_MEGA": null,
-    "ELVE_NORMAL": 0.25,
+    "ELVE_NORMAL": 0.5,
     "ELVE_NEON": null,
     "ELVE_MEGA": null,
     "NORMAL": null,
     "NEON": null,
     "MEGA": null,
-    "INGAME_VALUE": 0.25
+    "INGAME_VALUE": 0.5
   },
   {
     "ID": "toy-rice-cake-rabbit-kite",
@@ -37287,13 +37287,13 @@
     "GCASH_NORMAL": null,
     "GCASH_NEON": null,
     "GCASH_MEGA": null,
-    "ELVE_NORMAL": 0.02,
+    "ELVE_NORMAL": 0.01,
     "ELVE_NEON": null,
     "ELVE_MEGA": null,
     "NORMAL": null,
     "NEON": null,
     "MEGA": null,
-    "INGAME_VALUE": 0.02
+    "INGAME_VALUE": 0.01
   },
   {
     "ID": "toy-spider-web-flying-disc",

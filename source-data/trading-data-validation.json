@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-08-04T07:24:09.464Z",
+  "generatedAt": "2026-08-04T07:48:04.145Z",
   "pets": 763,
   "petWear": 940,
   "eggs": 37,
-  "toys": 731,
+  "toys": 718,
   "total": 2458,
   "warnings": [
     "2023 Uplift Butterfly: no matching Elve Shark snapshot record; workbook fallback used.",
@@ -29,19 +29,6 @@
     "Echo brown wizard hat: missing or invalid Excel image; using /images/pets/Echo brown wizard hat.png",
     "Jade Moth Wing: no matching Elve Shark snapshot record; workbook fallback used.",
     "Wrapped Doll: no matching Elve Shark snapshot record; workbook fallback used.",
-    "Wrapped Doll: missing or invalid Excel image; using /images/pets/Wrapped Doll.png",
-    "Duplicate removed: TOY - Bacon and Eggs Throw Toy",
-    "Duplicate removed: TOY - Book Of Binding Leash",
-    "Duplicate removed: TOY - Candyfloss Mega Neon Paint",
-    "Duplicate removed: TOY - Carousel Propeller",
-    "Duplicate removed: TOY - Crystal Ball Rattle",
-    "Duplicate removed: TOY - Dumbbell",
-    "Duplicate removed: TOY - Eyeball Rattle",
-    "Duplicate removed: TOY - Fairy Rose Light Rattle",
-    "Duplicate removed: TOY - Lucky Coin Flying Disc",
-    "Duplicate removed: TOY - Plate Of Food Disc",
-    "Duplicate removed: TOY - Rib Guitar",
-    "Duplicate removed: TOY - Ring Of Fire Throwing Disc",
-    "Duplicate removed: TOY - Spider Grappling Hook"
+    "Wrapped Doll: missing or invalid Excel image; using /images/pets/Wrapped Doll.png"
   ]
 }

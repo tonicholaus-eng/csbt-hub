@@ -185,14 +185,34 @@ function readWorkbookElveValues(row, name, warnings) {
 }
 
 function createItem(row, category, warnings, elveMap) {
+  const nameColumns = {
+    PET: ["PET NAME", "PETS", "NAME", "ITEM NAME"],
+    PETWEAR: [
+      "PET NAME",
+      "PET WEAR NAME",
+      "PETWEAR NAME",
+      "ITEM NAME",
+      "NAME",
+    ],
+    EGG: ["EGG NAME", "ITEM NAME", "NAME"],
+    TOY: ["TOY NAME", "ITEM NAME", "NAME"],
+  };
+
   const name = cleanText(
-    findColumnValue(row, category === "PET"
-      ? ["PET NAME", "PETS", "NAME", "ITEM NAME"]
-      : ["PET NAME", "PET WEAR NAME", "PETWEAR NAME", "ITEM NAME", "NAME"]),
+    findColumnValue(row, nameColumns[category] ?? ["ITEM NAME", "NAME"]),
   );
   if (!name) return null;
 
-  const imageValue = findColumnValue(row, ["PET IMAGE", "PET WEAR IMAGE", "PETWEAR IMAGE", "ITEM IMAGE", "IMAGE", "IMAGE PATH"]);
+  const imageValue = findColumnValue(row, [
+    "PET IMAGE",
+    "PET WEAR IMAGE",
+    "PETWEAR IMAGE",
+    "EGG IMAGE",
+    "TOY IMAGE",
+    "ITEM IMAGE",
+    "IMAGE",
+    "IMAGE PATH",
+  ]);
   const gcash = readGcashValues(row, name, warnings);
   const workbookElve = readWorkbookElveValues(row, name, warnings);
   const elveRecord = elveMap.get(`${category}:${normalizeName(name)}`);
@@ -261,7 +281,8 @@ function createElveOnlyItem(record, category, warnings) {
     CATEGORY: category,
     IMAGE: createElvebreddImageUrl(record?.image, name, warnings),
 
-    // Eggs and toys are Elve-only and only use a regular/default value.
+    // Snapshot-only Eggs and Toys are automatically added with no GCash value.
+    // Add them to the workbook later when CSBT wants to maintain a GCash value.
     GCASH_NORMAL: null,
     GCASH_NEON: null,
     GCASH_MEGA: null,
@@ -321,29 +342,43 @@ function generateTradingItems() {
   const petWear = petWearRows
     .map((row) => createItem(row, "PETWEAR", warnings, elveMap))
     .filter(Boolean);
+  const eggRows = readSheetRows(workbook, "Eggs");
+  const toyRows = readSheetRows(workbook, "Toys");
+
+  const workbookEggs = eggRows
+    .map((row) => createItem(row, "EGG", warnings, elveMap))
+    .filter(Boolean);
+  const workbookToys = toyRows
+    .map((row) => createItem(row, "TOY", warnings, elveMap))
+    .filter(Boolean);
+
   const eggRecords = elveSnapshot.items.filter(
     (item) => item.category === "EGG",
   );
   const toyRecords = elveSnapshot.items.filter(
     (item) => item.category === "TOY",
   );
-  const eggs = eggRecords
+
+  const workbookEggNames = new Set(
+    workbookEggs.map((item) => normalizeName(item.NAME)),
+  );
+  const workbookToyNames = new Set(
+    workbookToys.map((item) => normalizeName(item.NAME)),
+  );
+
+  // Keep future Elve additions automatic. New records that are not yet in the
+  // workbook still appear on the site as Elve-only until a GCash value is added.
+  const snapshotOnlyEggs = eggRecords
+    .filter((item) => !workbookEggNames.has(normalizeName(item.name)))
     .map((item) => createElveOnlyItem(item, "EGG", warnings))
     .filter(Boolean);
-  const toys = toyRecords
+  const snapshotOnlyToys = toyRecords
+    .filter((item) => !workbookToyNames.has(normalizeName(item.name)))
     .map((item) => createElveOnlyItem(item, "TOY", warnings))
     .filter(Boolean);
 
-  if (eggs.length < eggRecords.length) {
-    warnings.push(
-      `Eggs: skipped ${eggRecords.length - eggs.length} record(s) without a positive Elve Shark value.`,
-    );
-  }
-  if (toys.length < toyRecords.length) {
-    warnings.push(
-      `Toys: skipped ${toyRecords.length - toys.length} record(s) without a positive Elve Shark value.`,
-    );
-  }
+  const eggs = [...workbookEggs, ...snapshotOnlyEggs];
+  const toys = [...workbookToys, ...snapshotOnlyToys];
 
   const tradingItems = sortItems(
     removeDuplicates([...pets, ...petWear, ...eggs, ...toys], warnings),
