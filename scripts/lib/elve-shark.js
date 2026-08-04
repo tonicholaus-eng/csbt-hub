@@ -4,6 +4,7 @@ const path = require("path");
 const ELVE_URL = "https://www.elvebredd.com/adopt-me-calculator";
 const MIN_EXPECTED_RECORDS = 1_500;
 const REQUIRED_ITEMS = ["Frost Dragon", "Bat Dragon", "Owl", "Turtle"];
+const REQUIRED_CATEGORIES = ["PET", "PETWEAR", "EGG", "TOY"];
 
 function normalizeName(value) {
   return String(value ?? "")
@@ -30,9 +31,16 @@ function toFiniteNumber(value) {
 }
 
 function categoryFromElveType(value) {
-  const type = String(value ?? "").trim().toLowerCase();
-  if (type === "pets") return "PET";
-  if (type === "pet wear") return "PETWEAR";
+  const type = String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+
+  if (type === "pet" || type === "pets") return "PET";
+  if (type === "petwear" || type === "pet wear") return "PETWEAR";
+  if (type === "egg" || type === "eggs") return "EGG";
+  if (type === "toy" || type === "toys") return "TOY";
   return null;
 }
 
@@ -192,9 +200,33 @@ function validateSnapshot(snapshot, previousSnapshot) {
     throw new Error(`Elve snapshot is missing required records: ${missingRequired.join(", ")}.`);
   }
 
+  const categoryCounts = snapshot.items.reduce((counts, item) => {
+    counts[item.category] = (counts[item.category] ?? 0) + 1;
+    return counts;
+  }, {});
+
+  const missingCategories = REQUIRED_CATEGORIES.filter(
+    (category) => !categoryCounts[category],
+  );
+  if (missingCategories.length > 0) {
+    throw new Error(
+      `Elve snapshot is missing required categories: ${missingCategories.join(", ")}.`,
+    );
+  }
+
   const valuedRecords = snapshot.items.filter((item) => item.normal !== null).length;
   if (valuedRecords < 1_400) {
     throw new Error(`Only ${valuedRecords} Elve records have a regular Shark value.`);
+  }
+
+  for (const category of ["EGG", "TOY"]) {
+    const valuedCategoryRecords = snapshot.items.filter(
+      (item) => item.category === category && item.normal !== null,
+    ).length;
+
+    if (valuedCategoryRecords < 1) {
+      throw new Error(`Elve snapshot has no valued ${category} records.`);
+    }
   }
 
   if (previousSnapshot?.items?.length) {

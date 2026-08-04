@@ -41,12 +41,19 @@ jobs:
 
       - name: Commit updated values
         run: |
-          if git diff --quiet -- source-data/elve-shark-values.json src/data/tradingItems.json src/data/valueSources.json; then
+          if git diff --quiet -- source-data/elve-shark-values.json src/data/tradingItems.json src/data/valueSources.json src/data/homePopularItems.json; then
             echo "No value changes detected."
             exit 0
           fi
           git config user.name "csbt-value-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add -A source-data/elve-shark-values.json source-data/elve-shark-values.backup.json src/data/tradingItems.json src/data/valueSources.json
+          git add -A \
+            source-data/elve-shark-values.json \
+            source-data/elve-shark-values.backup.json \
+            source-data/trading-data-validation.json \
+            src/data/tradingItems.json \
+            src/data/valueSources.json \
+            src/data/tradingMeta.json \
+            src/data/homePopularItems.json
           git commit -m "chore: update Elve Shark values"
           git push

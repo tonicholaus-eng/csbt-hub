@@ -14,7 +14,9 @@ import {
   motion,
   useReducedMotion,
 } from "framer-motion";
-import { searchPets } from "../lib/search";
+import { searchItems } from "../lib/search";
+import type { ItemCategory } from "./trade/types";
+import { getItemCategoryDetails } from "../lib/itemCategory";
 
 type SearchBarProps = {
   search: string;
@@ -24,6 +26,7 @@ type SearchBarProps = {
 type SuggestionImageProps = {
   src?: string;
   name: string;
+  category: ItemCategory;
   selected: boolean;
 };
 
@@ -37,6 +40,7 @@ const quickSearches = [
 function SuggestionImage({
   src,
   name,
+  category,
   selected,
 }: SuggestionImageProps) {
   const [imageFailed, setImageFailed] = useState(false);
@@ -71,7 +75,7 @@ function SuggestionImage({
           aria-hidden="true"
           className="text-2xl"
         >
-          🐾
+          {getItemCategoryDetails(category).icon}
         </span>
       ) : (
         <Image
@@ -183,7 +187,7 @@ export default function SearchBar({
       return [];
     }
 
-    return searchPets(search).slice(0, 6);
+    return searchItems(search).slice(0, 6);
   }, [search]);
 
   const isDropdownOpen =
@@ -559,7 +563,7 @@ export default function SearchBar({
                       return (
                         <motion.button
                           id={`item-suggestion-${index}`}
-                          key={pet.NAME}
+                          key={pet.ID}
                           type="button"
                           role="option"
                           aria-selected={
@@ -643,6 +647,7 @@ export default function SearchBar({
                             <SuggestionImage
                               src={pet.IMAGE}
                               name={pet.NAME}
+                              category={pet.CATEGORY}
                               selected={
                                 isSelected
                               }
@@ -671,7 +676,9 @@ export default function SearchBar({
                             </p>
 
                             <p className="mt-0.5 text-[10px] font-medium text-gray-400 dark:text-slate-500 sm:text-xs">
-                              Trading item
+                              {getItemCategoryDetails(
+                                pet.CATEGORY,
+                              ).label}
                             </p>
                           </div>
 

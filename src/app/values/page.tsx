@@ -78,9 +78,9 @@ export default function ValuesPage() {
 
 
             <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-600 dark:text-slate-300 sm:text-lg">
-              Search Adopt Me pets and pet wear
-              and instantly compare their
-              current trading values.
+              Search Adopt Me pets, pet wear,
+              eggs, and toys and instantly compare
+              their available trading values.
             </p>
 
           </header>

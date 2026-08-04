@@ -154,6 +154,72 @@ export default function TradeCalculator() {
     yourItems.length === 0 &&
     theirItems.length === 0;
 
+  const mobileResult = useMemo(() => {
+    const safeYourTotal = Number.isFinite(yourTotal)
+      ? Math.max(0, yourTotal)
+      : 0;
+    const safeTheirTotal = Number.isFinite(theirTotal)
+      ? Math.max(0, theirTotal)
+      : 0;
+    const difference = Math.abs(
+      safeTheirTotal - safeYourTotal,
+    );
+    const baseline = Math.max(
+      safeYourTotal,
+      safeTheirTotal,
+      1,
+    );
+    const differencePercent =
+      (difference / baseline) * 100;
+    const formattedDifference =
+      new Intl.NumberFormat("en-US", {
+        maximumFractionDigits: 2,
+      }).format(difference);
+
+    if (
+      safeYourTotal === 0 &&
+      safeTheirTotal === 0
+    ) {
+      return {
+        title: "READY",
+        emoji: "🧮",
+        message: "Add valued items to compare",
+        color:
+          "from-slate-600 via-slate-700 to-slate-900",
+      };
+    }
+
+    if (differencePercent <= 5) {
+      return {
+        title: "FAIR",
+        emoji: "🤝",
+        message: `Only ${differencePercent.toFixed(
+          1,
+        )}% apart`,
+        color:
+          "from-amber-400 via-orange-500 to-orange-600",
+      };
+    }
+
+    if (safeTheirTotal > safeYourTotal) {
+      return {
+        title: "WIN",
+        emoji: "🏆",
+        message: `You gain ${formattedDifference}`,
+        color:
+          "from-emerald-500 via-green-600 to-green-700",
+      };
+    }
+
+    return {
+      title: "LOSE",
+      emoji: "⚠️",
+      message: `You overpay ${formattedDifference}`,
+      color:
+        "from-rose-500 via-red-600 to-red-700",
+    };
+  }, [yourTotal, theirTotal]);
+
   function openAddItemModal(
     side: TradeSideType,
   ) {
@@ -313,7 +379,7 @@ export default function TradeCalculator() {
         : 0.7,
       ease: [0.22, 1, 0.36, 1],
     }}
-    className="relative mt-20 overflow-hidden rounded-[30px] border border-white/60 bg-white/75 p-4 shadow-[0_30px_90px_rgba(15,23,42,.14)] backdrop-blur-2xl transition-colors duration-300 dark:border-white/10 dark:bg-slate-950/70 dark:shadow-[0_30px_100px_rgba(0,0,0,.42)] sm:rounded-[40px] sm:p-8 lg:p-10"
+    className="relative mt-2 overflow-hidden rounded-[24px] border border-white/60 bg-white/75 p-3 shadow-[0_30px_90px_rgba(15,23,42,.14)] backdrop-blur-2xl transition-colors duration-300 dark:border-white/10 dark:bg-slate-950/70 dark:shadow-[0_30px_100px_rgba(0,0,0,.42)] sm:mt-10 sm:rounded-[40px] sm:p-8 lg:mt-20 lg:p-10"
   >
     <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(251,191,36,.12),transparent_52%)] dark:bg-[radial-gradient(circle_at_top,rgba(245,158,11,.08),transparent_55%)]" />
 
@@ -333,7 +399,7 @@ export default function TradeCalculator() {
               ? undefined
               : { scale: 1.05 }
           }
-          className="inline-flex items-center gap-2 rounded-full border border-yellow-200 bg-yellow-100/85 px-5 py-2 text-sm font-black text-yellow-700 shadow-sm backdrop-blur dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-300"
+          className="hidden items-center gap-2 rounded-full border border-yellow-200 bg-yellow-100/85 px-5 py-2 text-sm font-black text-yellow-700 shadow-sm backdrop-blur dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-300 sm:inline-flex"
         >
           <span>🧮</span>
           Trade Calculator
@@ -341,17 +407,17 @@ export default function TradeCalculator() {
 
         <h2
           id="trade-calculator-heading"
-          className="mt-6 text-4xl font-black tracking-tight text-slate-800 dark:text-white sm:text-5xl md:text-6xl"
+          className="mt-1 text-2xl font-black tracking-tight text-slate-800 dark:text-white sm:mt-6 sm:text-5xl md:text-6xl"
         >
           Calculate Your Trade
         </h2>
 
-        <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-slate-500 dark:text-slate-400 sm:text-lg">
+        <p className="mx-auto mt-2 max-w-2xl text-xs leading-relaxed text-slate-500 dark:text-slate-400 sm:mt-4 sm:text-lg">
           Compare both offers using either GCash or Elve Shark values before accepting a trade.
         </p>
       </div>
 
-      <div className="mx-auto mt-9 flex max-w-3xl flex-col items-stretch justify-center gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+      <div className="mx-auto mt-5 grid max-w-3xl grid-cols-2 gap-2 sm:mt-9 sm:flex sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-4">
 
         <select
           value={valueSource}
@@ -359,7 +425,7 @@ export default function TradeCalculator() {
             changeValueSource(event.target.value as ValueSource)
           }
           aria-label="Value source"
-          className="min-h-14 cursor-pointer rounded-2xl border-2 border-cyan-300 bg-white/95 px-5 py-3.5 font-bold text-slate-800 shadow-sm outline-none transition duration-200 hover:border-cyan-400 hover:shadow-md focus:border-cyan-400 focus:ring-4 focus:ring-cyan-300/25 dark:border-cyan-400/40 dark:bg-slate-950/90 dark:text-slate-100 dark:hover:border-cyan-300/70 dark:focus:border-cyan-300 dark:focus:ring-cyan-400/20 dark:[color-scheme:dark]"
+          className="min-h-11 min-w-0 cursor-pointer rounded-xl border-2 border-cyan-300 bg-white/95 px-2 py-2 text-xs font-bold text-slate-800 shadow-sm outline-none transition duration-200 hover:border-cyan-400 hover:shadow-md focus:border-cyan-400 focus:ring-4 focus:ring-cyan-300/25 dark:border-cyan-400/40 dark:bg-slate-950/90 dark:text-slate-100 dark:hover:border-cyan-300/70 dark:focus:border-cyan-300 dark:focus:ring-cyan-400/20 dark:[color-scheme:dark] sm:min-h-14 sm:rounded-2xl sm:px-5 sm:py-3.5 sm:text-base"
         >
           <option
             value="GCASH"
@@ -383,7 +449,7 @@ export default function TradeCalculator() {
             )
           }
           aria-label="Default pet variant"
-          className="min-h-14 cursor-pointer rounded-2xl border-2 border-amber-300 bg-white/95 px-5 py-3.5 font-bold text-slate-800 shadow-sm outline-none transition duration-200 hover:border-amber-400 hover:shadow-md focus:border-amber-400 focus:ring-4 focus:ring-amber-300/25 dark:border-amber-400/45 dark:bg-slate-950/90 dark:text-slate-100 dark:hover:border-amber-300/75 dark:focus:border-amber-300 dark:focus:ring-amber-400/20 dark:[color-scheme:dark]"
+          className="min-h-11 min-w-0 cursor-pointer rounded-xl border-2 border-amber-300 bg-white/95 px-2 py-2 text-xs font-bold text-slate-800 shadow-sm outline-none transition duration-200 hover:border-amber-400 hover:shadow-md focus:border-amber-400 focus:ring-4 focus:ring-amber-300/25 dark:border-amber-400/45 dark:bg-slate-950/90 dark:text-slate-100 dark:hover:border-amber-300/75 dark:focus:border-amber-300 dark:focus:ring-amber-400/20 dark:[color-scheme:dark] sm:min-h-14 sm:rounded-2xl sm:px-5 sm:py-3.5 sm:text-base"
         >
           {valueOptions.map((option) => (
             <option
@@ -399,7 +465,7 @@ export default function TradeCalculator() {
         <motion.button
           onClick={swapSides}
           disabled={tradeIsEmpty}
-          className="min-h-14 rounded-2xl bg-gradient-to-r from-blue-500 to-cyan-500 px-6 py-3.5 font-bold text-white disabled:opacity-40"
+          className="min-h-11 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 px-2 py-2 text-xs font-bold text-white disabled:opacity-40 sm:min-h-14 sm:rounded-2xl sm:px-6 sm:py-3.5 sm:text-base"
         >
           🔄 Swap Offers
         </motion.button>
@@ -407,16 +473,16 @@ export default function TradeCalculator() {
         <motion.button
           onClick={clearTrade}
           disabled={tradeIsEmpty}
-          className="min-h-14 rounded-2xl bg-gradient-to-r from-red-500 to-pink-500 px-6 py-3.5 font-bold text-white disabled:opacity-40"
+          className="min-h-11 rounded-xl bg-gradient-to-r from-red-500 to-pink-500 px-2 py-2 text-xs font-bold text-white disabled:opacity-40 sm:min-h-14 sm:rounded-2xl sm:px-6 sm:py-3.5 sm:text-base"
         >
           🗑 Clear Trade
         </motion.button>
 
       </div>
 
-      <div className="my-9 h-px bg-gradient-to-r from-transparent via-slate-300 to-transparent dark:via-white/10" />
+      <div className="my-4 h-px bg-gradient-to-r from-transparent via-slate-300 to-transparent dark:via-white/10 sm:my-9" />
 
-      <div className="grid gap-7 xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] xl:gap-8">
+      <div className="grid grid-cols-2 gap-2 sm:gap-5 xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] xl:gap-8">
 
         <TradeSide
           title="Your Offer"
@@ -433,7 +499,7 @@ export default function TradeCalculator() {
           valueSource={valueSource}
         />
 
-        <div className="flex items-center justify-center">
+        <div className="hidden items-center justify-center xl:flex">
           <motion.div
             animate={
               shouldReduceMotion
@@ -469,14 +535,76 @@ export default function TradeCalculator() {
 
       </div>
 
-      <TradeSummary
-        yourTotal={yourTotal}
-        theirTotal={theirTotal}
-        valueSource={valueSource}
-      />
+      <div className="hidden lg:block">
+        <TradeSummary
+          yourTotal={yourTotal}
+          theirTotal={theirTotal}
+          valueSource={valueSource}
+        />
+      </div>
 
     </div>
   </motion.section>
+
+  {!modalOpen && !tradeIsEmpty && (
+    <motion.aside
+      aria-live="polite"
+      initial={{
+        opacity: 0,
+        y: shouldReduceMotion ? 0 : 80,
+      }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: shouldReduceMotion ? 0 : 0.25,
+      }}
+      className={`pointer-events-none fixed inset-x-3 bottom-3 z-50 overflow-hidden rounded-2xl bg-gradient-to-r p-3 text-white shadow-[0_18px_45px_rgba(0,0,0,.35)] lg:hidden ${mobileResult.color}`}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span
+              aria-hidden="true"
+              className="text-2xl"
+            >
+              {mobileResult.emoji}
+            </span>
+
+            <p className="text-xl font-black tracking-tight">
+              {mobileResult.title}
+            </p>
+          </div>
+
+          <p className="mt-0.5 truncate text-xs font-semibold text-white/85">
+            {mobileResult.message}
+          </p>
+        </div>
+
+        <div className="grid shrink-0 grid-cols-2 gap-1 rounded-xl border border-white/15 bg-black/15 p-2 text-center backdrop-blur">
+          <div className="min-w-14 px-1">
+            <p className="text-[9px] font-black uppercase tracking-wider text-white/70">
+              You
+            </p>
+            <p className="mt-0.5 text-sm font-black tabular-nums">
+              {yourTotal.toLocaleString("en-US", {
+                maximumFractionDigits: 2,
+              })}
+            </p>
+          </div>
+
+          <div className="min-w-14 border-l border-white/15 px-1">
+            <p className="text-[9px] font-black uppercase tracking-wider text-white/70">
+              Them
+            </p>
+            <p className="mt-0.5 text-sm font-black tabular-nums">
+              {theirTotal.toLocaleString("en-US", {
+                maximumFractionDigits: 2,
+              })}
+            </p>
+          </div>
+        </div>
+      </div>
+    </motion.aside>
+  )}
 
   <AddPetModal
     open={modalOpen}

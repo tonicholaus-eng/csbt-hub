@@ -23,6 +23,12 @@ const navigationLinks = [
     icon: "values",
   },
   {
+    label: "Demand",
+    href: "/demand",
+    description: "AMVGG demand and values",
+    icon: "demand",
+  },
+  {
     label: "Calculator",
     href: "/calculator",
     description: "Compare both offers",
@@ -590,6 +596,26 @@ function NavigationIcon({
           <path d="M4 12h16" />
           <path d="M4 18h10" />
           <path d="m17 16 2 2 3-4" />
+        </svg>
+      );
+
+    case "demand":
+      return (
+        <svg
+          viewBox="0 0 24 24"
+          className="h-5 w-5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M4 19V9" />
+          <path d="M10 19V5" />
+          <path d="M16 19v-7" />
+          <path d="M22 19V3" />
+          <path d="M3 19h20" />
         </svg>
       );
 

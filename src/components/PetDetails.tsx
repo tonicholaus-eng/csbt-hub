@@ -10,7 +10,9 @@ import {
   VALUE_SOURCE_LABELS,
   formatTradeValue,
   getItemValue,
+  hasItemValue,
 } from "../lib/valueSystem";
+import { getItemCategoryDetails } from "../lib/itemCategory";
 
 type Props = {
   pet: TradeItem;
@@ -25,6 +27,7 @@ type PetImageProps = {
 
 function PetImage({ src, name, category }: PetImageProps) {
   const [failed, setFailed] = useState(false);
+  const categoryDetails = getItemCategoryDetails(category);
 
   useEffect(() => {
     setFailed(false);
@@ -33,7 +36,8 @@ function PetImage({ src, name, category }: PetImageProps) {
   if (!src || failed) {
     return (
       <div className="flex h-52 w-52 items-center justify-center text-7xl">
-        {category === "PETWEAR" ? "🎩" : "🐾"}
+        {categoryDetails.icon}
+        <span className="sr-only">Image unavailable for {name}</span>
       </div>
     );
   }
@@ -86,12 +90,22 @@ function formatUpdatedAt(value?: string) {
 
 export default function PetDetails({ pet, onBack }: Props) {
   const reduceMotion = useReducedMotion();
-  const [source, setSource] = useState<ValueSource>("GCASH");
+  const categoryDetails = getItemCategoryDetails(pet.CATEGORY);
+  const elveOnly =
+    categoryDetails.elveOnly ||
+    (!hasItemValue(pet, "GCASH", "NORMAL") &&
+      hasItemValue(pet, "ELVE", "NORMAL"));
+  const [source, setSource] = useState<ValueSource>(
+    elveOnly ? "ELVE" : "GCASH",
+  );
 
-  const availableCards =
-    pet.CATEGORY === "PETWEAR"
-      ? cards.filter((card) => card.key === "NORMAL")
-      : cards;
+  useEffect(() => {
+    setSource(elveOnly ? "ELVE" : "GCASH");
+  }, [elveOnly, pet.ID]);
+
+  const availableCards = categoryDetails.regularOnly
+    ? cards.filter((card) => card.key === "NORMAL")
+    : cards;
 
   const elveUpdatedAt =
     (valueSources as {
@@ -125,12 +139,14 @@ export default function PetDetails({ pet, onBack }: Props) {
           <div className="text-center lg:text-left">
             <h1 className="text-5xl font-black">{pet.NAME}</h1>
             <p className="mt-4 text-lg text-white/90">
-              {pet.CATEGORY === "PETWEAR"
-                ? "Compare its GCash and Elve Shark regular values."
+              {categoryDetails.regularOnly
+                ? categoryDetails.elveOnly
+                  ? "View its current Elve Shark regular value."
+                  : "Compare its GCash and Elve Shark regular values."
                 : "Compare Regular, Neon, and Mega values from two separate systems."}
             </p>
             <span className="mt-5 inline-flex rounded-full bg-white/20 px-4 py-2 font-black">
-              {pet.CATEGORY === "PETWEAR" ? "🎩 Pet Wear" : "🐾 Pet"}
+              {categoryDetails.icon} {categoryDetails.label}
             </span>
           </div>
         </div>
@@ -140,28 +156,47 @@ export default function PetDetails({ pet, onBack }: Props) {
         <h2 className="text-center text-3xl font-black">Value Breakdown</h2>
 
         <div className="mx-auto mt-6 flex max-w-xl rounded-2xl border border-slate-200 bg-slate-100 p-1.5 dark:border-white/10 dark:bg-slate-900">
-          {(["GCASH", "ELVE"] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => setSource(option)}
-              className={`flex-1 rounded-xl px-4 py-3 text-sm font-black transition ${
-                source === option
-                  ? "bg-white text-slate-900 shadow dark:bg-slate-800 dark:text-white"
-                  : "text-slate-500 dark:text-slate-400"
-              }`}
-            >
-              {option === "GCASH" ? "💸 GCash" : "🦈 Elve Shark"}
-            </button>
-          ))}
+          {(["GCASH", "ELVE"] as const).map((option) => {
+            const disabled = option === "GCASH" && elveOnly;
+
+            return (
+              <button
+                key={option}
+                type="button"
+                disabled={disabled}
+                onClick={() => setSource(option)}
+                className={`flex-1 rounded-xl px-4 py-3 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                  source === option
+                    ? "bg-white text-slate-900 shadow dark:bg-slate-800 dark:text-white"
+                    : "text-slate-500 dark:text-slate-400"
+                }`}
+              >
+                {option === "GCASH" ? "💸 GCash" : "🦈 Elve Shark"}
+              </button>
+            );
+          })}
         </div>
+
+        {elveOnly && (
+          <p className="mt-3 text-center text-xs font-bold text-amber-600 dark:text-amber-300">
+            Eggs and toys currently use Elve Shark values only.
+          </p>
+        )}
 
         <p className="mt-4 text-center text-sm text-slate-500 dark:text-slate-400">
           {VALUE_SOURCE_LABELS[source]}
-          {source === "ELVE" ? ` • Updated ${formatUpdatedAt(elveUpdatedAt)}` : " • CSBT master data"}
+          {source === "ELVE"
+            ? ` • Updated ${formatUpdatedAt(elveUpdatedAt)}`
+            : " • CSBT master data"}
         </p>
 
-        <div className="mt-8 grid gap-6 lg:grid-cols-3">
+        <div
+          className={`mt-8 grid gap-6 ${
+            availableCards.length === 1
+              ? "mx-auto max-w-md"
+              : "lg:grid-cols-3"
+          }`}
+        >
           {availableCards.map((card) => (
             <motion.div
               key={`${source}-${card.key}`}

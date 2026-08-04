@@ -26,7 +26,7 @@ const itemList = Array.from(
   new Map(
     (tradingItems as TradeItem[]).map(
       (item) => [
-        normalize(item.NAME),
+        `${item.CATEGORY}:${normalize(item.NAME)}`,
         item,
       ],
     ),

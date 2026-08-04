@@ -10,6 +10,7 @@ import {
 
 import type { TradeItem } from "./trade/types";
 import { formatTradeValue, getItemValue } from "../lib/valueSystem";
+import { getItemCategoryDetails } from "../lib/itemCategory";
 
 type Props = {
   pets: TradeItem[];
@@ -34,9 +35,12 @@ function ItemImage({
   }, [src]);
 
   if (!src || failed) {
+    const categoryDetails = getItemCategoryDetails(category);
+
     return (
       <div className="flex h-24 w-24 items-center justify-center text-5xl">
-        {category === "PETWEAR" ? "🎩" : "🐾"}
+        {categoryDetails.icon}
+        <span className="sr-only">Image unavailable for {name}</span>
       </div>
     );
   }
@@ -67,14 +71,6 @@ const imageGlows = [
   "from-pink-300/35 via-fuchsia-200/20 to-purple-400/35 dark:from-pink-400/20 dark:via-fuchsia-300/5 dark:to-purple-500/20",
   "from-emerald-300/35 via-green-200/20 to-teal-400/35 dark:from-emerald-400/20 dark:via-green-300/5 dark:to-teal-500/20",
 ] as const;
-
-function getCategoryLabel(
-  category: TradeItem["CATEGORY"],
-) {
-  return category === "PETWEAR"
-    ? "PET WEAR"
-    : "PET";
-}
 
 export default function SearchResults({
   pets,
@@ -135,6 +131,8 @@ export default function SearchResults({
                 imageGlows[
                   index % imageGlows.length
                 ];
+              const categoryDetails =
+                getItemCategoryDetails(item.CATEGORY);
 
               return (
                 <motion.button
@@ -207,16 +205,12 @@ export default function SearchResults({
                       </h3>
 
                       <span className="rounded-full border border-emerald-200 bg-emerald-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-700 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-300">
-                        {getCategoryLabel(
-                          item.CATEGORY,
-                        )}
+                        {categoryDetails.uppercaseLabel}
                       </span>
                     </div>
 
                     <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                      {item.CATEGORY === "PETWEAR"
-                        ? "Current pet wear trading value."
-                        : "Current Normal, Neon, and Mega trading values."}
+                      {categoryDetails.description}
                     </p>
 
                     <div className="mt-4 grid gap-2.5 sm:grid-cols-2">

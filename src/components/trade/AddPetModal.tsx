@@ -24,7 +24,13 @@ import {
   VALUE_SOURCE_SHORT_LABELS,
   formatTradeValue,
   getItemValue,
+  hasItemValue,
 } from "../../lib/valueSystem";
+import {
+  getItemCategoryDetails,
+  getItemCategoryIcon,
+  getItemCategoryLabel,
+} from "../../lib/itemCategory";
 
 type Props = {
   open: boolean;
@@ -65,6 +71,16 @@ const categoryOptions: {
     label: "Pet Wear",
     icon: "🎩",
   },
+  {
+    value: "EGG",
+    label: "Eggs",
+    icon: "🥚",
+  },
+  {
+    value: "TOY",
+    label: "Toys",
+    icon: "🪀",
+  },
 ];
 
 const tradingItems =
@@ -89,9 +105,7 @@ function ItemImage({
           aria-hidden="true"
           className="text-4xl sm:text-5xl"
         >
-          {category === "PETWEAR"
-            ? "🎩"
-            : "🐾"}
+          {getItemCategoryIcon(category)}
         </span>
 
         <span className="mt-2 text-[10px] font-bold text-slate-400 dark:text-slate-500 sm:text-xs">
@@ -119,22 +133,6 @@ function ItemImage({
       className="h-20 w-20 object-contain drop-shadow-lg transition-transform duration-300 group-hover/card:scale-110 group-hover/card:rotate-3 sm:h-24 sm:w-24"
     />
   );
-}
-
-function getCategoryLabel(
-  category: ItemCategory,
-) {
-  return category === "PETWEAR"
-    ? "Pet Wear"
-    : "Pet";
-}
-
-function getCategoryIcon(
-  category: ItemCategory,
-) {
-  return category === "PETWEAR"
-    ? "🎩"
-    : "🐾";
 }
 
 export default function AddPetModal({
@@ -180,6 +178,19 @@ export default function AddPetModal({
       .trim()
       .toLowerCase();
 
+  const visibleCategoryOptions =
+    useMemo(
+      () =>
+        categoryOptions.filter(
+          (option) =>
+            option.value === "ALL" ||
+            valueSource === "ELVE" ||
+            (option.value !== "EGG" &&
+              option.value !== "TOY"),
+        ),
+      [valueSource],
+    );
+
   const filteredItems =
     useMemo(() => {
       return tradingItems.filter(
@@ -198,15 +209,34 @@ export default function AddPetModal({
                 normalizedSearch,
               );
 
+          const hasSourceValue =
+            hasItemValue(
+              item,
+              valueSource,
+              "NORMAL",
+            ) ||
+            hasItemValue(
+              item,
+              valueSource,
+              "NEON",
+            ) ||
+            hasItemValue(
+              item,
+              valueSource,
+              "MEGA",
+            );
+
           return (
             matchesCategory &&
-            matchesSearch
+            matchesSearch &&
+            hasSourceValue
           );
         },
       );
     }, [
       normalizedSearch,
       selectedCategory,
+      valueSource,
     ]);
 
   const visibleItems =
@@ -234,6 +264,16 @@ export default function AddPetModal({
     normalizedSearch,
     selectedCategory,
   ]);
+
+  useEffect(() => {
+    if (
+      valueSource === "GCASH" &&
+      (selectedCategory === "EGG" ||
+        selectedCategory === "TOY")
+    ) {
+      setSelectedCategory("ALL");
+    }
+  }, [selectedCategory, valueSource]);
 
   useEffect(() => {
     if (!open) {
@@ -516,7 +556,7 @@ export default function AddPetModal({
 
           <div className="mt-5 flex flex-wrap gap-3">
 
-            {categoryOptions.map(
+            {visibleCategoryOptions.map(
               (option) => {
                 const active =
                   selectedCategory ===
@@ -564,7 +604,7 @@ export default function AddPetModal({
                   event.target.value,
                 )
               }
-              placeholder="Search pets or pet wear..."
+              placeholder="Search pets, pet wear, eggs, or toys..."
               autoComplete="off"
               spellCheck={false}
               className="w-full rounded-2xl border-2 border-yellow-200 bg-white py-4 pl-14 pr-16 text-lg font-semibold outline-none transition-all focus:border-yellow-400 focus:ring-4 focus:ring-yellow-200/60 dark:border-amber-400/20 dark:bg-slate-900 dark:text-white"
@@ -703,12 +743,12 @@ export default function AddPetModal({
                         aria-hidden="true"
                         className="mr-1"
                       >
-                        {getCategoryIcon(
+                        {getItemCategoryIcon(
                           item.CATEGORY,
                         )}
                       </span>
 
-                      {getCategoryLabel(
+                      {getItemCategoryLabel(
                         item.CATEGORY,
                       )}
                     </div>
@@ -767,8 +807,10 @@ export default function AddPetModal({
                         </>
                       ) : (
                         <div className="flex min-h-[72px] items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 px-2 py-2 text-center text-slate-400 dark:border-white/10 dark:bg-white/[0.03] dark:text-slate-500 sm:rounded-xl">
-                          Pet Wear uses its
-                          regular value
+                          {getItemCategoryDetails(
+                            item.CATEGORY,
+                          ).label}{" "}
+                          uses its regular value
                         </div>
                       )}
                     </div>

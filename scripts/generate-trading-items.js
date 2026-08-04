@@ -16,6 +16,7 @@ const tradingMetaPath = path.join(projectRoot, "src", "data", "tradingMeta.json"
 const homePopularItemsPath = path.join(projectRoot, "src", "data", "homePopularItems.json");
 const validationReportPath = path.join(projectRoot, "source-data", "trading-data-validation.json");
 const ELVEBREDD_ORIGIN = "https://elvebredd.com";
+const CATEGORY_ORDER = { PET: 0, PETWEAR: 1, EGG: 2, TOY: 3 };
 
 function cleanText(value) {
   if (value === null || value === undefined) return "";
@@ -240,6 +241,42 @@ function createItem(row, category, warnings, elveMap) {
   };
 }
 
+function createElveOnlyItem(record, category, warnings) {
+  const name = cleanText(record?.name);
+  if (!name) return null;
+
+  const normal = cleanValue(
+    record?.normal,
+    `${name} Elve Shark Regular`,
+    warnings,
+  );
+
+  if (normal === null || normal <= 0) {
+    return null;
+  }
+
+  return {
+    ID: createId(category, name),
+    NAME: name,
+    CATEGORY: category,
+    IMAGE: createElvebreddImageUrl(record?.image, name, warnings),
+
+    // Eggs and toys are Elve-only and only use a regular/default value.
+    GCASH_NORMAL: null,
+    GCASH_NEON: null,
+    GCASH_MEGA: null,
+    ELVE_NORMAL: normal,
+    ELVE_NEON: null,
+    ELVE_MEGA: null,
+
+    // Backward-compatible aliases.
+    NORMAL: null,
+    NEON: null,
+    MEGA: null,
+    INGAME_VALUE: normal,
+  };
+}
+
 function removeDuplicates(items, warnings) {
   const itemMap = new Map();
   for (const item of items) {
@@ -255,8 +292,16 @@ function removeDuplicates(items, warnings) {
 
 function sortItems(items) {
   return [...items].sort((firstItem, secondItem) => {
-    if (firstItem.CATEGORY !== secondItem.CATEGORY) return firstItem.CATEGORY === "PET" ? -1 : 1;
-    return firstItem.NAME.localeCompare(secondItem.NAME, undefined, { numeric: true, sensitivity: "base" });
+    const categoryDifference =
+      (CATEGORY_ORDER[firstItem.CATEGORY] ?? 99) -
+      (CATEGORY_ORDER[secondItem.CATEGORY] ?? 99);
+
+    if (categoryDifference !== 0) return categoryDifference;
+
+    return firstItem.NAME.localeCompare(secondItem.NAME, undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
   });
 }
 
@@ -270,9 +315,39 @@ function generateTradingItems() {
 
   const petRows = readSheetRows(workbook, "Pets");
   const petWearRows = readSheetRows(workbook, "Pet Wear");
-  const pets = petRows.map((row) => createItem(row, "PET", warnings, elveMap)).filter(Boolean);
-  const petWear = petWearRows.map((row) => createItem(row, "PETWEAR", warnings, elveMap)).filter(Boolean);
-  const tradingItems = sortItems(removeDuplicates([...pets, ...petWear], warnings));
+  const pets = petRows
+    .map((row) => createItem(row, "PET", warnings, elveMap))
+    .filter(Boolean);
+  const petWear = petWearRows
+    .map((row) => createItem(row, "PETWEAR", warnings, elveMap))
+    .filter(Boolean);
+  const eggRecords = elveSnapshot.items.filter(
+    (item) => item.category === "EGG",
+  );
+  const toyRecords = elveSnapshot.items.filter(
+    (item) => item.category === "TOY",
+  );
+  const eggs = eggRecords
+    .map((item) => createElveOnlyItem(item, "EGG", warnings))
+    .filter(Boolean);
+  const toys = toyRecords
+    .map((item) => createElveOnlyItem(item, "TOY", warnings))
+    .filter(Boolean);
+
+  if (eggs.length < eggRecords.length) {
+    warnings.push(
+      `Eggs: skipped ${eggRecords.length - eggs.length} record(s) without a positive Elve Shark value.`,
+    );
+  }
+  if (toys.length < toyRecords.length) {
+    warnings.push(
+      `Toys: skipped ${toyRecords.length - toys.length} record(s) without a positive Elve Shark value.`,
+    );
+  }
+
+  const tradingItems = sortItems(
+    removeDuplicates([...pets, ...petWear, ...eggs, ...toys], warnings),
+  );
 
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, `${JSON.stringify(tradingItems, null, 2)}\n`, "utf8");
@@ -316,6 +391,8 @@ function generateTradingItems() {
     totalItems: tradingItems.length,
     totalPets: tradingItems.filter((item) => item.CATEGORY === "PET").length,
     totalPetWear: tradingItems.filter((item) => item.CATEGORY === "PETWEAR").length,
+    totalEggs: tradingItems.filter((item) => item.CATEGORY === "EGG").length,
+    totalToys: tradingItems.filter((item) => item.CATEGORY === "TOY").length,
     generatedAt: new Date().toISOString(),
   };
   fs.writeFileSync(tradingMetaPath, `${JSON.stringify(tradingMeta, null, 2)}\n`, "utf8");
@@ -324,6 +401,8 @@ function generateTradingItems() {
     generatedAt: new Date().toISOString(),
     pets: pets.length,
     petWear: petWear.length,
+    eggs: eggs.length,
+    toys: toys.length,
     total: tradingItems.length,
     warnings,
   };
@@ -332,6 +411,8 @@ function generateTradingItems() {
   console.log("==========================");
   console.log(`Pets: ${pets.length}`);
   console.log(`Pet Wear: ${petWear.length}`);
+  console.log(`Eggs: ${eggs.length}`);
+  console.log(`Toys: ${toys.length}`);
   console.log(`Total: ${tradingItems.length}`);
   console.log(`Created: ${outputPath}`);
   console.log(`Value-source metadata: ${sourceMetadataPath}`);

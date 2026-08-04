@@ -15,7 +15,9 @@ export type TradeValue =
 
 export type ItemCategory =
   | "PET"
-  | "PETWEAR";
+  | "PETWEAR"
+  | "EGG"
+  | "TOY";
 
 export type TradeItem = {
   ID: string;

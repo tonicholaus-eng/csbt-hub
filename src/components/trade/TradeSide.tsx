@@ -78,7 +78,7 @@ export default function TradeSide({
               y: -4,
             }
       }
-      className={`group relative flex h-full min-w-0 flex-col overflow-hidden rounded-[28px] border bg-white/75 shadow-xl backdrop-blur-xl transition-[background-color,border-color,box-shadow] duration-300 hover:shadow-[0_25px_70px_rgba(15,23,42,.15)] dark:bg-slate-900/70 dark:shadow-[0_24px_70px_rgba(0,0,0,.3)] sm:rounded-[34px] ${
+      className={`group relative flex h-full min-w-0 flex-col overflow-hidden rounded-[18px] border bg-white/75 shadow-xl backdrop-blur-xl transition-[background-color,border-color,box-shadow] duration-300 hover:shadow-[0_25px_70px_rgba(15,23,42,.15)] dark:bg-slate-900/70 dark:shadow-[0_24px_70px_rgba(0,0,0,.3)] sm:rounded-[34px] ${
         isYellow
           ? "border-yellow-200/70 dark:border-amber-400/15"
           : "border-cyan-200/70 dark:border-cyan-400/15"
@@ -105,7 +105,7 @@ export default function TradeSide({
 
       {/* Header */}
       <div
-        className={`relative overflow-hidden px-5 py-6 sm:px-7 sm:py-7 ${
+        className={`relative overflow-hidden px-3 py-3 sm:px-7 sm:py-7 ${
           isYellow
             ? "bg-gradient-to-r from-yellow-400 via-orange-400 to-orange-500"
             : "bg-gradient-to-r from-cyan-500 via-sky-500 to-blue-600"
@@ -115,18 +115,18 @@ export default function TradeSide({
 
         <div className="pointer-events-none absolute inset-y-0 -left-1/2 w-1/3 rotate-12 bg-gradient-to-r from-transparent via-white/30 to-transparent opacity-0 blur-lg transition-all duration-700 group-hover:left-[130%] group-hover:opacity-100" />
 
-        <div className="relative flex items-center justify-between gap-4">
+        <div className="relative flex items-center justify-between gap-2 sm:gap-4">
           <div className="min-w-0">
-            <h3 className="truncate text-2xl font-black tracking-tight text-white sm:text-3xl">
+            <h3 className="truncate text-sm font-black tracking-tight text-white sm:text-3xl">
               {title}
             </h3>
 
-            <p className="mt-1 text-sm font-medium text-white/80">
+            <p className="mt-1 hidden text-sm font-medium text-white/80 sm:block">
               Build your trade offer
             </p>
           </div>
 
-          <span className="shrink-0 rounded-full border border-white/20 bg-white/20 px-3 py-2 text-xs font-black text-white shadow-sm backdrop-blur-md sm:px-4 sm:text-sm">
+          <span className="shrink-0 rounded-full border border-white/20 bg-white/20 px-2 py-1 text-[9px] font-black text-white shadow-sm backdrop-blur-md sm:px-4 sm:py-2 sm:text-sm">
             {items.length}{" "}
             {items.length === 1
               ? "Item"
@@ -135,7 +135,7 @@ export default function TradeSide({
         </div>
       </div>
 
-      <div className="relative flex flex-1 flex-col p-4 sm:p-6">
+      <div className="relative flex flex-1 flex-col p-2 sm:p-6">
         {/* Add button */}
         <motion.button
           type="button"
@@ -153,7 +153,7 @@ export default function TradeSide({
               ? 1
               : 0.96,
           }}
-          className={`group/add min-h-14 rounded-2xl px-5 py-4 text-base font-black text-white shadow-lg outline-none transition-shadow duration-300 hover:shadow-2xl focus-visible:ring-4 sm:text-lg ${
+          className={`group/add min-h-10 rounded-xl px-2 py-2 text-xs font-black text-white shadow-lg outline-none transition-shadow duration-300 hover:shadow-2xl focus-visible:ring-4 sm:min-h-14 sm:rounded-2xl sm:px-5 sm:py-4 sm:text-lg ${
             isYellow
               ? "bg-gradient-to-r from-yellow-500 via-orange-500 to-amber-500 shadow-orange-300/25 focus-visible:ring-amber-300/50 dark:shadow-orange-950/30 dark:focus-visible:ring-amber-400/30"
               : "bg-gradient-to-r from-cyan-500 via-sky-500 to-blue-600 shadow-cyan-300/25 focus-visible:ring-cyan-300/50 dark:shadow-cyan-950/30 dark:focus-visible:ring-cyan-400/30"
@@ -162,7 +162,7 @@ export default function TradeSide({
           <span className="inline-flex items-center gap-2 transition-all duration-300 group-hover/add:gap-3">
             <span
               aria-hidden="true"
-              className="text-xl"
+              className="text-base sm:text-xl"
             >
               +
             </span>
@@ -172,10 +172,10 @@ export default function TradeSide({
         </motion.button>
 
         {/* Item list */}
-        <div className="mt-5 flex-1 overflow-hidden rounded-[24px] border border-white/70 bg-white/65 shadow-inner transition-colors duration-300 dark:border-white/10 dark:bg-slate-950/45 sm:mt-6 sm:rounded-3xl">
-          <div className="h-[360px] overflow-y-auto overscroll-contain p-3 sm:h-[430px] sm:p-4">
+        <div className="mt-2 flex-1 overflow-hidden rounded-[14px] border border-white/70 bg-white/65 shadow-inner transition-colors duration-300 dark:border-white/10 dark:bg-slate-950/45 sm:mt-6 sm:rounded-3xl">
+          <div className="h-[220px] overflow-y-auto overscroll-contain p-1.5 sm:h-[430px] sm:p-4">
             {items.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center rounded-[20px] border-2 border-dashed border-slate-300 px-5 text-center dark:border-white/10 dark:bg-white/[0.02]">
+              <div className="flex h-full flex-col items-center justify-center rounded-[12px] border-2 border-dashed border-slate-300 px-2 text-center dark:border-white/10 dark:bg-white/[0.02] sm:rounded-[20px] sm:px-5">
                 <motion.div
                   animate={
                     shouldReduceMotion
@@ -194,17 +194,17 @@ export default function TradeSide({
                     repeat: Infinity,
                     ease: "easeInOut",
                   }}
-                  className="text-6xl sm:text-7xl"
+                  className="text-3xl sm:text-7xl"
                   aria-hidden="true"
                 >
                   ✨
                 </motion.div>
 
-                <h4 className="mt-5 text-xl font-black text-slate-700 dark:text-white sm:text-2xl">
+                <h4 className="mt-2 text-xs font-black text-slate-700 dark:text-white sm:mt-5 sm:text-2xl">
                   No Items Added
                 </h4>
 
-                <p className="mt-3 max-w-xs text-sm leading-6 text-slate-500 dark:text-slate-400">
+                <p className="mt-3 hidden max-w-xs text-sm leading-6 text-slate-500 dark:text-slate-400 sm:block">
                   Press the{" "}
                   <span className="font-bold text-slate-700 dark:text-slate-200">
                     Add Item
@@ -215,7 +215,7 @@ export default function TradeSide({
               </div>
             ) : (
               <div
-                className="space-y-3 sm:space-y-4"
+                className="space-y-1.5 sm:space-y-4"
                 aria-live="polite"
               >
                 {items.map(
@@ -289,7 +289,7 @@ export default function TradeSide({
 
         {/* Total */}
         <div
-          className={`relative mt-5 overflow-hidden rounded-[24px] border p-5 text-center shadow-inner transition-colors duration-300 sm:mt-6 sm:rounded-3xl sm:p-6 ${
+          className={`relative mt-2 overflow-hidden rounded-[14px] border p-2 text-center shadow-inner transition-colors duration-300 sm:mt-6 sm:rounded-3xl sm:p-6 ${
             isYellow
               ? "border-yellow-200/70 bg-gradient-to-br from-yellow-100 via-yellow-50 to-orange-100 dark:border-amber-400/10 dark:from-amber-500/10 dark:via-orange-500/5 dark:to-yellow-500/10"
               : "border-cyan-200/70 bg-gradient-to-br from-cyan-100 via-cyan-50 to-blue-100 dark:border-cyan-400/10 dark:from-cyan-500/10 dark:via-sky-500/5 dark:to-blue-500/10"
@@ -306,7 +306,7 @@ export default function TradeSide({
           <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent dark:via-white/15" />
 
           <div className="relative">
-            <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500 dark:text-slate-400 sm:text-sm sm:tracking-[0.3em]">
+            <p className="text-[8px] font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400 sm:text-sm sm:tracking-[0.3em]">
               Total Value
             </p>
 
@@ -328,7 +328,7 @@ export default function TradeSide({
                     ? 0
                     : 0.25,
               }}
-              className={`mt-3 break-words text-5xl font-black tabular-nums sm:mt-4 sm:text-6xl ${
+              className={`mt-1 break-words text-2xl font-black tabular-nums sm:mt-4 sm:text-6xl ${
                 isYellow
                   ? "text-yellow-700 dark:text-amber-300"
                   : "text-cyan-700 dark:text-cyan-300"
@@ -337,7 +337,7 @@ export default function TradeSide({
               {formatTotal(total)}
             </motion.p>
 
-            <p className="mt-3 text-sm font-semibold text-slate-500 dark:text-slate-400">
+            <p className="mt-3 hidden text-sm font-semibold text-slate-500 dark:text-slate-400 sm:block">
               Combined Selected Variants
             </p>
           </div>
