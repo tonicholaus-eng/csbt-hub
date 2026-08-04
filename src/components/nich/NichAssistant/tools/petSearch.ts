@@ -459,6 +459,32 @@ function getRequestedCategory(
     return "PETWEAR";
   }
 
+  if (
+    containsWholePhrase(
+      normalizedValue,
+      "egg",
+    ) ||
+    containsWholePhrase(
+      normalizedValue,
+      "eggs",
+    )
+  ) {
+    return "EGG";
+  }
+
+  if (
+    containsWholePhrase(
+      normalizedValue,
+      "toy",
+    ) ||
+    containsWholePhrase(
+      normalizedValue,
+      "toys",
+    )
+  ) {
+    return "TOY";
+  }
+
   return undefined;
 }
 

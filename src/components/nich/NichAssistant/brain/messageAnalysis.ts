@@ -48,7 +48,12 @@ export type NichFollowUpKind =
   | "generic"
   | null;
 
-export type NichRequestedCategory = "PET" | "PETWEAR" | null;
+export type NichRequestedCategory =
+  | "PET"
+  | "PETWEAR"
+  | "EGG"
+  | "TOY"
+  | null;
 
 export type NichMessageAnalysis = {
   originalMessage: string;
@@ -299,6 +304,14 @@ function stripValueSourceLanguage(message: string): string {
 function getRequestedCategory(normalizedMessage: string): NichRequestedCategory {
   if (includesAnyWholePhrase(normalizedMessage, ["pet wear", "petwear", "petwears"])) {
     return "PETWEAR";
+  }
+
+  if (includesAnyWholePhrase(normalizedMessage, ["egg", "eggs", "egg only", "eggs only"])) {
+    return "EGG";
+  }
+
+  if (includesAnyWholePhrase(normalizedMessage, ["toy", "toys", "toy only", "toys only"])) {
+    return "TOY";
   }
 
   if (includesAnyWholePhrase(normalizedMessage, ["pet only", "pets only"])) {
