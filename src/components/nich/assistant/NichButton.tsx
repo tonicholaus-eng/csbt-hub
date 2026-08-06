@@ -13,6 +13,7 @@ import useNich from "./useNich";
 type NichButtonProps = {
   open: boolean;
   onClick: () => void;
+  onDismiss: () => void;
 };
 
 const helperMessages = [
@@ -25,6 +26,7 @@ const helperMessages = [
 export default function NichButton({
   open,
   onClick,
+  onDismiss,
 }: NichButtonProps) {
   const shouldReduceMotion = useReducedMotion();
 
@@ -145,7 +147,6 @@ export default function NichButton({
     clearHideTimer();
 
     if (open || isReacting) {
-      setShowHelperBubble(false);
       return clearHideTimer;
     }
 
@@ -174,6 +175,34 @@ export default function NichButton({
 
   return (
     <div className="fixed bottom-4 right-4 z-[90] flex items-end gap-2 sm:bottom-6 sm:right-6 sm:gap-3">
+      <motion.button
+        type="button"
+        onClick={onDismiss}
+        aria-label="Hide Nich assistant"
+        title="Hide Nich"
+        initial={{ opacity: 0, scale: 0.75, y: 6 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        whileHover={shouldReduceMotion ? undefined : { scale: 1.08 }}
+        whileTap={{ scale: 0.92 }}
+        transition={{
+          duration: shouldReduceMotion ? 0 : 0.22,
+          ease: [0.22, 1, 0.36, 1],
+        }}
+        className="absolute -top-9 right-0 z-20 flex h-7 w-7 items-center justify-center rounded-full border border-white/40 bg-slate-950/90 text-white shadow-lg backdrop-blur-md outline-none transition-colors hover:bg-red-500 focus-visible:ring-4 focus-visible:ring-yellow-300/60 sm:-top-10 sm:h-8 sm:w-8"
+      >
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          className="h-4 w-4"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        >
+          <path d="M6 6l12 12M18 6 6 18" />
+        </svg>
+      </motion.button>
+
       <AnimatePresence mode="wait">
         {showBubble && (
           <motion.button

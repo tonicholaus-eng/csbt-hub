@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import routeNichMessage from "@/components/nich/NichAssistant/brain/router";
+import routeNichMessage from "@/components/nich/assistant/brain/router";
 import type {
   NichBrainInput,
   NichContextPet,
@@ -9,8 +9,8 @@ import type {
   NichResponse,
   NichTradeComparison,
   NichTradeItem,
-} from "@/components/nich/NichAssistant/brain/types";
-import { resetNichContext } from "@/components/nich/NichAssistant/memory/context";
+} from "@/components/nich/assistant/brain/types";
+import { resetNichContext } from "@/components/nich/assistant/memory/context";
 import { NICH_SYSTEM_PROMPT } from "@/lib/nich/systemPrompt";
 
 export const runtime = "nodejs";

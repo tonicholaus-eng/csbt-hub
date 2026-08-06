@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
-const NichAssistant = dynamic(() => import("./NichAssistant"), {
+const NichAssistant = dynamic(() => import("./assistant/NichAssistant"), {
   ssr: false,
 });
 

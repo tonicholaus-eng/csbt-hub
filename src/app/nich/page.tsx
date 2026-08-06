@@ -9,7 +9,7 @@ import {
 
 import Footer from "../../components/Footer";
 import Navbar from "../../components/Navbar";
-import NichChat from "../../components/nich/NichAssistant/NichChat";
+import NichChat from "../../components/nich/assistant/NichChat";
 
 const abilities = [
   {

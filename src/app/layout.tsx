@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import { GoogleAnalytics } from "@next/third-parties/google";
 
 import GlobalNichAssistant from "../components/nich/GlobalNichAssistant";
 import ThemeProvider from "../components/ThemeProvider";
@@ -20,13 +21,10 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    "https://csbt-hub.vercel.app",
-  ),
+  metadataBase: new URL("https://csbthub.com"),
 
   title: {
-    default:
-      "CSBT HUB | Adopt Me Value Checker",
+    default: "CSBT HUB | Adopt Me Value Checker",
     template: "%s | CSBT HUB",
   },
 
@@ -56,11 +54,10 @@ export const metadata: Metadata = {
   publisher: "CSBT HUB",
 
   openGraph: {
-    title:
-      "CSBT HUB | Adopt Me Value Checker",
+    title: "CSBT HUB | Adopt Me Value Checker",
     description:
       "Search the latest CSBT Adopt Me values and compare trades instantly.",
-    url: "https://csbt-hub.vercel.app",
+    url: "https://csbthub.com",
     siteName: "CSBT HUB",
     locale: "en_US",
     type: "website",
@@ -77,8 +74,7 @@ export const metadata: Metadata = {
 
   twitter: {
     card: "summary_large_image",
-    title:
-      "CSBT HUB | Adopt Me Value Checker",
+    title: "CSBT HUB | Adopt Me Value Checker",
     description:
       "Search Adopt Me values and compare trades instantly.",
     images: ["/logo.png"],
@@ -115,6 +111,8 @@ export default function RootLayout({
 
           <GlobalNichAssistant />
         </ThemeProvider>
+
+        <GoogleAnalytics gaId="G-XZN26M5996" />
       </body>
     </html>
   );

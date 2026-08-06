@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 
-import { routeNichMessage } from "../src/components/nich/NichAssistant/brain/router";
-import type { NichConversationContext } from "../src/components/nich/NichAssistant/brain/types";
+import { routeNichMessage } from "../src/components/nich/assistant/brain/router";
+import type { NichConversationContext } from "../src/components/nich/assistant/brain/types";
 
 function route(
   message: string,
