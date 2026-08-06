@@ -7,13 +7,13 @@
     "GCASH_NORMAL": 3200,
     "GCASH_NEON": 6200,
     "GCASH_MEGA": 17000,
-    "ELVE_NORMAL": 304,
-    "ELVE_NEON": 543,
-    "ELVE_MEGA": 1610,
+    "ELVE_NORMAL": 308,
+    "ELVE_NEON": 548,
+    "ELVE_MEGA": 1605,
     "NORMAL": 3200,
     "NEON": 6200,
     "MEGA": 17000,
-    "INGAME_VALUE": 304
+    "INGAME_VALUE": 308
   },
   {
     "ID": "pet-shadow-dragon",
@@ -23,13 +23,13 @@
     "GCASH_NORMAL": 7200,
     "GCASH_NEON": 15000,
     "GCASH_MEGA": 42000,
-    "ELVE_NORMAL": 662,
-    "ELVE_NEON": 1332,
-    "ELVE_MEGA": 3690,
+    "ELVE_NORMAL": 670,
+    "ELVE_NEON": 1343,
+    "ELVE_MEGA": 3710,
     "NORMAL": 7200,
     "NEON": 15000,
     "MEGA": 42000,
-    "INGAME_VALUE": 662
+    "INGAME_VALUE": 670
   },
   {
     "ID": "pet-owl",
@@ -39,13 +39,13 @@
     "GCASH_NORMAL": 2600,
     "GCASH_NEON": 5900,
     "GCASH_MEGA": 21900,
-    "ELVE_NORMAL": 239,
-    "ELVE_NEON": 593,
-    "ELVE_MEGA": 2190,
+    "ELVE_NORMAL": 241,
+    "ELVE_NEON": 599,
+    "ELVE_MEGA": 2180,
     "NORMAL": 2600,
     "NEON": 5900,
     "MEGA": 21900,
-    "INGAME_VALUE": 239
+    "INGAME_VALUE": 241
   },
   {
     "ID": "pet-crow",
@@ -55,13 +55,13 @@
     "GCASH_NORMAL": 1900,
     "GCASH_NEON": 4250,
     "GCASH_MEGA": 16500,
-    "ELVE_NORMAL": 170,
-    "ELVE_NEON": 390,
-    "ELVE_MEGA": 1424,
+    "ELVE_NORMAL": 172,
+    "ELVE_NEON": 395,
+    "ELVE_MEGA": 1420,
     "NORMAL": 1900,
     "NEON": 4250,
     "MEGA": 16500,
-    "INGAME_VALUE": 170
+    "INGAME_VALUE": 172
   },
   {
     "ID": "pet-parrot",
@@ -71,13 +71,13 @@
     "GCASH_NORMAL": 2100,
     "GCASH_NEON": 4000,
     "GCASH_MEGA": 11500,
-    "ELVE_NORMAL": 190,
-    "ELVE_NEON": 390,
-    "ELVE_MEGA": 1102,
+    "ELVE_NORMAL": 192,
+    "ELVE_NEON": 393,
+    "ELVE_MEGA": 1100,
     "NORMAL": 2100,
     "NEON": 4000,
     "MEGA": 11500,
-    "INGAME_VALUE": 190
+    "INGAME_VALUE": 192
   },
   {
     "ID": "pet-giraffe",
@@ -87,13 +87,13 @@
     "GCASH_NORMAL": 6000,
     "GCASH_NEON": 12000,
     "GCASH_MEGA": 33000,
-    "ELVE_NORMAL": 448,
-    "ELVE_NEON": 902,
-    "ELVE_MEGA": 3400,
+    "ELVE_NORMAL": 455,
+    "ELVE_NEON": 912,
+    "ELVE_MEGA": 3370,
     "NORMAL": 6000,
     "NEON": 12000,
     "MEGA": 33000,
-    "INGAME_VALUE": 448
+    "INGAME_VALUE": 455
   },
   {
     "ID": "pet-balloon-unicorn",
@@ -103,13 +103,13 @@
     "GCASH_NORMAL": 1800,
     "GCASH_NEON": 5800,
     "GCASH_MEGA": 21350,
-    "ELVE_NORMAL": 164,
-    "ELVE_NEON": 532,
-    "ELVE_MEGA": 1940,
+    "ELVE_NORMAL": 166,
+    "ELVE_NEON": 542,
+    "ELVE_MEGA": 1980,
     "NORMAL": 1800,
     "NEON": 5800,
     "MEGA": 21350,
-    "INGAME_VALUE": 164
+    "INGAME_VALUE": 166
   },
   {
     "ID": "pet-evil-unicorn",
@@ -119,12 +119,12 @@
     "GCASH_NORMAL": 1200,
     "GCASH_NEON": 2400,
     "GCASH_MEGA": 8400,
-    "ELVE_NORMAL": 107,
+    "ELVE_NORMAL": 107.5,
     "ELVE_NEON": 200,
-    "ELVE_MEGA": 766,
+    "ELVE_MEGA": 760,
     "NORMAL": 1200,
     "NEON": 2400,
     "MEGA": 8400,
-    "INGAME_VALUE": 107
+    "INGAME_VALUE": 107.5
   }
 ]

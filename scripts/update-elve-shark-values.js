@@ -1,4 +1,6 @@
 const path = require("path");
+const { chromium } = require("playwright");
+
 const {
   ELVE_URL,
   createSnapshotFromHtml,
@@ -8,11 +10,13 @@ const {
 } = require("./lib/elve-shark");
 
 const projectRoot = process.cwd();
+
 const snapshotPath = path.join(
   projectRoot,
   "source-data",
   "elve-shark-values.json",
 );
+
 const backupPath = path.join(
   projectRoot,
   "source-data",
@@ -20,33 +24,95 @@ const backupPath = path.join(
 );
 
 async function fetchElvePage() {
-  const response = await fetch(ELVE_URL, {
-    headers: {
-      Accept: "text/html,application/xhtml+xml",
-      "Accept-Language": "en-US,en;q=0.9",
-      "Cache-Control": "no-cache",
-      "User-Agent":
-        "CSBT-HUB-Value-Updater/1.0 (+daily; source attribution enabled)",
-    },
-    redirect: "follow",
-    signal: AbortSignal.timeout(45_000),
+  const browser = await chromium.launch({
+    headless: true,
   });
 
-  if (!response.ok) {
-    throw new Error(
-      `Elvebredd returned HTTP ${response.status}.`,
+  try {
+    const context = await browser.newContext({
+      userAgent:
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+        "AppleWebKit/537.36 (KHTML, like Gecko) " +
+        "Chrome/150.0.0.0 Safari/537.36",
+
+      locale: "en-US",
+
+      viewport: {
+        width: 1920,
+        height: 1080,
+      },
+
+      extraHTTPHeaders: {
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+        "Upgrade-Insecure-Requests": "1",
+      },
+    });
+
+    const page = await context.newPage();
+
+    console.log("Opening Elvebredd using Chromium...");
+
+    const response = await page.goto(ELVE_URL, {
+      waitUntil: "domcontentloaded",
+      timeout: 90_000,
+    });
+
+    if (!response) {
+      throw new Error(
+        "Elvebredd returned no browser response.",
+      );
+    }
+
+    const status = response.status();
+
+    if (status < 200 || status >= 400) {
+      throw new Error(
+        `Elvebredd returned HTTP ${status}.`,
+      );
+    }
+
+    try {
+      await page.waitForFunction(
+        () =>
+          document.documentElement.innerHTML.includes(
+            "initialPets",
+          ),
+        {
+          timeout: 60_000,
+        },
+      );
+    } catch {
+      console.warn(
+        "The initialPets marker was not detected immediately. Checking the complete page HTML.",
+      );
+    }
+
+    const html = await page.content();
+
+    if (html.length < 100_000) {
+      throw new Error(
+        `Elvebredd response was unexpectedly small (${html.length} characters).`,
+      );
+    }
+
+    if (!html.includes("initialPets")) {
+      throw new Error(
+        "Elvebredd page did not contain the initialPets payload.",
+      );
+    }
+
+    console.log(
+      `Elvebredd page loaded successfully (${html.length} characters).`,
     );
+
+    return html;
+  } finally {
+    await browser.close();
   }
-
-  const html = await response.text();
-
-  if (html.length < 100_000) {
-    throw new Error(
-      `Elvebredd response was unexpectedly small (${html.length} characters).`,
-    );
-  }
-
-  return html;
 }
 
 function snapshotsHaveSameValues(
@@ -89,24 +155,29 @@ function useLastKnownGoodSnapshot(
     throw error;
   }
 
-  /*
-   * Validate the existing file before allowing the remaining refresh
-   * steps to continue. This prevents a blocked network request from
-   * replacing or relying on an incomplete snapshot.
-   */
   validateSnapshot(previousSnapshot, null);
 
   console.warn(
     "Elvebredd could not be checked. Using the last-known-good snapshot.",
   );
+
   console.warn(
-    error instanceof Error ? error.message : error,
+    error instanceof Error
+      ? error.message
+      : String(error),
   );
+
   console.warn(
-    `Cached records: ${previousSnapshot.recordCount ?? previousSnapshot.items.length}`,
+    `Cached records: ${
+      previousSnapshot.recordCount ??
+      previousSnapshot.items.length
+    }`,
   );
+
   console.warn(
-    `Cached source version: ${previousSnapshot.sourceVersion ?? "unknown"}`,
+    `Cached source version: ${
+      previousSnapshot.sourceVersion ?? "unknown"
+    }`,
   );
 }
 
@@ -123,11 +194,17 @@ async function main() {
       previousSnapshot,
       error,
     );
+
     return;
   }
 
-  const snapshot = createSnapshotFromHtml(html);
-  validateSnapshot(snapshot, previousSnapshot);
+  const snapshot =
+    createSnapshotFromHtml(html);
+
+  validateSnapshot(
+    snapshot,
+    previousSnapshot,
+  );
 
   if (
     snapshotsHaveSameValues(
@@ -138,11 +215,17 @@ async function main() {
     console.log(
       `Elve Shark values are unchanged (${snapshot.recordCount} records).`,
     );
+
     console.log(
       `Checked source version: ${
         snapshot.sourceVersion ?? "unknown"
       }`,
     );
+
+    console.log(
+      `Checked at: ${snapshot.fetchedAt}`,
+    );
+
     return;
   }
 
@@ -155,26 +238,36 @@ async function main() {
   console.log(
     `Updated Elve Shark values: ${snapshot.recordCount} records.`,
   );
+
   console.log(
     `Source version: ${
       snapshot.sourceVersion ?? "unknown"
     }`,
   );
-  console.log(`Fetched at: ${snapshot.fetchedAt}`);
-  console.log(`Saved: ${snapshotPath}`);
+
+  console.log(
+    `Fetched at: ${snapshot.fetchedAt}`,
+  );
+
+  console.log(
+    `Saved: ${snapshotPath}`,
+  );
+
+  console.log(
+    `Backup: ${backupPath}`,
+  );
 }
 
 main().catch((error) => {
   console.error(
     "Elve Shark update failed. The last-known-good snapshot was kept.",
   );
+
   console.error(
-    error instanceof Error ? error.message : error,
+    error instanceof Error
+      ? error.stack ?? error.message
+      : String(error),
   );
 
-  /*
-   * Let Node finish pending output and network cleanup naturally.
-   * A forced process.exit(1) can trigger a Windows libuv assertion.
-   */
   process.exitCode = 1;
 });
