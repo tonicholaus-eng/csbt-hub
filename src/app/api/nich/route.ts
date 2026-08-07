@@ -100,6 +100,49 @@ const TRADE_EXPLANATION_PHRASES = [
   "worth doing",
 ] as const;
 
+const TAGALOG_CURSE_REPLY = "tanginamoka rin";
+
+const TAGALOG_CURSE_PHRASES = [
+  "putangina",
+  "putang ina",
+  "putanginamo",
+  "putang ina mo",
+  "putanginamoka",
+  "putang ina mo ka",
+  "tangina",
+  "tang ina",
+  "tanginamo",
+  "tang ina mo",
+  "tanginamoka",
+  "tang ina mo ka",
+  "gago",
+  "gago ka",
+  "gaga",
+  "gaga ka",
+  "bobo",
+  "bobo ka",
+  "tanga",
+  "tanga ka",
+  "ulol",
+  "ulol ka",
+  "pakyu",
+  "pak yu",
+  "leche",
+  "lintik",
+  "hayop ka",
+  "inutil",
+] as const;
+
+const COMPACT_TAGALOG_CURSE_STEMS = [
+  "putangina",
+  "putanginamo",
+  "putanginamoka",
+  "tangina",
+  "tanginamo",
+  "tanginamoka",
+  "pakyu",
+] as const;
+
 const FACT_SENSITIVE_INTENTS = new Set<NichIntent>([
   "petLookup",
   "nearbyValue",
@@ -626,6 +669,38 @@ function containsRoutingPhrase(
     )}(?=$|\\s)`,
     "i",
   ).test(normalizedMessage);
+}
+
+function containsTagalogCurse(message: string) {
+  const normalizedMessage =
+    normalizeForRouting(message);
+
+  if (!normalizedMessage) {
+    return false;
+  }
+
+  const hasDirectPhrase =
+    TAGALOG_CURSE_PHRASES.some((phrase) =>
+      containsRoutingPhrase(
+        normalizedMessage,
+        phrase,
+      ),
+    );
+
+  if (hasDirectPhrase) {
+    return true;
+  }
+
+  // Also catches spacing and punctuation tricks such as
+  // "p.u.t.a.n.g.i.n.a mo" or "tang-ina-mo".
+  const compactMessage = normalizedMessage.replace(
+    /[\s-]+/g,
+    "",
+  );
+
+  return COMPACT_TAGALOG_CURSE_STEMS.some(
+    (phrase) => compactMessage.includes(phrase),
+  );
 }
 
 function shouldUseAI(
@@ -1265,6 +1340,18 @@ export async function POST(
 
   const deterministicResponse =
     routeNichMessage(input);
+
+  if (containsTagalogCurse(message)) {
+    const response: NichResponse = {
+      ...deterministicResponse,
+      text: TAGALOG_CURSE_REPLY,
+    };
+
+    return NextResponse.json({
+      response,
+      mode: "local",
+    });
+  }
 
   const generated = await generateAIText({
     message,
