@@ -495,6 +495,14 @@ function normalizeTradeSeparators(
       /\bride\s+and\s+fly\b/gi,
       "ride fly",
     )
+    .replace(
+      /\bplus\b/gi,
+      "+",
+    )
+    .replace(
+      /\bwith adds?\b/gi,
+      "+",
+    )
     .replace(/[×]/g, "x");
 }
 
@@ -962,14 +970,24 @@ const tradeSeparators = [
   /\s+against\s+/i,
   /\s+compared\s+to\s+/i,
   /\s+in\s+exchange\s+for\s+/i,
+  /\s+kapalit(?:\s+ng)?\s+/i,
+  /\s+para\s+sa\s+/i,
   /\s+for\s+/i,
   /\s+vs\.?\s+/i,
   /\s*<->\s*/i,
+  /\s*<=>\s*/i,
   /\s*=>\s*/i,
+  /\s*->\s*/i,
+  /\s*⇄\s*/i,
 ];
 
 const YOUR_OWNER_PATTERN = [
   "my offer",
+  "my side",
+  "ako",
+  "akin",
+  "sakin",
+  "ko",
   "im giving",
   "i am giving",
   "i give",
@@ -987,6 +1005,13 @@ const YOUR_OWNER_PATTERN = [
 
 const THEIR_OWNER_PATTERN = [
   "their offer",
+  "their side",
+  "kanya",
+  "kanila",
+  "sa kanya",
+  "sa kanila",
+  "siya",
+  "sila",
   "his offer",
   "her offer",
   "they are giving",
@@ -1036,7 +1061,11 @@ function cleanTradeSide(
       "",
     )
     .replace(
-      /\s+(?:fair|good|bad|a win|a lose|win|lose|worth it|worth|better|wfl|op|up|overpay|underpay)\??$/i,
+      /\s+(?:fair|good|bad|a win|a lose|win|lose|worth it|worth|better|wfl|op|up|overpay|underpay|panalo|lugi)\??$/i,
+      "",
+    )
+    .replace(
+      /\s+(?:ba|po|naman|rn|right now|ngayon)\??$/i,
       "",
     )
     .trim();
@@ -1047,7 +1076,7 @@ function stripWflPrefix(
 ) {
   return message
     .replace(
-      /^\s*(?:wfl|w\/f\/l|w f l)\s*[:\-]?\s*/i,
+      /^\s*(?:wfl|w\/f\/l|w f l|win fair lose)\s*[:\-]?\s*/i,
       "",
     )
     .trim();

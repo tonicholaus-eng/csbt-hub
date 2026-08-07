@@ -5,6 +5,7 @@ import type {
 } from "../brain/types";
 
 const MAX_RECENT_PETS = 8;
+const MAX_TURN_COUNT = 10_000;
 
 export const initialNichContext: NichConversationContext = {
   recentPets: [],
@@ -20,12 +21,19 @@ function normalizePetKey(petName: string) {
     .trim();
 }
 
+/**
+ * Keep the newest mention of each item.
+ *
+ * The variant is stored on that newest mention, so a follow-up such as
+ * "same but mega" uses the user's latest version instead of keeping several
+ * stale copies of the same item in recentPets.
+ */
 function mergeRecentPets(
   currentPets: NichContextPet[] = [],
   incomingPets?: NichContextPet[],
 ) {
-  if (!incomingPets) {
-    return currentPets;
+  if (!incomingPets?.length) {
+    return currentPets.slice(0, MAX_RECENT_PETS);
   }
 
   const mergedPets = [
@@ -37,12 +45,9 @@ function mergeRecentPets(
 
   return mergedPets
     .filter((pet) => {
-      const key = [
-        normalizePetKey(pet.petName),
-        pet.variant ?? "unspecified",
-      ].join(":");
+      const key = normalizePetKey(pet.petName);
 
-      if (seen.has(key)) {
+      if (!key || seen.has(key)) {
         return false;
       }
 
@@ -71,8 +76,10 @@ export function updateNichContext(
     lastIntent:
       responseContext.lastIntent ??
       response.intent,
-    turnCount:
+    turnCount: Math.min(
+      MAX_TURN_COUNT,
       (currentContext.turnCount ?? 0) + 1,
+    ),
     lastUpdatedAt: Date.now(),
   };
 }

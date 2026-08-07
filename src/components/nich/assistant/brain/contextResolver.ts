@@ -1,12 +1,17 @@
 import resolveAdvancedFollowUp from "./followUp";
-import { isExactPhrase, normalizeText, wordCount } from "./language";
+import {
+  isExactPhrase,
+  normalizeText,
+  wordCount,
+} from "./language";
 import type {
   NichBrainInput,
   NichContextPet,
   NichConversationContext,
 } from "./types";
 
-const CONTEXT_EXPIRY_MS = 30 * 60 * 1000;
+const CONTEXT_EXPIRY_MS =
+  2 * 60 * 60 * 1000;
 
 export type ContextResolution = {
   message: string;
@@ -34,18 +39,26 @@ const ORDINAL_INDEX: Record<string, number> = {
   "8th": 7,
 };
 
-function isContextExpired(context: NichConversationContext): boolean {
+function isContextExpired(
+  context: NichConversationContext,
+): boolean {
   return Boolean(
     context.lastUpdatedAt &&
-      Date.now() - context.lastUpdatedAt > CONTEXT_EXPIRY_MS,
+      Date.now() -
+        context.lastUpdatedAt >
+        CONTEXT_EXPIRY_MS,
   );
 }
 
-function getRecentPets(context: NichConversationContext): NichContextPet[] {
+function getRecentPets(
+  context: NichConversationContext,
+): NichContextPet[] {
   return context.recentPets ?? [];
 }
 
-function getLastPet(context: NichConversationContext): NichContextPet | undefined {
+function getLastPet(
+  context: NichConversationContext,
+): NichContextPet | undefined {
   if (context.lastPetName) {
     return {
       petName: context.lastPetName,
@@ -57,8 +70,11 @@ function getLastPet(context: NichConversationContext): NichContextPet | undefine
   return getRecentPets(context)[0];
 }
 
-function formatContextPet(pet: NichContextPet): string {
-  return pet.variant && pet.variant !== "normal"
+function formatContextPet(
+  pet: NichContextPet,
+): string {
+  return pet.variant &&
+    pet.variant !== "normal"
     ? `${pet.variant} ${pet.petName}`
     : pet.petName;
 }
@@ -68,9 +84,13 @@ function getPetByOrdinal(
   context: NichConversationContext,
 ): NichContextPet | undefined {
   const pets = getRecentPets(context);
-  const normalized = ordinal.toLowerCase();
+  const normalized =
+    ordinal.toLowerCase();
 
-  if (normalized === "last" || normalized === "latter") {
+  if (
+    normalized === "last" ||
+    normalized === "latter"
+  ) {
     return pets.at(-1);
   }
 
@@ -78,39 +98,58 @@ function getPetByOrdinal(
     return pets[0];
   }
 
-  const index = ORDINAL_INDEX[normalized];
-  return index === undefined ? undefined : pets[index];
+  const index =
+    ORDINAL_INDEX[normalized];
+
+  return index === undefined
+    ? undefined
+    : pets[index];
 }
 
 function resolveDirectComparison(
   message: string,
   context: NichConversationContext,
 ): ContextResolution | null {
-  const normalized = normalizeText(message);
-  const asksFirstTwo = isExactPhrase(normalized, [
-    "compare the first two",
-    "compare first two",
-    "compare the first 2",
-    "compare first 2",
-    "compare both",
-    "compare the two",
-    "compare those",
-    "compare them",
-    "which one is worth more",
-    "which is worth more",
-  ]);
+  const normalized =
+    normalizeText(message);
+
+  const asksFirstTwo = isExactPhrase(
+    normalized,
+    [
+      "compare the first two",
+      "compare first two",
+      "compare the first 2",
+      "compare first 2",
+      "compare both",
+      "compare the two",
+      "compare those",
+      "compare them",
+      "which one is worth more",
+      "which is worth more",
+      "alin mas mataas",
+      "alin mas mahal",
+      "alin mas worth",
+      "compare mo",
+    ],
+  );
 
   if (!asksFirstTwo) {
     return null;
   }
 
-  const pets = getRecentPets(context);
+  const pets =
+    getRecentPets(context);
+
   if (pets.length < 2) {
     return null;
   }
 
   return {
-    message: `${formatContextPet(pets[0])} for ${formatContextPet(pets[1])}`,
+    message: `${formatContextPet(
+      pets[0],
+    )} for ${formatContextPet(
+      pets[1],
+    )}`,
     usedContext: true,
     expired: false,
     reason: "compare-recent-items",
@@ -121,21 +160,30 @@ function resolveVariantOnlyFollowUp(
   message: string,
   context: NichConversationContext,
 ): ContextResolution | null {
-  const normalized = normalizeText(message);
+  const normalized =
+    normalizeText(message);
+
   const match = normalized.match(
-    /^(?:(?:what|how)\s+about\s+|and\s+|show\s+me\s+|what\s+is\s+|whats\s+)?(normal|regular|neon|nfr|mega|mfr)(?:\s+(?:value|worth|one|version|form))?$/,
+    /^(?:(?:what|how)\s+about\s+|how\s+bout\s+|and\s+|show\s+me\s+|what\s+is\s+|whats\s+|same(?:\s+one)?\s+but\s+|same\s+but\s+|pero\s+|yung\s+)?(normal|regular|neon|nfr|n|mega|mfr|m)(?:\s+(?:value|worth|price|one|version|form|naman|pls|please|po|rn|right\s+now))*\??$/,
   );
 
-  const lastPet = getLastPet(context);
+  const lastPet =
+    getLastPet(context);
+
   if (!match || !lastPet) {
     return null;
   }
 
   const rawVariant = match[1];
+
   const variant =
-    rawVariant === "mega" || rawVariant === "mfr"
+    rawVariant === "mega" ||
+    rawVariant === "mfr" ||
+    rawVariant === "m"
       ? "mega"
-      : rawVariant === "neon" || rawVariant === "nfr"
+      : rawVariant === "neon" ||
+          rawVariant === "nfr" ||
+          rawVariant === "n"
         ? "neon"
         : "normal";
 
@@ -147,58 +195,134 @@ function resolveVariantOnlyFollowUp(
   };
 }
 
-
 function resolveValueSourceFollowUp(
   message: string,
   context: NichConversationContext,
 ): ContextResolution | null {
-  const normalized = normalizeText(message);
+  const normalized =
+    normalizeText(message);
+
   const match = normalized.match(
-    /^(?:(?:what|how)\s+about\s+|and\s+|show\s+me\s+|check\s+|use\s+|using\s+|switch\s+to\s+)?(gcash|g\s*cash|cash|php|peso|pesos|elve|elvebredd|elve\s+shark|shark|in\s+game)(?:\s+values?)?$/,
+    /^(?:(?:what|how)\s+about\s+|how\s+bout\s+|and\s+|show\s+me\s+|check\s+|use\s+|using\s+|switch\s+to\s+|same\s+but\s+)?(gcash|g\s*cash|cash|php|peso|pesos|elve|elvebredd|elve\s+shark|shark|in\s+game)(?:\s+(?:value|values|price|prices|worth|naman|pls|please|po|rn|right\s+now))*\??$/,
   );
 
   if (!match) {
     return null;
   }
 
-  const source = /^(?:elve|elvebredd|elve\s+shark|shark|in\s+game)$/.test(match[1])
-    ? "Elve Shark"
-    : "GCash";
+  const source =
+    /^(?:elve|elvebredd|elve\s+shark|shark|in\s+game)$/.test(
+      match[1],
+    )
+      ? "Elve Shark"
+      : "GCash";
 
-  const lastPet = getLastPet(context);
+  const lastPet =
+    getLastPet(context);
+
   if (lastPet) {
     return {
-      message: `What is ${formatContextPet(lastPet)} worth using ${source} values?`,
+      message: `What is ${formatContextPet(
+        lastPet,
+      )} worth using ${source} values?`,
       usedContext: true,
       expired: false,
       reason: "value-source-follow-up",
     };
   }
 
-  const previousTrade = context.lastTradeComparison;
+  const previousTrade =
+    context.lastTradeComparison;
+
   if (
     previousTrade?.offeredItems?.length &&
     previousTrade.requestedItems?.length
   ) {
-    const formatTradeSide = (items: typeof previousTrade.offeredItems) =>
-      items.map((item) => `${item.petCode} ${item.petName}`).join(" + ");
+    const formatTradeSide = (
+      items: typeof previousTrade.offeredItems,
+    ) =>
+      items
+        .map(
+          (item) =>
+            `${item.petCode} ${item.petName}`,
+        )
+        .join(" + ");
 
     return {
-      message: `WFL me ${formatTradeSide(previousTrade.offeredItems)} them ${formatTradeSide(previousTrade.requestedItems)} using ${source} values`,
+      message: `WFL me ${formatTradeSide(
+        previousTrade.offeredItems,
+      )} them ${formatTradeSide(
+        previousTrade.requestedItems,
+      )} using ${source} values`,
       usedContext: true,
       expired: false,
-      reason: "trade-value-source-follow-up",
+      reason:
+        "trade-value-source-follow-up",
     };
   }
 
   return null;
 }
 
+function resolveValueOnlyFollowUp(
+  message: string,
+  context: NichConversationContext,
+): ContextResolution | null {
+  const normalized =
+    normalizeText(message);
+
+  const asksForValue = isExactPhrase(
+    normalized,
+    [
+      "hm",
+      "hm rn",
+      "how much",
+      "how much rn",
+      "how much now",
+      "value",
+      "value rn",
+      "price",
+      "price rn",
+      "worth",
+      "worth rn",
+      "magkano",
+      "magkano rn",
+      "magkano ngayon",
+      "hm naman",
+      "value naman",
+      "price naman",
+    ],
+  );
+
+  const lastPet =
+    getLastPet(context);
+
+  if (!asksForValue || !lastPet) {
+    return null;
+  }
+
+  const source =
+    context.lastValueSource === "ELVE"
+      ? "Elve Shark"
+      : "GCash";
+
+  return {
+    message: `What is ${formatContextPet(
+      lastPet,
+    )} worth using ${source} values?`,
+    usedContext: true,
+    expired: false,
+    reason: "short-value-follow-up",
+  };
+}
+
 function resolveNearbyValueFollowUp(
   message: string,
   context: NichConversationContext,
 ): ContextResolution | null {
-  const normalized = normalizeText(message);
+  const normalized =
+    normalizeText(message);
+
   const refersToPreviousValue = [
     "around that value",
     "near that value",
@@ -207,9 +331,19 @@ function resolveNearbyValueFollowUp(
     "same value",
     "pets around it",
     "items around it",
-  ].some((phrase) => normalized.includes(phrase));
+    "around that",
+    "near that",
+    "same range",
+    "mga malapit sa value",
+    "malapit sa value na yan",
+  ].some((phrase) =>
+    normalized.includes(phrase),
+  );
 
-  if (!refersToPreviousValue || context.lastNumericValue === undefined) {
+  if (
+    !refersToPreviousValue ||
+    context.lastNumericValue === undefined
+  ) {
     return null;
   }
 
@@ -224,34 +358,62 @@ function resolveNearbyValueFollowUp(
 function resolveOrdinalReferences(
   message: string,
   context: NichConversationContext,
-): Pick<ContextResolution, "message" | "usedContext"> {
+): Pick<
+  ContextResolution,
+  "message" | "usedContext"
+> {
   let usedContext = false;
+
   const expression =
     /\b(first|1st|second|2nd|third|3rd|fourth|4th|fifth|5th|sixth|6th|seventh|7th|eighth|8th|last|former|latter)\s+(?:one|item|pet)\b/gi;
 
-  const resolved = message.replace(expression, (match, ordinal: string) => {
-    const pet = getPetByOrdinal(ordinal, context);
-    if (!pet) {
-      return match;
-    }
+  const resolved = message.replace(
+    expression,
+    (
+      match,
+      ordinal: string,
+    ) => {
+      const pet =
+        getPetByOrdinal(
+          ordinal,
+          context,
+        );
 
-    usedContext = true;
-    return formatContextPet(pet);
-  });
+      if (!pet) {
+        return match;
+      }
 
-  return { message: resolved, usedContext };
+      usedContext = true;
+      return formatContextPet(pet);
+    },
+  );
+
+  return {
+    message: resolved,
+    usedContext,
+  };
 }
 
 function resolveSafePronouns(
   message: string,
   context: NichConversationContext,
-): Pick<ContextResolution, "message" | "usedContext"> {
-  const lastPet = getLastPet(context);
+): Pick<
+  ContextResolution,
+  "message" | "usedContext"
+> {
+  const lastPet =
+    getLastPet(context);
+
   if (!lastPet) {
-    return { message, usedContext: false };
+    return {
+      message,
+      usedContext: false,
+    };
   }
 
-  const formatted = formatContextPet(lastPet);
+  const formatted =
+    formatContextPet(lastPet);
+
   let resolved = message;
   let usedContext = false;
 
@@ -264,43 +426,66 @@ function resolveSafePronouns(
     /\bthe same item\b/gi,
     /\bthat one\b/gi,
     /\bthis one\b/gi,
+    /\byung pet\b/gi,
+    /\byung item\b/gi,
+    /\byun\b/gi,
+    /\byan\b/gi,
   ];
 
-  for (const expression of explicitReferences) {
+  for (
+    const expression of
+    explicitReferences
+  ) {
     if (!expression.test(resolved)) {
       continue;
     }
 
     expression.lastIndex = 0;
-    resolved = resolved.replace(expression, formatted);
+    resolved = resolved.replace(
+      expression,
+      formatted,
+    );
     usedContext = true;
   }
 
   // Bare "it" is resolved only in short, clearly item-focused follow-ups.
-  const normalized = normalizeText(resolved);
+  const normalized =
+    normalizeText(resolved);
+
   const safeItPattern =
-    /^(?:what(?:s| is)?|how much is|show|check|make|change|is)\s+it(?:\s+(?:worth|value|normal|neon|mega|good|better|higher|lower))?(?:\s+.*)?$/;
+    /^(?:what(?:s| is)?|how much is|show|check|make|change|is|hm|price of|value of)\s+it(?:\s+(?:worth|value|price|normal|neon|mega|good|better|higher|lower|rn|now))?(?:\s+.*)?$/;
 
   if (
-    wordCount(normalized) <= 8 &&
+    wordCount(normalized) <= 9 &&
     safeItPattern.test(normalized) &&
     /\bit\b/i.test(resolved)
   ) {
-    resolved = resolved.replace(/\bit\b/gi, formatted);
+    resolved = resolved.replace(
+      /\bit\b/gi,
+      formatted,
+    );
     usedContext = true;
   }
 
-  return { message: resolved, usedContext };
+  return {
+    message: resolved,
+    usedContext,
+  };
 }
 
 export function resolveContextualMessage({
   message,
   context,
 }: NichBrainInput): ContextResolution {
-  const trimmedMessage = message.trim();
+  const trimmedMessage =
+    message.trim();
 
   if (!trimmedMessage) {
-    return { message: "", usedContext: false, expired: false };
+    return {
+      message: "",
+      usedContext: false,
+      expired: false,
+    };
   }
 
   if (isContextExpired(context)) {
@@ -312,7 +497,12 @@ export function resolveContextualMessage({
     };
   }
 
-  const advanced = resolveAdvancedFollowUp(trimmedMessage, context);
+  const advanced =
+    resolveAdvancedFollowUp(
+      trimmedMessage,
+      context,
+    );
+
   if (advanced) {
     return advanced;
   }
@@ -321,25 +511,44 @@ export function resolveContextualMessage({
     resolveDirectComparison,
     resolveVariantOnlyFollowUp,
     resolveValueSourceFollowUp,
+    resolveValueOnlyFollowUp,
     resolveNearbyValueFollowUp,
   ] as const;
 
-  for (const resolver of directResolvers) {
-    const result = resolver(trimmedMessage, context);
+  for (
+    const resolver of directResolvers
+  ) {
+    const result = resolver(
+      trimmedMessage,
+      context,
+    );
+
     if (result) {
       return result;
     }
   }
 
-  const ordinal = resolveOrdinalReferences(trimmedMessage, context);
-  const pronoun = resolveSafePronouns(ordinal.message, context);
+  const ordinal =
+    resolveOrdinalReferences(
+      trimmedMessage,
+      context,
+    );
+
+  const pronoun =
+    resolveSafePronouns(
+      ordinal.message,
+      context,
+    );
 
   return {
     message: pronoun.message,
-    usedContext: ordinal.usedContext || pronoun.usedContext,
+    usedContext:
+      ordinal.usedContext ||
+      pronoun.usedContext,
     expired: false,
     reason:
-      ordinal.usedContext || pronoun.usedContext
+      ordinal.usedContext ||
+      pronoun.usedContext
         ? "reference-resolution"
         : undefined,
   };

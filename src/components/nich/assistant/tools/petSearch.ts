@@ -70,6 +70,7 @@ type SearchablePetName = {
   searchableName: string;
   normalizedName: string;
   isAlias: boolean;
+  aliasSource?: "manual" | "automatic";
 };
 
 type PositionedPetMatch =
@@ -99,14 +100,18 @@ const petRecords: PetRecord[] = (
 }));
 
 /**
- * Only keep aliases that are specific enough to avoid matching the wrong
- * item. Broad aliases such as "frost" or "shadow" are intentionally avoided
- * because the unified database contains many similarly named records.
+ * Manual trader abbreviations and common misspellings.
+ *
+ * These entries have priority over automatically generated initials. That lets
+ * us safely resolve popular abbreviations even when another item happens to
+ * share the same initials (for example, "bd" always means Bat Dragon).
  */
-const PET_ALIASES: Record<
+const MANUAL_PET_ALIASES: Record<
   string,
   string
 > = {
+  // High-tier dragons.
+  fd: "Frost Dragon",
   "frost drag": "Frost Dragon",
   "frost drg": "Frost Dragon",
   frostdragon: "Frost Dragon",
@@ -114,47 +119,75 @@ const PET_ALIASES: Record<
   "frost dagon": "Frost Dragon",
   "frost dragon pet": "Frost Dragon",
 
+  sd: "Shadow Dragon",
+  "shadow drag": "Shadow Dragon",
+  "shadow drg": "Shadow Dragon",
+  shadowdragon: "Shadow Dragon",
+
+  bd: "Bat Dragon",
   "bat drag": "Bat Dragon",
   "bat drg": "Bat Dragon",
   batdragon: "Bat Dragon",
 
-  "shadow drag": "Shadow Dragon",
-  "shadow drg": "Shadow Dragon",
-  shadowdragon: "Shadow Dragon",
+  ssbd: "Strawberry Shortcake Bat Dragon",
+  "strawberry bd": "Strawberry Shortcake Bat Dragon",
+  "strawberry bat": "Strawberry Shortcake Bat Dragon",
+  "strawberry shortcake bd": "Strawberry Shortcake Bat Dragon",
+  strawberryshortcakebatdragon:
+    "Strawberry Shortcake Bat Dragon",
+
+  ccbd: "Chocolate Chip Bat Dragon",
+  "choco bd": "Chocolate Chip Bat Dragon",
+  "chocolate bd": "Chocolate Chip Bat Dragon",
+  "choco bat": "Chocolate Chip Bat Dragon",
+  "chocolate bat": "Chocolate Chip Bat Dragon",
+  chocolatechipbatdragon:
+    "Chocolate Chip Bat Dragon",
+
+  // Other commonly shortened pets.
+  ar: "Arctic Reindeer",
+  "arctic rein": "Arctic Reindeer",
+  "arctic reind": "Arctic Reindeer",
+  arcticreindeer: "Arctic Reindeer",
+
+  eu: "Evil Unicorn",
+  "evil uni": "Evil Unicorn",
+  eviluni: "Evil Unicorn",
+  evilunicorn: "Evil Unicorn",
+  "evil unicorn pet": "Evil Unicorn",
+
+  "albino monk": "Albino Monkey",
+  albinomonkey: "Albino Monkey",
+
+  mk: "Monkey King",
+  "king monk": "Monkey King",
+  monkeyking: "Monkey King",
 
   kanga: "Kangaroo",
   kang: "Kangaroo",
   kangroo: "Kangaroo",
   kangro: "Kangaroo",
 
-  "evil uni": "Evil Unicorn",
-  eviluni: "Evil Unicorn",
-  evilunicorn: "Evil Unicorn",
-  "evil unicorn pet": "Evil Unicorn",
-
-  "arctic rein": "Arctic Reindeer",
-  "arctic reind": "Arctic Reindeer",
-  arcticreindeer: "Arctic Reindeer",
-
-  "albino monk": "Albino Monkey",
-  albinomonkey: "Albino Monkey",
-  "king monk": "Monkey King",
-  monkeyking: "Monkey King",
-
-  giraff: "Giraffe",
-  girafe: "Giraffe",
+  par: "Parrot",
   parr: "Parrot",
   parot: "Parrot",
+
+  uni: "Unicorn",
   turt: "Turtle",
   turtel: "Turtle",
   hedge: "Hedgehog",
   "hedge hog": "Hedgehog",
+  dalm: "Dalmatian",
   dalma: "Dalmatian",
   dalmatain: "Dalmatian",
   ele: "Elephant",
   flam: "Flamingo",
   flamigo: "Flamingo",
+  gir: "Giraffe",
+  giraff: "Giraffe",
+  girafe: "Giraffe",
 
+  // Category-safe aliases for names that may also appear in Pet Wear.
   "blue dog pet": "Blue Dog",
   "pink cat pet": "Pink Cat",
   "lion pet": "Lion",
@@ -1164,6 +1197,149 @@ function findPetByExactDatabaseName(
   );
 }
 
+/**
+ * Very short initials can accidentally match ordinary chat words. These words
+ * are therefore never created as automatic aliases. Popular exceptions such
+ * as "fd", "sd", and "bd" are handled explicitly above.
+ */
+const AUTO_ALIAS_BLOCKLIST = new Set([
+  ...FUZZY_IGNORED_WORDS,
+  "am",
+  "as",
+  "be",
+  "by",
+  "go",
+  "he",
+  "hi",
+  "id",
+  "if",
+  "im",
+  "ok",
+  "on",
+  "or",
+  "so",
+  "us",
+  "we",
+  "ya",
+  "fr",
+  "rf",
+  "nf",
+  "nr",
+  "mf",
+  "mr",
+  "np",
+  "nfr",
+  "mfr",
+]);
+
+function getAutomaticAliasCandidates(
+  petName: string,
+) {
+  const words = getWords(petName).filter(
+    (word) => /^[a-z]+$/.test(word),
+  );
+
+  if (words.length < 2) {
+    return [];
+  }
+
+  const initials = words
+    .map((word) => word[0])
+    .join("");
+
+  const compactName = words.join("");
+
+  return Array.from(
+    new Set([
+      initials,
+      compactName,
+    ]),
+  ).filter((alias) => {
+    if (
+      alias.length < 2 ||
+      alias.length > 40 ||
+      AUTO_ALIAS_BLOCKLIST.has(alias)
+    ) {
+      return false;
+    }
+
+    return !recordsByNormalizedName.has(
+      alias,
+    );
+  });
+}
+
+function buildAutomaticPetAliases() {
+  const targetsByAlias = new Map<
+    string,
+    Set<string>
+  >();
+
+  for (const pet of petRecords) {
+    if (pet.CATEGORY !== "PET") {
+      continue;
+    }
+
+    for (
+      const alias of getAutomaticAliasCandidates(
+        pet.NAME,
+      )
+    ) {
+      if (
+        Object.prototype.hasOwnProperty.call(
+          MANUAL_PET_ALIASES,
+          alias,
+        )
+      ) {
+        continue;
+      }
+
+      const targets =
+        targetsByAlias.get(alias) ??
+        new Set<string>();
+
+      targets.add(pet.NAME);
+      targetsByAlias.set(
+        alias,
+        targets,
+      );
+    }
+  }
+
+  const generatedAliases: Record<
+    string,
+    string
+  > = {};
+
+  for (
+    const [alias, targets] of targetsByAlias
+  ) {
+    if (targets.size !== 1) {
+      continue;
+    }
+
+    const [officialName] = targets;
+    generatedAliases[alias] =
+      officialName;
+  }
+
+  return generatedAliases;
+}
+
+const AUTOMATIC_PET_ALIASES =
+  buildAutomaticPetAliases();
+
+/**
+ * Manual aliases are applied last so they always override generated initials.
+ */
+const PET_ALIASES: Record<
+  string,
+  string
+> = {
+  ...AUTOMATIC_PET_ALIASES,
+  ...MANUAL_PET_ALIASES,
+};
+
 const searchablePetNames: SearchablePetName[] =
   [
     ...petRecords.map((pet) => ({
@@ -1187,6 +1363,12 @@ const searchablePetNames: SearchablePetName[] =
           return [];
         }
 
+        const isManualAlias =
+          Object.prototype.hasOwnProperty.call(
+            MANUAL_PET_ALIASES,
+            alias,
+          );
+
         return [
           {
             pet,
@@ -1194,6 +1376,9 @@ const searchablePetNames: SearchablePetName[] =
             normalizedName:
               normalizeText(alias),
             isAlias: true,
+            aliasSource: isManualAlias
+              ? "manual"
+              : "automatic",
           },
         ];
       },
@@ -1866,6 +2051,130 @@ function rangesOverlap(
   );
 }
 
+const AUTOMATIC_ALIAS_CONTEXT_WORDS = [
+  "worth",
+  "value",
+  "values",
+  "price",
+  "prices",
+  "check",
+  "lookup",
+  "look up",
+  "how much",
+  "trade",
+  "offer",
+  "offering",
+  "for",
+  "vs",
+  "versus",
+  "against",
+  "wfl",
+  "win fair lose",
+  "normal",
+  "regular",
+  "neon",
+  "mega",
+  "nfr",
+  "mfr",
+  "nf",
+  "nr",
+  "mf",
+  "mr",
+  "fr",
+  "np",
+] as const;
+
+const DIRECT_SEARCH_REJECT_WORDS = new Set([
+  "accept",
+  "bad",
+  "bro",
+  "decline",
+  "explain",
+  "good",
+  "hello",
+  "help",
+  "hey",
+  "hi",
+  "safe",
+  "salamat",
+  "should",
+  "thank",
+  "thanks",
+  "trading",
+  "why",
+]);
+
+function hasQuantityBeforeAlias(
+  normalizedMessage: string,
+  normalizedAlias: string,
+) {
+  const expression = new RegExp(
+    `(?:^|\\s)(?:\\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|a|an)\\s+${escapeRegExp(
+      normalizedAlias,
+    )}(?=$|\\s)`,
+    "i",
+  );
+
+  return expression.test(normalizedMessage);
+}
+
+function canUseAutomaticAliasInMessage(
+  normalizedMessage: string,
+  normalizedAlias: string,
+) {
+  if (
+    normalizedMessage === normalizedAlias ||
+    hasQuantityBeforeAlias(
+      normalizedMessage,
+      normalizedAlias,
+    )
+  ) {
+    return true;
+  }
+
+  return AUTOMATIC_ALIAS_CONTEXT_WORDS.some(
+    (word) =>
+      containsWholePhrase(
+        normalizedMessage,
+        word,
+      ),
+  );
+}
+
+function isLikelyStandaloneItemName(
+  value: string,
+) {
+  const words = getWords(value);
+
+  if (
+    words.length === 0 ||
+    words.length > 5 ||
+    words.some((word) =>
+      DIRECT_SEARCH_REJECT_WORDS.has(word),
+    )
+  ) {
+    return false;
+  }
+
+  const meaningfulWords = words.filter(
+    (word) =>
+      !FUZZY_IGNORED_WORDS.has(word) &&
+      !/^\\d+$/.test(word),
+  );
+
+  if (
+    meaningfulWords.length === 0 ||
+    meaningfulWords.join("").length < 3
+  ) {
+    return false;
+  }
+
+  return (
+    meaningfulWords.length === words.length ||
+    looksLikeItemRequest(value)
+  );
+}
+
 function findPositionedPets(
   message: string,
   lineIndex: number,
@@ -1883,6 +2192,17 @@ function findPositionedPets(
   for (
     const searchablePet of searchablePetNames
   ) {
+    if (
+      searchablePet.aliasSource ===
+        "automatic" &&
+      !canUseAutomaticAliasInMessage(
+        normalizedMessage,
+        searchablePet.normalizedName,
+      )
+    ) {
+      continue;
+    }
+
     const expression =
       createWholePhraseExpression(
         searchablePet.normalizedName,
@@ -2077,7 +2397,10 @@ function findFuzzyPositionedPets(
       const candidate =
         findBestApproximatePet(
           fragment,
-          exactMatches.length === 0,
+          exactMatches.length === 0 &&
+            isLikelyStandaloneItemName(
+              fragment,
+            ),
         );
 
       if (!candidate) {

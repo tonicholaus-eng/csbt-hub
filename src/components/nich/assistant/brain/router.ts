@@ -30,6 +30,7 @@ function normalizeText(value: string) {
     .trim();
 }
 
+
 function capitalize(value: string) {
   return (
     value.charAt(0).toUpperCase() +
@@ -37,14 +38,199 @@ function capitalize(value: string) {
   );
 }
 
+type NichLanguageTone =
+  | "english"
+  | "taglish";
+
+const TAGALOG_TONE_WORDS = new Set([
+  "ako",
+  "alin",
+  "ano",
+  "ba",
+  "dito",
+  "ganito",
+  "gano",
+  "ikaw",
+  "kaya",
+  "ko",
+  "lang",
+  "magkano",
+  "mas",
+  "mo",
+  "naman",
+  "ngayon",
+  "para",
+  "paano",
+  "po",
+  "sakin",
+  "salamat",
+  "siya",
+  "sila",
+  "yung",
+  "yan",
+  "yun",
+]);
+
+function detectLanguageTone(
+  message: string,
+): NichLanguageTone {
+  const words =
+    normalizeText(message).split(" ");
+
+  return words.some((word) =>
+    TAGALOG_TONE_WORDS.has(word),
+  )
+    ? "taglish"
+    : "english";
+}
+
+function stableChoice<T>(
+  choices: readonly T[],
+  seed: string,
+): T {
+  let hash = 0;
+
+  for (
+    let index = 0;
+    index < seed.length;
+    index += 1
+  ) {
+    hash =
+      (hash * 31 +
+        seed.charCodeAt(index)) |
+      0;
+  }
+
+  return choices[
+    Math.abs(hash) % choices.length
+  ];
+}
+
+function styleGenericResponse(
+  response: NichResponse,
+  originalMessage: string,
+): NichResponse {
+  const tone =
+    detectLanguageTone(originalMessage);
+
+  if (
+    response.intent === "greeting" &&
+    response.reaction === "welcome"
+  ) {
+    const text =
+      tone === "taglish"
+        ? stableChoice(
+            [
+              "Uy, hello! 👋 Anong pet or trade ang iche-check natin?",
+              "Hi! Send mo lang yung pet or trade—check natin.",
+              "Hey! 👋 Anong value or WFL ang kailangan mo?",
+            ],
+            originalMessage,
+          )
+        : stableChoice(
+            [
+              "Hey! 👋 What pet or trade are we checking?",
+              "Hi! Send me a pet, value question, or trade.",
+              "Hey! What do you want me to check today?",
+            ],
+            originalMessage,
+          );
+
+    return {
+      ...response,
+      text,
+    };
+  }
+
+  if (response.intent === "thanks") {
+    return {
+      ...response,
+      text:
+        tone === "taglish"
+          ? stableChoice(
+              [
+                "No problem 😄",
+                "Sure, anytime!",
+                "Walang problema—good luck sa trade!",
+              ],
+              originalMessage,
+            )
+          : stableChoice(
+              [
+                "No problem 😄",
+                "Anytime!",
+                "You got it—good luck trading.",
+              ],
+              originalMessage,
+            ),
+    };
+  }
+
+  if (response.intent === "goodbye") {
+    return {
+      ...response,
+      text:
+        tone === "taglish"
+          ? "Sige, ingat! Good luck sa trades 👋"
+          : "See you! Good luck with your trades 👋",
+    };
+  }
+
+  if (
+    response.intent === "fallback" &&
+    /(?:didn.t fully|get that|couldn.t understand)/i.test(
+      response.text,
+    )
+  ) {
+    return {
+      ...response,
+      text:
+        tone === "taglish"
+          ? [
+              "Di ko lang na-gets nang buo.",
+              "",
+              "Send mo yung pet name or buong trade, halimbawa: “2 FD vs Owl, WFL?”",
+            ].join("\n")
+          : [
+              "I didn’t fully get that.",
+              "",
+              "Send the pet name or the full trade, for example: “2 FD vs Owl, WFL?”",
+            ].join("\n"),
+    };
+  }
+
+  return response;
+}
+
+function calculateTypingDuration(
+  text: string,
+  intent: NichResponse["intent"],
+) {
+  const intentDelay =
+    intent === "tradeComparison"
+      ? 420
+      : intent === "nearbyValue"
+        ? 330
+        : intent === "petLookup"
+          ? 260
+          : 180;
+
+  return Math.min(
+    1_900,
+    Math.max(
+      320,
+      intentDelay +
+        Math.min(text.length, 220) * 6,
+    ),
+  );
+}
+
 function createGreetingResponse(): NichResponse {
   return {
     text: [
-      "Hey! 👋 I’m Nich, your CSBT trading buddy.",
+      "Hey! 👋 What are we checking?",
       "",
-      "You can ask me about one pet, several pets, trade comparisons, Pet Wear, or items near a certain value.",
-      "",
-      "I can also understand many abbreviations, quantities, and common spelling mistakes.",
+      "Send a pet name, an abbreviation like FD or SSBD, or a full trade.",
     ].join("\n"),
     intent: "greeting",
     reaction: "welcome",
@@ -174,11 +360,11 @@ function createCalculatorResponse(): NichResponse {
 function createTradeAdviceResponse(): NichResponse {
   return {
     text: [
-      "A fair trade is one where both offers have similar total values.",
+      "A trade can be fair even when the totals aren’t perfectly equal.",
       "",
-      "Small differences can still be fair depending on demand, rarity, and how easy each item is to trade.",
+      "Check the value gap first, then consider demand, how easy each item is to trade, and whether you’re upgrading or downgrading.",
       "",
-      "Use the calculator as a guide, but always check current demand before accepting. ⚖️",
+      "Send me the full offer and I’ll break it down.",
     ].join("\n"),
     intent: "tradeAdvice",
     reaction: "calculator",
@@ -252,11 +438,11 @@ function createHelpResponse(): NichResponse {
 function createFallbackResponse(): NichResponse {
   return {
     text: [
-      "I couldn’t understand that yet.",
+      "I didn’t fully get that.",
       "",
-      "Try giving me one or more item names, comparing two offers, finding items near a value, or asking about the Trade Calculator. 🐾",
+      "Send the pet name or the full trade.",
       "",
-      "Example: “How much are frost drag, owl, and kanga?”",
+      "Example: “2 FD vs Owl, WFL?”",
     ].join("\n"),
     intent: "fallback",
     reaction: "searchEmpty",
@@ -342,11 +528,11 @@ function createClarificationResponse(
 
   return {
     text: [
-      `I found several possible matches for “${query}.”`,
+      `I found a few possible matches for “${query}”:`,
       "",
       ...candidateLines,
       "",
-      "Which one did you mean?",
+      "Which one are you referring to?",
     ].join("\n"),
     intent: "petLookup",
     reaction: "searchEmpty",
@@ -391,14 +577,14 @@ function createContextNeededResponse(
   const lines =
     variantLabel
       ? [
-          `I understand that you mean the ${variantLabel} variant, but I don’t have a recent item to apply it to.`,
+          `You mean the ${variantLabel} version, but I’m missing the item name.`,
           "",
-          `Include the item name, for example: “What is ${variantLabel} Frost Dragon worth?”`,
+          `Try: “${variantLabel} Frost Dragon value.”`,
         ]
       : [
-          "I understand that this is a follow-up, but I don’t have a recent item or trade to apply it to.",
+          "I know that’s a follow-up, but I don’t have a recent item or trade to connect it to.",
           "",
-          "Include the item name or the full trade so I can answer correctly.",
+          "Send the item name or the full trade again.",
         ];
 
   return {
@@ -452,14 +638,11 @@ function createItemNotFoundResponse(
 
   return {
     text: [
-      `I couldn’t find a matching ${categoryText} for “${query}.”`,
+      `I couldn’t match “${query}” to a ${categoryText}.`,
       "",
-      "Try the complete official name, a common abbreviation, or check the spelling.",
+      "Try the full name, a common abbreviation, or a slightly different spelling.",
       "",
-      "Examples:",
-      "• Frost Dragon",
-      "• NFR Turtle",
-      "• Pet Wear value of Cowboy Hat",
+      "Examples: FD, NFR Turtle, or Cowboy Hat.",
     ].join("\n"),
     intent: "petLookup",
     reaction: "searchEmpty",
@@ -497,6 +680,10 @@ function isGreeting(message: string) {
     message === "good morning" ||
     message === "good afternoon" ||
     message === "good evening" ||
+    message === "hi po" ||
+    message === "hello po" ||
+    message === "uy" ||
+    message === "oy" ||
     message.startsWith("hi nich") ||
     message.startsWith("hello nich") ||
     message.startsWith("hey nich")
@@ -534,7 +721,10 @@ function isThanks(message: string) {
     message === "thank you" ||
     message === "thank u" ||
     message === "ty" ||
+    message === "tysm" ||
     message === "salamat" ||
+    message === "salamat po" ||
+    message === "thankyou" ||
     message.includes("thanks nich") ||
     message.includes(
       "thank you nich",
@@ -548,6 +738,8 @@ function isGoodbye(message: string) {
     message === "goodbye" ||
     message === "see you" ||
     message === "cya" ||
+    message === "bb" ||
+    message === "gtg" ||
     message.includes(
       "see you later",
     ) ||
@@ -587,7 +779,11 @@ function isTradeAdvice(message: string) {
     ) ||
     message.includes(
       "explain trade values",
-    )
+    ) ||
+    message === "fair ba" ||
+    message === "win ba" ||
+    message === "lugi ba" ||
+    message === "wfl ba"
   );
 }
 
@@ -604,6 +800,12 @@ function isHelpRequest(message: string) {
     ) ||
     message.includes(
       "show examples",
+    ) ||
+    message.includes(
+      "ano kaya mo",
+    ) ||
+    message.includes(
+      "anong kaya mo",
     )
   );
 }
@@ -613,10 +815,21 @@ function attachConversationMetadata(
   originalMessage: string,
   resolvedMessage: string,
 ): NichResponse {
+  const styledResponse =
+    styleGenericResponse(
+      response,
+      originalMessage,
+    );
+
   return {
-    ...response,
+    ...styledResponse,
+    typingDuration:
+      calculateTypingDuration(
+        styledResponse.text,
+        styledResponse.intent,
+      ),
     context: {
-      ...response.context,
+      ...styledResponse.context,
       lastUserMessage:
         originalMessage,
       lastResolvedMessage:
