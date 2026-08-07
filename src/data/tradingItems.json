@@ -137,7 +137,7 @@
     "GCASH_MEGA": 21100,
     "ELVE_NORMAL": 153,
     "ELVE_NEON": 529,
-    "ELVE_MEGA": 1952,
+    "ELVE_MEGA": 1935,
     "NORMAL": 1650,
     "NEON": 5750,
     "MEGA": 21100,
@@ -249,7 +249,7 @@
     "GCASH_MEGA": 2950,
     "ELVE_NORMAL": 18,
     "ELVE_NEON": 72.5,
-    "ELVE_MEGA": 288,
+    "ELVE_MEGA": 290,
     "NORMAL": 190,
     "NEON": 750,
     "MEGA": 2950,
@@ -793,7 +793,7 @@
     "GCASH_MEGA": 70000,
     "ELVE_NORMAL": 914,
     "ELVE_NEON": 2170,
-    "ELVE_MEGA": 7250,
+    "ELVE_MEGA": 7180,
     "NORMAL": 10000,
     "NEON": 23650,
     "MEGA": 70000,
@@ -1527,13 +1527,13 @@
     "GCASH_NORMAL": 5,
     "GCASH_NEON": 20,
     "GCASH_MEGA": 80,
-    "ELVE_NORMAL": 0.3,
-    "ELVE_NEON": 2.3,
-    "ELVE_MEGA": 10,
+    "ELVE_NORMAL": 0.31,
+    "ELVE_NEON": 2.35,
+    "ELVE_MEGA": 10.25,
     "NORMAL": 5,
     "NEON": 20,
     "MEGA": 80,
-    "INGAME_VALUE": 0.3
+    "INGAME_VALUE": 0.31
   },
   {
     "ID": "pet-bush-elephant",
@@ -2375,13 +2375,13 @@
     "GCASH_NORMAL": 10,
     "GCASH_NEON": 25,
     "GCASH_MEGA": 125,
-    "ELVE_NORMAL": 0.3,
-    "ELVE_NEON": 2.25,
-    "ELVE_MEGA": 9.75,
+    "ELVE_NORMAL": 0.31,
+    "ELVE_NEON": 2.3,
+    "ELVE_MEGA": 10,
     "NORMAL": 10,
     "NEON": 25,
     "MEGA": 125,
-    "INGAME_VALUE": 0.3
+    "INGAME_VALUE": 0.31
   },
   {
     "ID": "pet-coyote",
@@ -2473,7 +2473,7 @@
     "GCASH_MEGA": 16500,
     "ELVE_NORMAL": 172,
     "ELVE_NEON": 395,
-    "ELVE_MEGA": 1420,
+    "ELVE_MEGA": 1390,
     "NORMAL": 1900,
     "NEON": 4250,
     "MEGA": 16500,
@@ -3271,13 +3271,13 @@
     "GCASH_NORMAL": 120,
     "GCASH_NEON": 490,
     "GCASH_MEGA": 1980,
-    "ELVE_NORMAL": 11.5,
-    "ELVE_NEON": 49,
-    "ELVE_MEGA": 198,
+    "ELVE_NORMAL": 12,
+    "ELVE_NEON": 50,
+    "ELVE_MEGA": 202,
     "NORMAL": 120,
     "NEON": 490,
     "MEGA": 1980,
-    "INGAME_VALUE": 11.5
+    "INGAME_VALUE": 12
   },
   {
     "ID": "pet-emperor-shrimp",
@@ -3417,7 +3417,7 @@
     "GCASH_MEGA": 8400,
     "ELVE_NORMAL": 107.5,
     "ELVE_NEON": 200,
-    "ELVE_MEGA": 760,
+    "ELVE_MEGA": 750,
     "NORMAL": 1200,
     "NEON": 2400,
     "MEGA": 8400,
@@ -3641,7 +3641,7 @@
     "GCASH_MEGA": 3800,
     "ELVE_NORMAL": 21,
     "ELVE_NEON": 76,
-    "ELVE_MEGA": 294,
+    "ELVE_MEGA": 292,
     "NORMAL": 210,
     "NEON": 900,
     "MEGA": 3800,
@@ -3817,7 +3817,7 @@
     "GCASH_MEGA": 17000,
     "ELVE_NORMAL": 308,
     "ELVE_NEON": 548,
-    "ELVE_MEGA": 1605,
+    "ELVE_MEGA": 1585,
     "NORMAL": 3200,
     "NEON": 6200,
     "MEGA": 17000,
@@ -3879,13 +3879,13 @@
     "GCASH_NORMAL": 180,
     "GCASH_NEON": 680,
     "GCASH_MEGA": 2800,
-    "ELVE_NORMAL": 17,
-    "ELVE_NEON": 73,
-    "ELVE_MEGA": 300,
+    "ELVE_NORMAL": 17.5,
+    "ELVE_NEON": 75,
+    "ELVE_MEGA": 308,
     "NORMAL": 180,
     "NEON": 680,
     "MEGA": 2800,
-    "INGAME_VALUE": 17
+    "INGAME_VALUE": 17.5
   },
   {
     "ID": "pet-frostbite-cub",
@@ -3895,13 +3895,13 @@
     "GCASH_NORMAL": 10,
     "GCASH_NEON": 30,
     "GCASH_MEGA": 130,
-    "ELVE_NORMAL": 0.48,
-    "ELVE_NEON": 3.2,
-    "ELVE_MEGA": 13.8,
+    "ELVE_NORMAL": 0.49,
+    "ELVE_NEON": 3.25,
+    "ELVE_MEGA": 14,
     "NORMAL": 10,
     "NEON": 30,
     "MEGA": 130,
-    "INGAME_VALUE": 0.48
+    "INGAME_VALUE": 0.49
   },
   {
     "ID": "pet-frostclaw",
@@ -4039,13 +4039,13 @@
     "GCASH_NORMAL": 15,
     "GCASH_NEON": 55,
     "GCASH_MEGA": 230,
-    "ELVE_NORMAL": 0.85,
-    "ELVE_NEON": 5,
-    "ELVE_MEGA": 21,
+    "ELVE_NORMAL": 0.74,
+    "ELVE_NEON": 4.45,
+    "ELVE_MEGA": 18.8,
     "NORMAL": 15,
     "NEON": 55,
     "MEGA": 230,
-    "INGAME_VALUE": 0.85
+    "INGAME_VALUE": 0.74
   },
   {
     "ID": "pet-german-shepherd",
@@ -4233,7 +4233,7 @@
     "GCASH_MEGA": 35000,
     "ELVE_NORMAL": 193,
     "ELVE_NEON": 740,
-    "ELVE_MEGA": 2920,
+    "ELVE_MEGA": 2850,
     "NORMAL": 2300,
     "NEON": 8800,
     "MEGA": 35000,
@@ -4361,7 +4361,7 @@
     "GCASH_MEGA": 33000,
     "ELVE_NORMAL": 455,
     "ELVE_NEON": 912,
-    "ELVE_MEGA": 3370,
+    "ELVE_MEGA": 3320,
     "NORMAL": 6000,
     "NEON": 12000,
     "MEGA": 33000,
@@ -4519,13 +4519,13 @@
     "GCASH_NORMAL": 5,
     "GCASH_NEON": 10,
     "GCASH_MEGA": 40,
-    "ELVE_NORMAL": 0.06,
-    "ELVE_NEON": 1.05,
-    "ELVE_MEGA": 3.75,
+    "ELVE_NORMAL": 0.054,
+    "ELVE_NEON": 1.02,
+    "ELVE_MEGA": 3.6,
     "NORMAL": 5,
     "NEON": 10,
     "MEGA": 40,
-    "INGAME_VALUE": 0.06
+    "INGAME_VALUE": 0.054
   },
   {
     "ID": "pet-golden-albatross",
@@ -4631,13 +4631,13 @@
     "GCASH_NORMAL": 10,
     "GCASH_NEON": 30,
     "GCASH_MEGA": 170,
-    "ELVE_NORMAL": 0.44,
-    "ELVE_NEON": 3,
-    "ELVE_MEGA": 13,
+    "ELVE_NORMAL": 0.45,
+    "ELVE_NEON": 3.05,
+    "ELVE_MEGA": 13.2,
     "NORMAL": 10,
     "NEON": 30,
     "MEGA": 170,
-    "INGAME_VALUE": 0.44
+    "INGAME_VALUE": 0.45
   },
   {
     "ID": "pet-golden-king-penguin",
@@ -4935,13 +4935,13 @@
     "GCASH_NORMAL": 5,
     "GCASH_NEON": 10,
     "GCASH_MEGA": 40,
-    "ELVE_NORMAL": 0.07,
-    "ELVE_NEON": 1.1,
-    "ELVE_MEGA": 4,
+    "ELVE_NORMAL": 0.064,
+    "ELVE_NEON": 1.07,
+    "ELVE_MEGA": 3.85,
     "NORMAL": 5,
     "NEON": 10,
     "MEGA": 40,
-    "INGAME_VALUE": 0.07
+    "INGAME_VALUE": 0.064
   },
   {
     "ID": "pet-ground-sloth",
@@ -5319,13 +5319,13 @@
     "GCASH_NORMAL": 30,
     "GCASH_NEON": 140,
     "GCASH_MEGA": 550,
-    "ELVE_NORMAL": 3.5,
-    "ELVE_NEON": 16,
-    "ELVE_MEGA": 67,
+    "ELVE_NORMAL": 4,
+    "ELVE_NEON": 19,
+    "ELVE_MEGA": 78,
     "NORMAL": 30,
     "NEON": 140,
     "MEGA": 550,
-    "INGAME_VALUE": 3.5
+    "INGAME_VALUE": 4
   },
   {
     "ID": "pet-highland-cow",
@@ -5415,13 +5415,13 @@
     "GCASH_NORMAL": 15,
     "GCASH_NEON": 40,
     "GCASH_MEGA": 150,
-    "ELVE_NORMAL": 0.46,
-    "ELVE_NEON": 3.1,
-    "ELVE_MEGA": 13.4,
+    "ELVE_NORMAL": 0.47,
+    "ELVE_NEON": 3.15,
+    "ELVE_MEGA": 13.6,
     "NORMAL": 15,
     "NEON": 40,
     "MEGA": 150,
-    "INGAME_VALUE": 0.46
+    "INGAME_VALUE": 0.47
   },
   {
     "ID": "pet-hot-doggo",
@@ -5751,13 +5751,13 @@
     "GCASH_NORMAL": 100,
     "GCASH_NEON": 405,
     "GCASH_MEGA": 1655,
-    "ELVE_NORMAL": 7.75,
-    "ELVE_NEON": 34,
-    "ELVE_MEGA": 138,
+    "ELVE_NORMAL": 8,
+    "ELVE_NEON": 34.5,
+    "ELVE_MEGA": 140,
     "NORMAL": 100,
     "NEON": 405,
     "MEGA": 1655,
-    "INGAME_VALUE": 7.75
+    "INGAME_VALUE": 8
   },
   {
     "ID": "pet-island-tarsier",
@@ -7191,13 +7191,13 @@
     "GCASH_NORMAL": null,
     "GCASH_NEON": 22,
     "GCASH_MEGA": 97,
-    "ELVE_NORMAL": 0.31,
-    "ELVE_NEON": 2.3,
-    "ELVE_MEGA": 10,
+    "ELVE_NORMAL": 0.33,
+    "ELVE_NEON": 2.4,
+    "ELVE_MEGA": 10.5,
     "NORMAL": null,
     "NEON": 22,
     "MEGA": 97,
-    "INGAME_VALUE": 0.31
+    "INGAME_VALUE": 0.33
   },
   {
     "ID": "pet-moonpine",
@@ -7783,13 +7783,13 @@
     "GCASH_NORMAL": 1,
     "GCASH_NEON": 15,
     "GCASH_MEGA": 67,
-    "ELVE_NORMAL": 0.18,
-    "ELVE_NEON": 1.65,
-    "ELVE_MEGA": 6.75,
+    "ELVE_NORMAL": 0.19,
+    "ELVE_NEON": 1.7,
+    "ELVE_MEGA": 7,
     "NORMAL": 1,
     "NEON": 15,
     "MEGA": 67,
-    "INGAME_VALUE": 0.18
+    "INGAME_VALUE": 0.19
   },
   {
     "ID": "pet-otter",
@@ -7817,7 +7817,7 @@
     "GCASH_MEGA": 21900,
     "ELVE_NORMAL": 241,
     "ELVE_NEON": 599,
-    "ELVE_MEGA": 2180,
+    "ELVE_MEGA": 2160,
     "NORMAL": 2600,
     "NEON": 5900,
     "MEGA": 21900,
@@ -7929,7 +7929,7 @@
     "GCASH_MEGA": 11500,
     "ELVE_NORMAL": 192,
     "ELVE_NEON": 393,
-    "ELVE_MEGA": 1100,
+    "ELVE_MEGA": 1090,
     "NORMAL": 2100,
     "NEON": 4000,
     "MEGA": 11500,
@@ -8279,13 +8279,13 @@
     "GCASH_NORMAL": 120,
     "GCASH_NEON": 500,
     "GCASH_MEGA": 1900,
-    "ELVE_NORMAL": 11,
-    "ELVE_NEON": 47,
-    "ELVE_MEGA": 190,
+    "ELVE_NORMAL": 11.5,
+    "ELVE_NEON": 49,
+    "ELVE_MEGA": 200,
     "NORMAL": 120,
     "NEON": 500,
     "MEGA": 1900,
-    "INGAME_VALUE": 11
+    "INGAME_VALUE": 11.5
   },
   {
     "ID": "pet-pirate-hermit-crab",
@@ -8951,13 +8951,13 @@
     "GCASH_NORMAL": 140,
     "GCASH_NEON": 550,
     "GCASH_MEGA": 2400,
-    "ELVE_NORMAL": 13.5,
-    "ELVE_NEON": 60,
-    "ELVE_MEGA": 248,
+    "ELVE_NORMAL": 13,
+    "ELVE_NEON": 58,
+    "ELVE_MEGA": 240,
     "NORMAL": 140,
     "NEON": 550,
     "MEGA": 2400,
-    "INGAME_VALUE": 13.5
+    "INGAME_VALUE": 13
   },
   {
     "ID": "pet-red-fox",
@@ -9031,13 +9031,13 @@
     "GCASH_NORMAL": 6,
     "GCASH_NEON": 25,
     "GCASH_MEGA": 120,
-    "ELVE_NORMAL": 0.43,
-    "ELVE_NEON": 2.95,
-    "ELVE_MEGA": 12.8,
+    "ELVE_NORMAL": 0.44,
+    "ELVE_NEON": 3,
+    "ELVE_MEGA": 13,
     "NORMAL": 6,
     "NEON": 25,
     "MEGA": 120,
-    "INGAME_VALUE": 0.43
+    "INGAME_VALUE": 0.44
   },
   {
     "ID": "pet-reindeer",
@@ -9817,7 +9817,7 @@
     "GCASH_MEGA": 42000,
     "ELVE_NORMAL": 670,
     "ELVE_NEON": 1343,
-    "ELVE_MEGA": 3710,
+    "ELVE_MEGA": 3650,
     "NORMAL": 7200,
     "NEON": 15000,
     "MEGA": 42000,
@@ -10071,13 +10071,13 @@
     "GCASH_NORMAL": 90,
     "GCASH_NEON": 380,
     "GCASH_MEGA": 1600,
-    "ELVE_NORMAL": 8,
-    "ELVE_NEON": 37,
-    "ELVE_MEGA": 152,
+    "ELVE_NORMAL": 8.5,
+    "ELVE_NEON": 38,
+    "ELVE_MEGA": 157,
     "NORMAL": 90,
     "NEON": 380,
     "MEGA": 1600,
-    "INGAME_VALUE": 8
+    "INGAME_VALUE": 8.5
   },
   {
     "ID": "pet-singularity-beetle",
@@ -10615,13 +10615,13 @@
     "GCASH_NORMAL": 3,
     "GCASH_NEON": 5,
     "GCASH_MEGA": 15,
-    "ELVE_NORMAL": 0.06,
-    "ELVE_NEON": 1.05,
-    "ELVE_MEGA": 3.75,
+    "ELVE_NORMAL": 0.07,
+    "ELVE_NEON": 0.95,
+    "ELVE_MEGA": 3.25,
     "NORMAL": 3,
     "NEON": 5,
     "MEGA": 15,
-    "INGAME_VALUE": 0.06
+    "INGAME_VALUE": 0.07
   },
   {
     "ID": "pet-strawberry-penguin",
@@ -10983,13 +10983,13 @@
     "GCASH_NORMAL": 10,
     "GCASH_NEON": 35,
     "GCASH_MEGA": 155,
-    "ELVE_NORMAL": 0.36,
-    "ELVE_NEON": 2.55,
-    "ELVE_MEGA": 11.2,
+    "ELVE_NORMAL": 0.37,
+    "ELVE_NEON": 2.6,
+    "ELVE_MEGA": 11.4,
     "NORMAL": 10,
     "NEON": 35,
     "MEGA": 155,
-    "INGAME_VALUE": 0.36
+    "INGAME_VALUE": 0.37
   },
   {
     "ID": "pet-tasmanian-tiger",
@@ -11159,13 +11159,13 @@
     "GCASH_NORMAL": 390,
     "GCASH_NEON": 1620,
     "GCASH_MEGA": 6720,
-    "ELVE_NORMAL": 38,
-    "ELVE_NEON": 162,
-    "ELVE_MEGA": 664,
+    "ELVE_NORMAL": 37.5,
+    "ELVE_NEON": 160,
+    "ELVE_MEGA": 650,
     "NORMAL": 390,
     "NEON": 1620,
     "MEGA": 6720,
-    "INGAME_VALUE": 38
+    "INGAME_VALUE": 37.5
   },
   {
     "ID": "pet-tortuga-de-la-isla",
@@ -11527,13 +11527,13 @@
     "GCASH_NORMAL": 100,
     "GCASH_NEON": 400,
     "GCASH_MEGA": 1680,
-    "ELVE_NORMAL": 7.25,
-    "ELVE_NEON": 32,
-    "ELVE_MEGA": 132,
+    "ELVE_NORMAL": 7.75,
+    "ELVE_NEON": 34,
+    "ELVE_MEGA": 140,
     "NORMAL": 100,
     "NEON": 400,
     "MEGA": 1680,
-    "INGAME_VALUE": 7.25
+    "INGAME_VALUE": 7.75
   },
   {
     "ID": "pet-vermilion-butterfly",
@@ -11753,7 +11753,7 @@
     "GCASH_MEGA": 3680,
     "ELVE_NORMAL": 23,
     "ELVE_NEON": 70,
-    "ELVE_MEGA": 267,
+    "ELVE_MEGA": 270,
     "NORMAL": 210,
     "NEON": 980,
     "MEGA": 3680,
@@ -12583,13 +12583,13 @@
     "GCASH_NORMAL": 400,
     "GCASH_NEON": null,
     "GCASH_MEGA": null,
-    "ELVE_NORMAL": 33.5,
+    "ELVE_NORMAL": 34,
     "ELVE_NEON": null,
     "ELVE_MEGA": null,
     "NORMAL": 400,
     "NEON": null,
     "MEGA": null,
-    "INGAME_VALUE": 33.5
+    "INGAME_VALUE": 34
   },
   {
     "ID": "petwear-angler-fish-light",
@@ -18247,13 +18247,13 @@
     "GCASH_NORMAL": 670,
     "GCASH_NEON": null,
     "GCASH_MEGA": null,
-    "ELVE_NORMAL": 56,
+    "ELVE_NORMAL": 58,
     "ELVE_NEON": null,
     "ELVE_MEGA": null,
     "NORMAL": 670,
     "NEON": null,
     "MEGA": null,
-    "INGAME_VALUE": 56
+    "INGAME_VALUE": 58
   },
   {
     "ID": "petwear-giraffe-bucket-hat",
@@ -18279,13 +18279,13 @@
     "GCASH_NORMAL": 450,
     "GCASH_NEON": null,
     "GCASH_MEGA": null,
-    "ELVE_NORMAL": 38,
+    "ELVE_NORMAL": 39,
     "ELVE_NEON": null,
     "ELVE_MEGA": null,
     "NORMAL": 450,
     "NEON": null,
     "MEGA": null,
-    "INGAME_VALUE": 38
+    "INGAME_VALUE": 39
   },
   {
     "ID": "petwear-glamicorn-purse-pet",
@@ -19031,13 +19031,13 @@
     "GCASH_NORMAL": 400,
     "GCASH_NEON": null,
     "GCASH_MEGA": null,
-    "ELVE_NORMAL": 37,
+    "ELVE_NORMAL": 37.5,
     "ELVE_NEON": null,
     "ELVE_MEGA": null,
     "NORMAL": 400,
     "NEON": null,
     "MEGA": null,
-    "INGAME_VALUE": 37
+    "INGAME_VALUE": 37.5
   },
   {
     "ID": "petwear-hanbok",
@@ -24967,13 +24967,13 @@
     "GCASH_NORMAL": 480,
     "GCASH_NEON": null,
     "GCASH_MEGA": null,
-    "ELVE_NORMAL": 38,
+    "ELVE_NORMAL": 40,
     "ELVE_NEON": null,
     "ELVE_MEGA": null,
     "NORMAL": 480,
     "NEON": null,
     "MEGA": null,
-    "INGAME_VALUE": 38
+    "INGAME_VALUE": 40
   },
   {
     "ID": "petwear-ssbd-sunnies",
@@ -24983,13 +24983,13 @@
     "GCASH_NORMAL": 860,
     "GCASH_NEON": null,
     "GCASH_MEGA": null,
-    "ELVE_NORMAL": 80,
+    "ELVE_NORMAL": 91,
     "ELVE_NEON": null,
     "ELVE_MEGA": null,
     "NORMAL": 860,
     "NEON": null,
     "MEGA": null,
-    "INGAME_VALUE": 80
+    "INGAME_VALUE": 91
   },
   {
     "ID": "petwear-star-badge",
@@ -25191,13 +25191,13 @@
     "GCASH_NORMAL": 940,
     "GCASH_NEON": null,
     "GCASH_MEGA": null,
-    "ELVE_NORMAL": 77,
+    "ELVE_NORMAL": 83,
     "ELVE_NEON": null,
     "ELVE_MEGA": null,
     "NORMAL": 940,
     "NEON": null,
     "MEGA": null,
-    "INGAME_VALUE": 77
+    "INGAME_VALUE": 83
   },
   {
     "ID": "petwear-strawberry-hat",
@@ -25223,13 +25223,13 @@
     "GCASH_NORMAL": 970,
     "GCASH_NEON": null,
     "GCASH_MEGA": null,
-    "ELVE_NORMAL": 76,
+    "ELVE_NORMAL": 80,
     "ELVE_NEON": null,
     "ELVE_MEGA": null,
     "NORMAL": 970,
     "NEON": null,
     "MEGA": null,
-    "INGAME_VALUE": 76
+    "INGAME_VALUE": 80
   },
   {
     "ID": "petwear-strawberry-shortcake-bat-dragon-backpack",
@@ -29351,13 +29351,13 @@
     "GCASH_NORMAL": 3445,
     "GCASH_NEON": null,
     "GCASH_MEGA": null,
-    "ELVE_NORMAL": 310,
+    "ELVE_NORMAL": 330,
     "ELVE_NEON": null,
     "ELVE_MEGA": null,
     "NORMAL": 3445,
     "NEON": null,
     "MEGA": null,
-    "INGAME_VALUE": 310
+    "INGAME_VALUE": 330
   },
   {
     "ID": "toy-candy-flare-mega-neon-paint",
