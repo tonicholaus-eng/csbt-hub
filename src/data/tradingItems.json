@@ -4789,14 +4789,14 @@
     "CATEGORY": "PET",
     "IMAGE": "https://elvebredd.com/images/pets/Goose.png",
     "GCASH_NORMAL": 400,
-    "GCASH_NEON": 3560,
-    "GCASH_MEGA": 4000,
+    "GCASH_NEON": 1100,
+    "GCASH_MEGA": 3500,
     "ELVE_NORMAL": 36.5,
     "ELVE_NEON": 97.5,
     "ELVE_MEGA": 324,
     "NORMAL": 400,
-    "NEON": 3560,
-    "MEGA": 4000,
+    "NEON": 1100,
+    "MEGA": 3500,
     "INGAME_VALUE": 36.5
   },
   {
