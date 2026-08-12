@@ -52,7 +52,13 @@ export type NichRequestedCategory =
   | "PET"
   | "PETWEAR"
   | "EGG"
+  | "VEHICLE"
+  | "FOOD"
+  | "GIFT"
+  | "STROLLER"
   | "TOY"
+  | "STICKER"
+  | "OTHER"
   | null;
 
 export type NichMessageAnalysis = {
@@ -310,8 +316,32 @@ function getRequestedCategory(normalizedMessage: string): NichRequestedCategory 
     return "EGG";
   }
 
+  if (includesAnyWholePhrase(normalizedMessage, ["vehicle", "vehicles", "car", "cars", "vehicle only", "vehicles only"])) {
+    return "VEHICLE";
+  }
+
+  if (includesAnyWholePhrase(normalizedMessage, ["food", "foods", "food only", "foods only"])) {
+    return "FOOD";
+  }
+
+  if (includesAnyWholePhrase(normalizedMessage, ["gift", "gifts", "gift only", "gifts only"])) {
+    return "GIFT";
+  }
+
+  if (includesAnyWholePhrase(normalizedMessage, ["stroller", "strollers", "stroller only", "strollers only"])) {
+    return "STROLLER";
+  }
+
   if (includesAnyWholePhrase(normalizedMessage, ["toy", "toys", "toy only", "toys only"])) {
     return "TOY";
+  }
+
+  if (includesAnyWholePhrase(normalizedMessage, ["sticker", "stickers", "sticker only", "stickers only"])) {
+    return "STICKER";
+  }
+
+  if (includesAnyWholePhrase(normalizedMessage, ["other", "others", "misc", "miscellaneous"])) {
+    return "OTHER";
   }
 
   if (includesAnyWholePhrase(normalizedMessage, ["pet only", "pets only"])) {

@@ -37,11 +37,11 @@ export default function MeetNich() {
 
         <div className="min-w-0">
           <span className="inline-flex rounded-full border border-violet-200/80 bg-violet-50/80 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.18em] text-violet-700 shadow-sm dark:border-violet-400/15 dark:bg-violet-400/10 dark:text-violet-300">
-            AI Trading Assistant
+            Built-in Trading Assistant
           </span>
           <h2 id="meet-nich-title" className="mt-5 text-4xl font-black tracking-tight text-slate-900 dark:text-white sm:text-5xl">Meet Nich</h2>
           <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600 dark:text-slate-300 sm:text-lg">
-            Nich is your built-in CSBT HUB assistant. Ask questions about pet values, compare possible trades, or find pets close to a particular value.
+            Not sure if a trade is good? Ask Nich for a second look. Nich can check values, compare offers, find nearby-value pets, and guide you through CSBT HUB.
           </p>
 
           <div className="mt-8 grid gap-3 sm:grid-cols-2">
@@ -59,7 +59,7 @@ export default function MeetNich() {
           </div>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Link href="/nich" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500 px-6 py-3 font-black text-white shadow-[0_10px_26px_rgba(249,115,22,.26)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_15px_34px_rgba(249,115,22,.34)]">Start with Nich <span aria-hidden="true">→</span></Link>
+            <Link href="/nich" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500 px-6 py-3 font-black text-white shadow-[0_10px_26px_rgba(249,115,22,.26)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_15px_34px_rgba(249,115,22,.34)]">Ask Nich Now <span aria-hidden="true">→</span></Link>
             <Link href="/values" className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-slate-200 bg-white/80 px-6 py-3 font-black text-slate-800 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-amber-300 hover:text-amber-700 dark:border-white/10 dark:bg-white/[0.055] dark:text-white dark:hover:text-amber-300">Browse Values</Link>
           </div>
         </div>

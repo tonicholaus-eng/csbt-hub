@@ -23,7 +23,7 @@ export default function DemandPage() {
 
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle,rgba(255,255,255,.65)_1px,transparent_1px)] bg-[size:32px_32px] opacity-20 dark:opacity-[0.04]" />
 
-      <div className="relative z-10">
+      <div className="relative z-10 min-w-0 lg:pl-72">
         <Navbar />
 
         <div className="mx-auto max-w-7xl px-3 pb-24 pt-8 sm:px-6 sm:pb-32 sm:pt-12">

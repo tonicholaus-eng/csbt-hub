@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   motion,
   useReducedMotion,
@@ -9,6 +10,7 @@ import {
 import AddPetModal from "./AddPetModal";
 import TradeSide from "./TradeSide";
 import TradeSummary from "./TradeSummary";
+import SaveTradeButton from "./SaveTradeButton";
 import {
   SelectedTradeItem,
   TradeItem,
@@ -16,6 +18,7 @@ import {
   ValueType,
 } from "./types";
 import { getItemValue, parseTradeValue } from "../../lib/valueSystem";
+import { getItemById } from "../../lib/search";
 
 type TradeSideType = "your" | "their";
 
@@ -81,8 +84,9 @@ function createSelectedItem(
 }
 
 export default function TradeCalculator() {
-  const shouldReduceMotion =
-    useReducedMotion();
+  const shouldReduceMotion = useReducedMotion();
+  const searchParams = useSearchParams();
+  const initialItemHandled = useRef(false);
 
   const [modalOpen, setModalOpen] =
     useState(false);
@@ -356,6 +360,21 @@ export default function TradeCalculator() {
     setTheirItems([]);
   }
 
+  useEffect(() => {
+    if (initialItemHandled.current) return;
+    const itemId = searchParams.get("add");
+    if (!itemId) return;
+    const item = getItemById(itemId);
+    initialItemHandled.current = true;
+    if (!item) return;
+    const requestedSource: ValueSource = searchParams.get("source") === "ELVE" ? "ELVE" : "GCASH";
+    setValueSource(requestedSource);
+    setYourItems((current) => [
+      ...current,
+      createSelectedItem(item, defaultValueType, requestedSource),
+    ]);
+  }, [defaultValueType, searchParams]);
+
   return (
     <>
   <motion.section
@@ -543,64 +562,32 @@ export default function TradeCalculator() {
         />
       </div>
 
+      <SaveTradeButton
+        yourItems={yourItems}
+        theirItems={theirItems}
+        yourTotal={yourTotal}
+        theirTotal={theirTotal}
+        valueSource={valueSource}
+      />
+
     </div>
   </motion.section>
 
   {!modalOpen && !tradeIsEmpty && (
     <motion.aside
       aria-live="polite"
-      initial={{
-        opacity: 0,
-        y: shouldReduceMotion ? 0 : 80,
-      }}
+      initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{
-        duration: shouldReduceMotion ? 0 : 0.25,
-      }}
-      className={`pointer-events-none fixed inset-x-3 bottom-3 z-50 overflow-hidden rounded-2xl bg-gradient-to-r p-3 text-white shadow-[0_18px_45px_rgba(0,0,0,.35)] lg:hidden ${mobileResult.color}`}
+      className={`mx-3 mt-4 overflow-hidden rounded-2xl bg-gradient-to-r p-3 text-white shadow-lg lg:hidden ${mobileResult.color}`}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span
-              aria-hidden="true"
-              className="text-2xl"
-            >
-              {mobileResult.emoji}
-            </span>
-
-            <p className="text-xl font-black tracking-tight">
-              {mobileResult.title}
-            </p>
-          </div>
-
-          <p className="mt-0.5 truncate text-xs font-semibold text-white/85">
-            {mobileResult.message}
-          </p>
+          <div className="flex items-center gap-2"><span className="text-2xl">{mobileResult.emoji}</span><p className="text-xl font-black">{mobileResult.title}</p></div>
+          <p className="mt-0.5 text-xs font-semibold text-white/85">{mobileResult.message}</p>
         </div>
-
-        <div className="grid shrink-0 grid-cols-2 gap-1 rounded-xl border border-white/15 bg-black/15 p-2 text-center backdrop-blur">
-          <div className="min-w-14 px-1">
-            <p className="text-[9px] font-black uppercase tracking-wider text-white/70">
-              You
-            </p>
-            <p className="mt-0.5 text-sm font-black tabular-nums">
-              {yourTotal.toLocaleString("en-US", {
-                maximumFractionDigits: 2,
-              })}
-            </p>
-          </div>
-
-          <div className="min-w-14 border-l border-white/15 px-1">
-            <p className="text-[9px] font-black uppercase tracking-wider text-white/70">
-              Them
-            </p>
-            <p className="mt-0.5 text-sm font-black tabular-nums">
-              {theirTotal.toLocaleString("en-US", {
-                maximumFractionDigits: 2,
-              })}
-            </p>
-          </div>
+        <div className="grid shrink-0 grid-cols-2 gap-1 rounded-xl border border-white/15 bg-black/15 p-2 text-center">
+          <div className="min-w-14 px-1"><p className="text-[9px] font-black uppercase text-white/70">You</p><p className="text-sm font-black tabular-nums">{yourTotal.toLocaleString("en-US", { maximumFractionDigits: 2 })}</p></div>
+          <div className="min-w-14 border-l border-white/15 px-1"><p className="text-[9px] font-black uppercase text-white/70">Them</p><p className="text-sm font-black tabular-nums">{theirTotal.toLocaleString("en-US", { maximumFractionDigits: 2 })}</p></div>
         </div>
       </div>
     </motion.aside>

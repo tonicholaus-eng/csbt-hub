@@ -6,14 +6,13 @@ import {
   useReducedMotion,
 } from "framer-motion";
 import {
-  createClient,
   type Session,
-  type SupabaseClient,
   type User,
 } from "@supabase/supabase-js";
 import type {
   FormEvent,
 } from "react";
+import { getSupabaseBrowserClient } from "../../lib/supabase/client";
 import {
   useCallback,
   useEffect,
@@ -36,43 +35,6 @@ const MAX_AVATAR_UPLOAD_SIZE =
   750 * 1024;
 const AVATAR_SIZE = 512;
 
-let browserClient:
-  | SupabaseClient
-  | null = null;
-
-function getSupabaseBrowserClient():
-  | SupabaseClient
-  | null {
-  const supabaseUrl =
-    process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-  const supabaseBrowserKey =
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-
-  if (
-    !supabaseUrl ||
-    !supabaseBrowserKey
-  ) {
-    return null;
-  }
-
-  if (!browserClient) {
-    browserClient = createClient(
-      supabaseUrl,
-      supabaseBrowserKey,
-      {
-        auth: {
-          persistSession: true,
-          autoRefreshToken: true,
-          detectSessionInUrl: true,
-        },
-      },
-    );
-  }
-
-  return browserClient;
-}
 
 type CommunityPostRow = {
   id: string;

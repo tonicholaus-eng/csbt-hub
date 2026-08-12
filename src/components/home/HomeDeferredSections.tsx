@@ -9,11 +9,6 @@ const QuickActions = dynamic(() => import("./QuickActions"), {
   loading: () => <SectionSkeleton height="560px" />,
 });
 
-const PopularPets = dynamic(() => import("../PopularPets"), {
-  ssr: false,
-  loading: () => <SectionSkeleton height="980px" />,
-});
-
 const MeetNich = dynamic(() => import("./MeetNich"), {
   ssr: false,
   loading: () => <SectionSkeleton height="680px" />,
@@ -87,17 +82,12 @@ export default function HomeDeferredSections({
         </LazyMount>
       </div>
 
-      <section className="mt-20 sm:mt-28">
-        <LazyMount minHeight="980px">
-          <PopularPets />
-        </LazyMount>
-      </section>
-
       <div className="mt-20 sm:mt-28">
         <LazyMount minHeight="680px">
           <MeetNich />
         </LazyMount>
       </div>
+
 
       <section className="mt-20 sm:mt-28">
         <LazyMount minHeight="620px">

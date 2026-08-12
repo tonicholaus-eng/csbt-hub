@@ -470,11 +470,7 @@ function createFallbackResponse(): NichResponse {
   };
 }
 
-type NichItemCategory =
-  | "PET"
-  | "PETWEAR"
-  | "EGG"
-  | "TOY";
+type NichItemCategory = Exclude<NichMessageAnalysis["requestedCategory"], null>;
 
 function getCategoryLabel(
   category: NichItemCategory,
@@ -484,8 +480,20 @@ function getCategoryLabel(
       return "Pet Wear";
     case "EGG":
       return "Egg";
+    case "VEHICLE":
+      return "Vehicle";
+    case "FOOD":
+      return "Food";
+    case "GIFT":
+      return "Gift";
+    case "STROLLER":
+      return "Stroller";
     case "TOY":
       return "Toy";
+    case "STICKER":
+      return "Sticker";
+    case "OTHER":
+      return "Other item";
     default:
       return "Pet";
   }
@@ -550,10 +558,9 @@ function createClarificationResponse(
             id:
               `clarify-item-${candidate.pet.ID}-${index}`,
             label:
-              candidate.pet.CATEGORY ===
-              "PETWEAR"
-                ? `${candidate.pet.NAME} · Pet Wear`
-                : candidate.pet.NAME,
+              candidate.pet.CATEGORY === "PET"
+                ? candidate.pet.NAME
+                : `${candidate.pet.NAME} · ${getCategoryLabel(candidate.pet.CATEGORY)}`,
             message:
               `What is ${getVariantLabel(
                 analysis,
@@ -621,20 +628,9 @@ function createItemNotFoundResponse(
     analysis.itemQuery ||
     analysis.originalMessage;
 
-  const categoryText =
-    analysis.requestedCategory ===
-    "PETWEAR"
-      ? "Pet Wear item"
-      : analysis.requestedCategory ===
-          "EGG"
-        ? "Egg"
-        : analysis.requestedCategory ===
-            "TOY"
-          ? "Toy"
-          : analysis.requestedCategory ===
-              "PET"
-            ? "Pet"
-            : "item";
+  const categoryText = analysis.requestedCategory
+    ? getCategoryLabel(analysis.requestedCategory)
+    : "item";
 
   return {
     text: [

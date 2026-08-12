@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 
 export default function Footer() {
   return (
@@ -37,14 +38,18 @@ export default function Footer() {
           </div>
 
           <p className="mt-5 max-w-md leading-relaxed text-slate-600 dark:text-slate-400">
-            Search values instantly, compare trades,
-            and stay updated with the latest CSBT
-            values.
+            Search values, calculate inventories, compare trades, follow market movement, and learn from the CSBT community.
           </p>
         </div>
 
         {/* Links and legal information */}
         <div className="flex flex-col items-center gap-4 md:items-end">
+          <div className="flex flex-wrap justify-center gap-2 md:justify-end">
+            <Link href="/inventory" className="rounded-full border border-slate-200 bg-white/70 px-4 py-2 text-xs font-black text-slate-700 transition hover:-translate-y-0.5 hover:border-amber-300 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">🎒 Inventory</Link>
+            <Link href="/trade-feed" className="rounded-full border border-slate-200 bg-white/70 px-4 py-2 text-xs font-black text-slate-700 transition hover:-translate-y-0.5 hover:border-amber-300 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">🗳️ Trade Voting</Link>
+            <Link href="/feedback" className="rounded-full border border-slate-200 bg-white/70 px-4 py-2 text-xs font-black text-slate-700 transition hover:-translate-y-0.5 hover:border-amber-300 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">💬 Feedback</Link>
+          </div>
+
           <a
             href="https://www.facebook.com/groups/5352107604807631"
             target="_blank"

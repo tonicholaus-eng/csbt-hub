@@ -15,9 +15,10 @@ type HeroProps = {
 };
 
 const featureItems = [
-  { icon: "🔍", label: "Instant Search" },
-  { icon: "🤝", label: "Trade Calculator" },
-  { icon: "📈", label: "Updated Values" },
+  { icon: "🔍", label: "Check Values" },
+  { icon: "⚖️", label: "Compare Trades" },
+  { icon: "📈", label: "Demand Trends" },
+  { icon: "🤖", label: "Ask Nich" },
 ];
 
 export default function Hero({
@@ -152,8 +153,8 @@ export default function Hero({
     },
     {
       value: "💎",
-      label: "Two Sources",
-      description: "GCash and Elve",
+      label: "2 Value Sources",
+      description: "GCash + Elve Shark",
     },
     {
       value: "🏆",
@@ -290,11 +291,8 @@ export default function Hero({
         </h1>
 
         <p className="mx-auto mt-7 max-w-3xl text-lg leading-relaxed text-white/90 sm:text-xl md:text-2xl">
-          The fastest way to check{" "}
-          <strong className="text-white">
-            Adopt Me pet values
-          </strong>
-          , compare trades, and avoid bad deals.
+          Check <strong className="text-white">Adopt Me values</strong>, compare
+          trades, follow demand, and get instant help from Nich—all in one hub.
         </p>
 
         <div className="mt-9 flex flex-wrap justify-center gap-3 sm:gap-4">
@@ -373,6 +371,34 @@ export default function Hero({
             "
           >
             Compare a Trade
+          </Link>
+
+          <Link
+            href="/nich"
+            className="
+              inline-flex
+              min-h-12
+              items-center
+              justify-center
+              rounded-2xl
+              border
+              border-white/30
+              bg-slate-950/20
+              px-6
+              py-3
+              font-black
+              text-white
+              shadow-md
+              transition
+              duration-200
+              hover:-translate-y-1
+              hover:bg-slate-950/30
+              focus-visible:outline-none
+              focus-visible:ring-4
+              focus-visible:ring-white/40
+            "
+          >
+            Ask Nich
           </Link>
         </div>
 

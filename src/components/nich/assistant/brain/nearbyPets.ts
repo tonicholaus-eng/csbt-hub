@@ -66,7 +66,17 @@ export function createNearbyPetsResponse(
   ].slice(0, 6);
 
   if (nearbyItems.length === 0) {
-    const label = category === "PETWEAR" ? "Pet Wear items" : category === "PET" ? "pets" : "items";
+    const label =
+      category === "PET" ? "pets"
+      : category === "PETWEAR" ? "Pet Wear items"
+      : category === "EGG" ? "eggs"
+      : category === "VEHICLE" ? "vehicles"
+      : category === "FOOD" ? "food items"
+      : category === "GIFT" ? "gifts"
+      : category === "STROLLER" ? "strollers"
+      : category === "TOY" ? "toys"
+      : category === "STICKER" ? "stickers"
+      : "items";
 
     return {
       text: `I couldn’t find any ${label} close to ${formatNumber(targetValue)} value.`,

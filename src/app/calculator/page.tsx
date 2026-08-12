@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import Footer from "../../components/Footer";
 import Navbar from "../../components/Navbar";
@@ -32,7 +33,7 @@ export default function CalculatorPage() {
       {/* Texture */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle,rgba(255,255,255,.65)_1px,transparent_1px)] bg-[size:32px_32px] opacity-20 dark:opacity-[0.045]" />
 
-      <div className="relative z-10">
+      <div className="relative z-10 min-w-0 lg:pl-72">
         <Navbar />
 
         <div className="mx-auto w-full max-w-7xl px-3 pb-24 pt-8 sm:px-6 sm:pb-32 sm:pt-12">
@@ -54,7 +55,7 @@ export default function CalculatorPage() {
           <section className="relative min-w-0">
             <div className="pointer-events-none absolute -inset-12 -z-10 hidden rounded-full bg-gradient-to-r from-cyan-100/15 via-white/20 to-amber-100/15 blur-3xl dark:from-cyan-500/5 dark:via-white/5 dark:to-amber-500/5 sm:block" />
 
-            <TradeCalculator />
+            <Suspense fallback={<div className="h-96 animate-pulse rounded-[30px] bg-white/60 dark:bg-white/5" />}><TradeCalculator /></Suspense>
           </section>
         </div>
 

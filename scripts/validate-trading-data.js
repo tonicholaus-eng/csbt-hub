@@ -4,8 +4,29 @@ const path = require("path");
 const projectRoot = process.cwd();
 const dataPath = path.join(projectRoot, "src", "data", "tradingItems.json");
 const sourcesPath = path.join(projectRoot, "src", "data", "valueSources.json");
-const ALLOWED_CATEGORIES = new Set(["PET", "PETWEAR", "EGG", "TOY"]);
-const REGULAR_ONLY_CATEGORIES = new Set(["PETWEAR", "EGG", "TOY"]);
+const ALLOWED_CATEGORIES = new Set([
+  "PET",
+  "PETWEAR",
+  "EGG",
+  "VEHICLE",
+  "FOOD",
+  "GIFT",
+  "STROLLER",
+  "TOY",
+  "STICKER",
+  "OTHER",
+]);
+const REGULAR_ONLY_CATEGORIES = new Set([
+  "PETWEAR",
+  "EGG",
+  "VEHICLE",
+  "FOOD",
+  "GIFT",
+  "STROLLER",
+  "TOY",
+  "STICKER",
+  "OTHER",
+]);
 
 function isNumberOrNull(value) {
   return value === null || (typeof value === "number" && Number.isFinite(value));
@@ -42,6 +63,14 @@ function main() {
     if (ids.has(item.ID)) errors.push(`Duplicate ID: ${item.ID}`);
     ids.add(item.ID);
 
+    if (item.RARITY !== null && item.RARITY !== undefined && typeof item.RARITY !== "string") {
+      errors.push(`${item.NAME}: RARITY must be a string or null.`);
+    }
+
+    if (item.DEMAND_TIER !== null && item.DEMAND_TIER !== undefined && !["S", "A", "B", "C", "D"].includes(item.DEMAND_TIER)) {
+      errors.push(`${item.NAME}: DEMAND_TIER must be S/A/B/C/D or null.`);
+    }
+
     for (const field of [
       "GCASH_NORMAL",
       "GCASH_NEON",
@@ -67,11 +96,10 @@ function main() {
       errors.push(`${item.NAME}: ${item.CATEGORY} must not have Neon or Mega values.`);
     }
 
-    if (
-      (item.CATEGORY === "EGG" || item.CATEGORY === "TOY") &&
-      !(typeof item.ELVE_NORMAL === "number" && item.ELVE_NORMAL > 0)
-    ) {
-      errors.push(`${item.NAME}: ${item.CATEGORY} must have a positive Elve regular value.`);
+    const hasGcash = typeof item.GCASH_NORMAL === "number" && item.GCASH_NORMAL > 0;
+    const hasElve = typeof item.ELVE_NORMAL === "number" && item.ELVE_NORMAL > 0;
+    if (!hasGcash && !hasElve) {
+      errors.push(`${item.NAME}: must have at least one positive regular value source.`);
     }
   }
 
@@ -87,10 +115,11 @@ function main() {
     process.exit(1);
   }
 
+  const summary = Array.from(ALLOWED_CATEGORIES)
+    .map((category) => `${category} ${categoryCounts[category] ?? 0}`)
+    .join(", ");
   console.log(
-    `Data validation passed: ${items.length} items, ${ids.size} unique IDs ` +
-      `(Pets ${categoryCounts.PET}, Pet Wear ${categoryCounts.PETWEAR}, ` +
-      `Eggs ${categoryCounts.EGG}, Toys ${categoryCounts.TOY}).`,
+    `Data validation passed: ${items.length} items, ${ids.size} unique IDs (${summary}).`,
   );
 }
 

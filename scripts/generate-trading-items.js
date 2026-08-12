@@ -13,10 +13,27 @@ const elveSnapshotPath = path.join(projectRoot, "source-data", "elve-shark-value
 const outputPath = path.join(projectRoot, "src", "data", "tradingItems.json");
 const sourceMetadataPath = path.join(projectRoot, "src", "data", "valueSources.json");
 const tradingMetaPath = path.join(projectRoot, "src", "data", "tradingMeta.json");
-const homePopularItemsPath = path.join(projectRoot, "src", "data", "homePopularItems.json");
 const validationReportPath = path.join(projectRoot, "source-data", "trading-data-validation.json");
 const ELVEBREDD_ORIGIN = "https://elvebredd.com";
-const CATEGORY_ORDER = { PET: 0, PETWEAR: 1, EGG: 2, TOY: 3 };
+const CATEGORY_CONFIG = {
+  PET: { order: 0, sheet: "Pets", regularOnly: false },
+  PETWEAR: { order: 1, sheet: "Pet Wear", regularOnly: true },
+  EGG: { order: 2, sheet: "Eggs", regularOnly: true },
+  VEHICLE: { order: 3, sheet: "Vehicles", regularOnly: true },
+  FOOD: { order: 4, sheet: "Food", regularOnly: true },
+  GIFT: { order: 5, sheet: "Gifts", regularOnly: true },
+  STROLLER: { order: 6, sheet: "Strollers", regularOnly: true },
+  TOY: { order: 7, sheet: "Toys", regularOnly: true },
+  STICKER: { order: 8, sheet: "Stickers", regularOnly: true },
+  OTHER: { order: 9, sheet: "Other", regularOnly: true },
+};
+
+const CATEGORY_ORDER = Object.fromEntries(
+  Object.entries(CATEGORY_CONFIG).map(([category, config]) => [
+    category,
+    config.order,
+  ]),
+);
 
 function cleanText(value) {
   if (value === null || value === undefined) return "";
@@ -138,9 +155,14 @@ function readWorkbook() {
   return XLSX.readFile(excelPath);
 }
 
-function readSheetRows(workbook, sheetName) {
+function readSheetRows(workbook, sheetName, required = true) {
   const sheet = workbook.Sheets[sheetName];
-  if (!sheet) throw new Error(`Worksheet "${sheetName}" was not found in ${excelPath}`);
+  if (!sheet) {
+    if (required) {
+      throw new Error(`Worksheet "${sheetName}" was not found in ${excelPath}`);
+    }
+    return [];
+  }
   return XLSX.utils.sheet_to_json(sheet, { defval: null, raw: true });
 }
 
@@ -184,18 +206,63 @@ function readWorkbookElveValues(row, name, warnings) {
   };
 }
 
-function createItem(row, category, warnings, elveMap) {
+
+function readOptionalMetadata(row) {
+  const rarity = cleanText(findColumnValue(row, ["RARITY", "PET RARITY", "ITEM RARITY"]));
+  const demandRaw = cleanText(findColumnValue(row, ["DEMAND TIER", "CSBT DEMAND TIER"])).toUpperCase();
+  const demandTier = ["S", "A", "B", "C", "D"].includes(demandRaw) ? demandRaw : null;
+  return { rarity: rarity || null, demandTier };
+}
+
+function readPotionValues(row, source, name, warnings) {
+  const sourcePrefix = source === "GCASH" ? "GCASH" : "ELVE";
+  const result = {};
+
+  const definitions = {
+    NORMAL: {
+      NO_POTION: [`${sourcePrefix} NO POT VALUE`, `${sourcePrefix} NO POTION VALUE`, `${sourcePrefix} REGULAR NO POT VALUE`, `${sourcePrefix} REGULAR NO POTION VALUE`],
+      RIDE: [`${sourcePrefix} R VALUE`, `${sourcePrefix} RIDE VALUE`, `${sourcePrefix} REGULAR R VALUE`, `${sourcePrefix} REGULAR RIDE VALUE`],
+      FLY: [`${sourcePrefix} F VALUE`, `${sourcePrefix} FLY VALUE`, `${sourcePrefix} REGULAR F VALUE`, `${sourcePrefix} REGULAR FLY VALUE`],
+      FLY_RIDE: [`${sourcePrefix} FR VALUE`, `${sourcePrefix} FLY RIDE VALUE`, `${sourcePrefix} REGULAR FR VALUE`, `${sourcePrefix} REGULAR FLY RIDE VALUE`],
+    },
+    NEON: {
+      NO_POTION: [`${sourcePrefix} NEON NO POT VALUE`, `${sourcePrefix} NEON NO POTION VALUE`],
+      RIDE: [`${sourcePrefix} NEON R VALUE`, `${sourcePrefix} NEON RIDE VALUE`],
+      FLY: [`${sourcePrefix} NEON F VALUE`, `${sourcePrefix} NEON FLY VALUE`],
+      FLY_RIDE: [`${sourcePrefix} NEON FR VALUE`, `${sourcePrefix} NEON FLY RIDE VALUE`],
+    },
+    MEGA: {
+      NO_POTION: [`${sourcePrefix} MEGA NO POT VALUE`, `${sourcePrefix} MEGA NO POTION VALUE`],
+      RIDE: [`${sourcePrefix} MEGA R VALUE`, `${sourcePrefix} MEGA RIDE VALUE`],
+      FLY: [`${sourcePrefix} MEGA F VALUE`, `${sourcePrefix} MEGA FLY VALUE`],
+      FLY_RIDE: [`${sourcePrefix} MEGA FR VALUE`, `${sourcePrefix} MEGA FLY RIDE VALUE`],
+    },
+  };
+
+  for (const [valueType, statuses] of Object.entries(definitions)) {
+    const variant = {};
+    for (const [status, columns] of Object.entries(statuses)) {
+      const value = cleanValue(findColumnValue(row, columns), `${name} ${sourcePrefix} ${valueType} ${status}`, warnings);
+      if (value !== null) variant[status] = value;
+    }
+    if (Object.keys(variant).length > 0) result[valueType] = variant;
+  }
+
+  return Object.keys(result).length > 0 ? result : null;
+}
+
+function createItem(row, category, warnings, elveMap, elveSnapshotFetchedAt) {
   const nameColumns = {
     PET: ["PET NAME", "PETS", "NAME", "ITEM NAME"],
-    PETWEAR: [
-      "PET NAME",
-      "PET WEAR NAME",
-      "PETWEAR NAME",
-      "ITEM NAME",
-      "NAME",
-    ],
+    PETWEAR: ["PET NAME", "PET WEAR NAME", "PETWEAR NAME", "ITEM NAME", "NAME"],
     EGG: ["EGG NAME", "ITEM NAME", "NAME"],
     TOY: ["TOY NAME", "ITEM NAME", "NAME"],
+    VEHICLE: ["VEHICLE NAME", "ITEM NAME", "NAME"],
+    FOOD: ["FOOD NAME", "ITEM NAME", "NAME"],
+    GIFT: ["GIFT NAME", "ITEM NAME", "NAME"],
+    STROLLER: ["STROLLER NAME", "ITEM NAME", "NAME"],
+    STICKER: ["STICKER NAME", "ITEM NAME", "NAME"],
+    OTHER: ["ITEM NAME", "NAME"],
   };
 
   const name = cleanText(
@@ -209,12 +276,20 @@ function createItem(row, category, warnings, elveMap) {
     "PETWEAR IMAGE",
     "EGG IMAGE",
     "TOY IMAGE",
+    "VEHICLE IMAGE",
+    "FOOD IMAGE",
+    "GIFT IMAGE",
+    "STROLLER IMAGE",
+    "STICKER IMAGE",
     "ITEM IMAGE",
     "IMAGE",
     "IMAGE PATH",
   ]);
   const gcash = readGcashValues(row, name, warnings);
   const workbookElve = readWorkbookElveValues(row, name, warnings);
+  const metadata = readOptionalMetadata(row);
+  const gcashPotionValues = category === "PET" ? readPotionValues(row, "GCASH", name, warnings) : null;
+  const elvePotionValues = category === "PET" ? readPotionValues(row, "ELVE", name, warnings) : null;
   const elveRecord = elveMap.get(`${category}:${normalizeName(name)}`);
   const elve = {
     normal: cleanValue(
@@ -222,14 +297,14 @@ function createItem(row, category, warnings, elveMap) {
       `${name} Elve Shark Regular`,
       warnings,
     ),
-    neon: category === "PET"
+    neon: !CATEGORY_CONFIG[category]?.regularOnly
       ? cleanValue(
           elveRecord?.neon ?? workbookElve.neon,
           `${name} Elve Shark Neon`,
           warnings,
         )
       : null,
-    mega: category === "PET"
+    mega: !CATEGORY_CONFIG[category]?.regularOnly
       ? cleanValue(
           elveRecord?.mega ?? workbookElve.mega,
           `${name} Elve Shark Mega`,
@@ -247,21 +322,32 @@ function createItem(row, category, warnings, elveMap) {
     IMAGE: createElvebreddImageUrl(imageValue, name, warnings),
 
     GCASH_NORMAL: gcash.normal,
-    GCASH_NEON: category === "PET" ? gcash.neon : null,
-    GCASH_MEGA: category === "PET" ? gcash.mega : null,
+    GCASH_NEON: !CATEGORY_CONFIG[category]?.regularOnly ? gcash.neon : null,
+    GCASH_MEGA: !CATEGORY_CONFIG[category]?.regularOnly ? gcash.mega : null,
     ELVE_NORMAL: elve.normal,
     ELVE_NEON: elve.neon,
     ELVE_MEGA: elve.mega,
+    RARITY: metadata.rarity || cleanText(elveRecord?.rarity) || null,
+    DEMAND_TIER: metadata.demandTier,
+    UPDATED_AT: elveSnapshotFetchedAt,
+    ...(gcashPotionValues || elvePotionValues
+      ? {
+          POTION_VALUES: {
+            ...(gcashPotionValues ? { GCASH: gcashPotionValues } : {}),
+            ...(elvePotionValues ? { ELVE: elvePotionValues } : {}),
+          },
+        }
+      : {}),
 
     // Backward-compatible aliases. Existing code reads NORMAL/NEON/MEGA as GCash.
     NORMAL: gcash.normal,
-    NEON: category === "PET" ? gcash.neon : null,
-    MEGA: category === "PET" ? gcash.mega : null,
+    NEON: !CATEGORY_CONFIG[category]?.regularOnly ? gcash.neon : null,
+    MEGA: !CATEGORY_CONFIG[category]?.regularOnly ? gcash.mega : null,
     INGAME_VALUE: elve.normal,
   };
 }
 
-function createElveOnlyItem(record, category, warnings) {
+function createElveOnlyItem(record, category, warnings, elveSnapshotFetchedAt) {
   const name = cleanText(record?.name);
   if (!name) return null;
 
@@ -281,20 +367,27 @@ function createElveOnlyItem(record, category, warnings) {
     CATEGORY: category,
     IMAGE: createElvebreddImageUrl(record?.image, name, warnings),
 
-    // Snapshot-only Eggs and Toys are automatically added with no GCash value.
-    // Add them to the workbook later when CSBT wants to maintain a GCash value.
+    // Snapshot-only items are automatically added with no GCash value.
+    // Add them to the matching workbook sheet later when CSBT wants to maintain a GCash value.
     GCASH_NORMAL: null,
     GCASH_NEON: null,
     GCASH_MEGA: null,
     ELVE_NORMAL: normal,
-    ELVE_NEON: null,
-    ELVE_MEGA: null,
+    ELVE_NEON: !CATEGORY_CONFIG[category]?.regularOnly
+      ? cleanValue(record?.neon, `${name} Elve Shark Neon`, warnings)
+      : null,
+    ELVE_MEGA: !CATEGORY_CONFIG[category]?.regularOnly
+      ? cleanValue(record?.mega, `${name} Elve Shark Mega`, warnings)
+      : null,
 
     // Backward-compatible aliases.
     NORMAL: null,
     NEON: null,
     MEGA: null,
     INGAME_VALUE: normal,
+    RARITY: cleanText(record?.rarity) || null,
+    DEMAND_TIER: null,
+    UPDATED_AT: elveSnapshotFetchedAt,
   };
 }
 
@@ -334,54 +427,37 @@ function generateTradingItems() {
   if (!elveSnapshot?.items?.length) throw new Error(`Elve Shark snapshot not found or empty: ${elveSnapshotPath}`);
   const elveMap = buildSnapshotMap(elveSnapshot);
 
-  const petRows = readSheetRows(workbook, "Pets");
-  const petWearRows = readSheetRows(workbook, "Pet Wear");
-  const pets = petRows
-    .map((row) => createItem(row, "PET", warnings, elveMap))
-    .filter(Boolean);
-  const petWear = petWearRows
-    .map((row) => createItem(row, "PETWEAR", warnings, elveMap))
-    .filter(Boolean);
-  const eggRows = readSheetRows(workbook, "Eggs");
-  const toyRows = readSheetRows(workbook, "Toys");
+  const categoryItems = {};
 
-  const workbookEggs = eggRows
-    .map((row) => createItem(row, "EGG", warnings, elveMap))
-    .filter(Boolean);
-  const workbookToys = toyRows
-    .map((row) => createItem(row, "TOY", warnings, elveMap))
-    .filter(Boolean);
+  for (const [category, config] of Object.entries(CATEGORY_CONFIG)) {
+    const rows = readSheetRows(
+      workbook,
+      config.sheet,
+      category === "PET" || category === "PETWEAR" || category === "EGG" || category === "TOY",
+    );
 
-  const eggRecords = elveSnapshot.items.filter(
-    (item) => item.category === "EGG",
-  );
-  const toyRecords = elveSnapshot.items.filter(
-    (item) => item.category === "TOY",
-  );
+    const workbookItems = rows
+      .map((row) => createItem(row, category, warnings, elveMap, elveSnapshot.fetchedAt || null))
+      .filter(Boolean);
 
-  const workbookEggNames = new Set(
-    workbookEggs.map((item) => normalizeName(item.NAME)),
-  );
-  const workbookToyNames = new Set(
-    workbookToys.map((item) => normalizeName(item.NAME)),
-  );
+    const snapshotRecords = elveSnapshot.items.filter(
+      (item) => item.category === category,
+    );
 
-  // Keep future Elve additions automatic. New records that are not yet in the
-  // workbook still appear on the site as Elve-only until a GCash value is added.
-  const snapshotOnlyEggs = eggRecords
-    .filter((item) => !workbookEggNames.has(normalizeName(item.name)))
-    .map((item) => createElveOnlyItem(item, "EGG", warnings))
-    .filter(Boolean);
-  const snapshotOnlyToys = toyRecords
-    .filter((item) => !workbookToyNames.has(normalizeName(item.name)))
-    .map((item) => createElveOnlyItem(item, "TOY", warnings))
-    .filter(Boolean);
+    const workbookNames = new Set(
+      workbookItems.map((item) => normalizeName(item.NAME)),
+    );
 
-  const eggs = [...workbookEggs, ...snapshotOnlyEggs];
-  const toys = [...workbookToys, ...snapshotOnlyToys];
+    const snapshotOnlyItems = snapshotRecords
+      .filter((item) => !workbookNames.has(normalizeName(item.name)))
+      .map((item) => createElveOnlyItem(item, category, warnings, elveSnapshot.fetchedAt || null))
+      .filter(Boolean);
+
+    categoryItems[category] = [...workbookItems, ...snapshotOnlyItems];
+  }
 
   const tradingItems = sortItems(
-    removeDuplicates([...pets, ...petWear, ...eggs, ...toys], warnings),
+    removeDuplicates(Object.values(categoryItems).flat(), warnings),
   );
 
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
@@ -407,52 +483,52 @@ function generateTradingItems() {
   };
   fs.writeFileSync(sourceMetadataPath, `${JSON.stringify(sourceMetadata, null, 2)}\n`, "utf8");
 
-  const popularNames = [
-    "Frost Dragon",
-    "Shadow Dragon",
-    "Owl",
-    "Crow",
-    "Parrot",
-    "Giraffe",
-    "Balloon Unicorn",
-    "Evil Unicorn",
-  ];
-  const homePopularItems = popularNames
-    .map((name) => tradingItems.find((item) => item.NAME === name))
-    .filter(Boolean);
-  fs.writeFileSync(homePopularItemsPath, `${JSON.stringify(homePopularItems, null, 2)}\n`, "utf8");
+  const categoryCounts = Object.fromEntries(
+    Object.keys(CATEGORY_CONFIG).map((category) => [
+      category,
+      tradingItems.filter((item) => item.CATEGORY === category).length,
+    ]),
+  );
 
   const tradingMeta = {
+    schemaVersion: 3,
     totalItems: tradingItems.length,
-    totalPets: tradingItems.filter((item) => item.CATEGORY === "PET").length,
-    totalPetWear: tradingItems.filter((item) => item.CATEGORY === "PETWEAR").length,
-    totalEggs: tradingItems.filter((item) => item.CATEGORY === "EGG").length,
-    totalToys: tradingItems.filter((item) => item.CATEGORY === "TOY").length,
+    categoryCounts,
+    totalPets: categoryCounts.PET ?? 0,
+    totalPetWear: categoryCounts.PETWEAR ?? 0,
+    totalEggs: categoryCounts.EGG ?? 0,
+    totalVehicles: categoryCounts.VEHICLE ?? 0,
+    totalFood: categoryCounts.FOOD ?? 0,
+    totalGifts: categoryCounts.GIFT ?? 0,
+    totalStrollers: categoryCounts.STROLLER ?? 0,
+    totalToys: categoryCounts.TOY ?? 0,
+    totalStickers: categoryCounts.STICKER ?? 0,
+    totalOther: categoryCounts.OTHER ?? 0,
     generatedAt: new Date().toISOString(),
   };
   fs.writeFileSync(tradingMetaPath, `${JSON.stringify(tradingMeta, null, 2)}\n`, "utf8");
 
   const report = {
     generatedAt: new Date().toISOString(),
-    pets: pets.length,
-    petWear: petWear.length,
-    eggs: eggs.length,
-    toys: toys.length,
+    categories: Object.fromEntries(
+      Object.entries(categoryItems).map(([category, items]) => [
+        category,
+        items.length,
+      ]),
+    ),
     total: tradingItems.length,
     warnings,
   };
   fs.writeFileSync(validationReportPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
 
   console.log("==========================");
-  console.log(`Pets: ${pets.length}`);
-  console.log(`Pet Wear: ${petWear.length}`);
-  console.log(`Eggs: ${eggs.length}`);
-  console.log(`Toys: ${toys.length}`);
+  for (const [category, items] of Object.entries(categoryItems)) {
+    console.log(`${category}: ${items.length}`);
+  }
   console.log(`Total: ${tradingItems.length}`);
   console.log(`Created: ${outputPath}`);
   console.log(`Value-source metadata: ${sourceMetadataPath}`);
   console.log(`Homepage metadata: ${tradingMetaPath}`);
-  console.log(`Homepage popular items: ${homePopularItemsPath}`);
   console.log(`Warnings: ${warnings.length}`);
   warnings.slice(0, 30).forEach((warning) => console.warn(`- ${warning}`));
   if (warnings.length > 30) console.warn(`...and ${warnings.length - 30} more warnings.`);

@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import { GoogleAnalytics } from "@next/third-parties/google";
 
 import GlobalNichAssistant from "../components/nich/GlobalNichAssistant";
+import PerformanceProvider from "../components/PerformanceProvider";
 import ThemeProvider from "../components/ThemeProvider";
 
 import "./globals.css";
@@ -24,12 +25,12 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://csbthub.com"),
 
   title: {
-    default: "CSBT HUB | Adopt Me Value Checker",
+    default: "CSBT HUB | Adopt Me Values, Trades & Demand",
     template: "%s | CSBT HUB",
   },
 
   description:
-    "Check the latest Adopt Me pet values with CSBT HUB. Search every pet, compare Normal, Neon and Mega values, and use the free Trade Calculator before accepting trades.",
+    "Check Adopt Me values, compare trades, review demand, and ask Nich for trading help with CSBT HUB.",
 
   keywords: [
     "Adopt Me",
@@ -54,9 +55,9 @@ export const metadata: Metadata = {
   publisher: "CSBT HUB",
 
   openGraph: {
-    title: "CSBT HUB | Adopt Me Value Checker",
+    title: "CSBT HUB | Adopt Me Values, Trades & Demand",
     description:
-      "Search the latest CSBT Adopt Me values and compare trades instantly.",
+      "Check Adopt Me values, compare trades, review demand, and ask Nich for help.",
     url: "https://csbthub.com",
     siteName: "CSBT HUB",
     locale: "en_US",
@@ -74,9 +75,9 @@ export const metadata: Metadata = {
 
   twitter: {
     card: "summary_large_image",
-    title: "CSBT HUB | Adopt Me Value Checker",
+    title: "CSBT HUB | Adopt Me Values, Trades & Demand",
     description:
-      "Search Adopt Me values and compare trades instantly.",
+      "Check Adopt Me values, compare trades, review demand, and ask Nich for help.",
     images: ["/logo.png"],
   },
 
@@ -107,9 +108,10 @@ export default function RootLayout({
     >
       <body className="min-h-screen overflow-x-hidden bg-[#fff8e9] font-sans text-slate-800 antialiased transition-colors duration-300 dark:bg-[#07111f] dark:text-slate-100">
         <ThemeProvider>
-          {children}
-
-          <GlobalNichAssistant />
+          <PerformanceProvider>
+            {children}
+            <GlobalNichAssistant />
+          </PerformanceProvider>
         </ThemeProvider>
 
         <GoogleAnalytics gaId="G-XZN26M5996" />

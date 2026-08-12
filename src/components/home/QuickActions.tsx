@@ -6,29 +6,56 @@ const actions = [
   {
     href: "/values",
     icon: "🔎",
-    eyebrow: "Pet Database",
-    title: "Browse Values",
-    description: "Search the full pet database and quickly check estimated values.",
-    buttonLabel: "Open Values",
+    eyebrow: "Step 1 · Values",
+    title: "Check Values",
+    description: "Search the full database and compare GCash and Elve Shark values.",
+    buttonLabel: "Browse Values",
     gradient: "from-cyan-500 via-sky-500 to-blue-600",
   },
   {
     href: "/calculator",
     icon: "🧮",
-    eyebrow: "Trade Tools",
-    title: "Trade Calculator",
-    description: "Add pets to both sides and compare the estimated value of each offer.",
-    buttonLabel: "Compare Trades",
+    eyebrow: "Step 2 · Calculator",
+    title: "Compare Trades",
+    description: "Put both offers side by side and review the estimated value difference.",
+    buttonLabel: "Open Calculator",
     gradient: "from-amber-400 via-orange-500 to-rose-500",
+  },
+  {
+    href: "/demand",
+    icon: "📈",
+    eyebrow: "Step 3 · Market",
+    title: "Check Demand",
+    description: "Look beyond raw value and review current demand signals before deciding.",
+    buttonLabel: "View Demand",
+    gradient: "from-emerald-500 via-teal-500 to-cyan-600",
   },
   {
     href: "/nich",
     icon: "🤖",
-    eyebrow: "Trading Assistant",
+    eyebrow: "Step 4 · Assistant",
     title: "Ask Nich",
-    description: "Get help with pet values, nearby pets, trade comparisons, and more.",
-    buttonLabel: "Meet Nich",
+    description: "Ask about values, nearby pets, trade comparisons, and how to use the hub.",
+    buttonLabel: "Chat with Nich",
     gradient: "from-violet-500 via-purple-500 to-fuchsia-600",
+  },
+  {
+    href: "/inventory",
+    icon: "🎒",
+    eyebrow: "My CSBT · Inventory",
+    title: "Value Your Inventory",
+    description: "Save your items, quantities, variants, and see your total GCash or Elve Shark inventory value.",
+    buttonLabel: "Open Inventory",
+    gradient: "from-lime-500 via-emerald-500 to-teal-600",
+  },
+  {
+    href: "/trade-feed",
+    icon: "🗳️",
+    eyebrow: "Community · W/F/L",
+    title: "Vote on Trades",
+    description: "Browse community trades and vote Win, Fair, or Lose to learn from real trade discussions.",
+    buttonLabel: "View Trade Feed",
+    gradient: "from-pink-500 via-rose-500 to-orange-500",
   },
 ];
 
@@ -43,16 +70,16 @@ export default function QuickActions() {
           Everything you need to trade smarter
         </h2>
         <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-600 dark:text-slate-300 sm:text-lg">
-          Jump directly into the pet database, compare a trade, or ask Nich for help.
+          Check values, compare trades, review demand, track your inventory, ask Nich, and learn from community W/F/L votes.
         </p>
       </div>
 
-      <div className="mt-10 grid gap-5 md:grid-cols-3 md:gap-6">
+      <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-3 md:gap-6">
         {actions.map((action) => (
           <article key={action.href} className="group relative min-w-0">
             <Link
               href={action.href}
-              className="home-paint-containment relative flex h-full min-h-[310px] flex-col overflow-hidden rounded-[30px] border border-white/60 bg-white/80 p-6 shadow-[0_18px_50px_rgba(15,23,42,.09)] transition duration-200 hover:-translate-y-1 hover:border-white hover:shadow-[0_24px_62px_rgba(15,23,42,.14)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-400/40 dark:border-white/10 dark:bg-slate-900/78 dark:shadow-[0_18px_50px_rgba(0,0,0,.25)] dark:hover:border-white/20 sm:p-7"
+              className="home-paint-containment relative flex h-full min-h-[300px] flex-col overflow-hidden rounded-[30px] border border-white/60 bg-white/80 p-6 shadow-[0_18px_50px_rgba(15,23,42,.09)] transition duration-200 hover:-translate-y-1 hover:border-white hover:shadow-[0_24px_62px_rgba(15,23,42,.14)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-400/40 dark:border-white/10 dark:bg-slate-900/78 dark:shadow-[0_18px_50px_rgba(0,0,0,.25)] dark:hover:border-white/20 sm:p-7"
             >
               <div className={`absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r ${action.gradient}`} />
               <div className={`relative flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br text-3xl shadow-lg ${action.gradient}`} aria-hidden="true">

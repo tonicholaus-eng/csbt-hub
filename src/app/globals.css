@@ -600,3 +600,40 @@ img {
     scroll-behavior: auto !important;
   }
 }
+/* =========================
+   Mobile performance & dock
+========================= */
+@media (max-width: 767px) {
+  body {
+    padding-bottom: calc(74px + env(safe-area-inset-bottom));
+  }
+
+  /* Large glass blurs are expensive on many phones. Keep the look, reduce the cost. */
+  [class*="backdrop-blur"] {
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+  }
+
+  .hover-card:hover {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Long database lists render progressively on mobile/desktop. */
+.content-auto-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 88px;
+}
+@media (max-width: 767px) {
+  .content-auto-card { contain-intrinsic-size: 90px; }
+}

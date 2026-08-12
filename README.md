@@ -29,7 +29,9 @@ npm run test:nich       # Test the NICH response engine
 npm run generate:data   # Rebuild website value data
 npm run data:validate   # Validate generated trading data
 npm run update:elve     # Refresh the Elve Shark snapshot
-npm run refresh:values  # Refresh, generate, and validate values
+npm run refresh:values  # Refresh, validate, snapshot values, and process alerts
+npm run snapshot:values # Store the current value snapshot in Supabase
+npm run alerts:values   # Generate watchlist notifications from the latest snapshots
 ```
 
 ## NICH assistant
@@ -58,6 +60,10 @@ src/lib/                        Shared utilities
 ## Environment variables
 
 Copy `.env.example` to `.env.local`, then add the values needed by your deployment. Never commit `.env.local`, API keys, passwords, `node_modules`, or `.next`.
+
+The account foundation uses your existing public Supabase settings. Value-history ingestion and automatic value alerts also use the server-only `SUPABASE_SECRET_KEY`. Never expose that key with a `NEXT_PUBLIC_` prefix.
+
+See `FOUNDATION_SETUP.md` for the one-time Supabase migration and activation steps.
 
 ## Deployment
 

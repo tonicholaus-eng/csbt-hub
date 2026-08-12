@@ -11,7 +11,11 @@
     "data:validate": "node scripts/validate-trading-data.js",
     "generate:data": "node scripts/generate-trading-items.js",
     "update:elve": "node scripts/update-elve-shark-values.js",
-    "refresh:values": "npm run update:elve && npm run generate:data && npm run data:validate"
+    "refresh:values": "npm run update:elve && npm run sync:master && npm run generate:data && npm run data:validate && npm run snapshot:values && npm run alerts:values",
+    "snapshot:values": "node scripts/push-value-snapshot.mjs",
+    "alerts:values": "node scripts/process-value-alerts.mjs",
+    "sync:master": "node scripts/sync-elve-to-master.js",
+    "refresh:deploy": "npm run refresh:values && git add . && git commit -m \"Refresh Elve values and regenerate trading data\" && git push origin main"
   },
   "dependencies": {
     "@next/third-parties": "^16.3.0",
@@ -20,7 +24,7 @@
     "cheerio": "^1.2.0",
     "framer-motion": "^12.42.2",
     "fs-extra": "^11.4.0",
-    "next": "16.2.12",
+    "next": "16.1.6",
     "next-themes": "^0.4.6",
     "node-fetch": "^2.7.0",
     "playwright": "^1.62.0",

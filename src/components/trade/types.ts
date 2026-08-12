@@ -1,23 +1,24 @@
-export type ValueType =
-  | "NORMAL"
-  | "NEON"
-  | "MEGA";
+export type ValueType = "NORMAL" | "NEON" | "MEGA";
 
-export type ValueSource =
-  | "GCASH"
-  | "ELVE";
+export type ValueSource = "GCASH" | "ELVE";
 
-export type TradeValue =
-  | string
-  | number
-  | null
-  | undefined;
+export type PotionValueStatus = "NO_POTION" | "RIDE" | "FLY" | "FLY_RIDE";
+
+export type TradeValue = string | number | null | undefined;
 
 export type ItemCategory =
   | "PET"
   | "PETWEAR"
   | "EGG"
-  | "TOY";
+  | "VEHICLE"
+  | "FOOD"
+  | "GIFT"
+  | "STROLLER"
+  | "TOY"
+  | "STICKER"
+  | "OTHER";
+
+export type DemandTier = "S" | "A" | "B" | "C" | "D";
 
 export type TradeItem = {
   ID: string;
@@ -37,6 +38,18 @@ export type TradeItem = {
   NORMAL: TradeValue;
   NEON?: TradeValue;
   MEGA?: TradeValue;
+
+  RARITY?: string | null;
+  DEMAND_TIER?: DemandTier | null;
+  UPDATED_AT?: string | null;
+
+  /** Explicit potion-specific values, only when the source actually supplies them. */
+  POTION_VALUES?: Partial<
+    Record<
+      ValueSource,
+      Partial<Record<ValueType, Partial<Record<PotionValueStatus, TradeValue>>>>
+    >
+  >;
 
   /** Backward-compatible Elve regular alias. */
   INGAME_VALUE?: TradeValue;

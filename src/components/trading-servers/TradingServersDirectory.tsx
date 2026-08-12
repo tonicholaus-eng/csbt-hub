@@ -67,31 +67,31 @@ const resourceSections: ResourceSection[] = [
     title: "Facebook Trading Groups",
     eyebrow: "Facebook communities",
     description:
-      "Browse active community groups where members share offers, value checks, and trade posts.",
+      "Browse community links for trade posts, value checks, and offers. Group names may change on Facebook, so CSBT preserves the original destination link.",
     platform: "facebook",
     links: [
       {
-        name: "Facebook Trading Group 1",
+        name: "Facebook Trading Community 01",
         url: "https://www.facebook.com/share/g/1FnZpSuG8W/",
         note: "Community group",
       },
       {
-        name: "Facebook Trading Group 2",
+        name: "Facebook Trading Community 02",
         url: "https://www.facebook.com/share/g/1GPFRcpNTE/",
         note: "Community group",
       },
       {
-        name: "Facebook Trading Group 3",
+        name: "Facebook Trading Community 03",
         url: "https://www.facebook.com/share/g/1BdY9KxkE5/",
         note: "Community group",
       },
       {
-        name: "Facebook Trading Group 4",
+        name: "Facebook Trading Community 04",
         url: "https://www.facebook.com/share/g/1LiN9jX3ht/",
         note: "Community group",
       },
       {
-        name: "Facebook Trading Group 5",
+        name: "Facebook Trading Community 05",
         url: "https://www.facebook.com/share/g/1LPA4Zkb7J/",
         note: "Community group",
       },
@@ -106,47 +106,47 @@ const resourceSections: ResourceSection[] = [
     platform: "roblox",
     links: [
       {
-        name: "Roblox Trading Server 1",
+        name: "Roblox Trading Server 01",
         url: "https://www.roblox.com/share?code=950d1f68587d0b48a91d86368a44d61b&type=Server",
         note: "Shared server link",
       },
       {
-        name: "Roblox Trading Server 2",
+        name: "Roblox Trading Server 02",
         url: "https://www.roblox.com/share?code=4f021c049cdd5c498ad8a034dc82ab21&type=Server",
         note: "Shared server link",
       },
       {
-        name: "Roblox Trading Server 3",
+        name: "Roblox Trading Server 03",
         url: "https://www.roblox.com/share?code=bb17f8d1511f464e938bd151703dd7bc&type=Server",
         note: "Shared server link",
       },
       {
-        name: "Roblox Trading Server 4",
+        name: "Roblox Trading Server 04",
         url: "https://www.roblox.com/share?code=f4d7809e39150d49999de54dfb4c8558&type=Server",
         note: "Shared server link",
       },
       {
-        name: "Roblox Trading Server 5",
+        name: "Roblox Trading Server 05",
         url: "https://www.roblox.com/share?code=29e52ab7d8018549b816a69227c6847a&type=Server",
         note: "Shared server link",
       },
       {
-        name: "Roblox Trading Server 6",
+        name: "Roblox Trading Server 06",
         url: "https://www.roblox.com/share?code=cfae7dbf50a53f4690ee0e9d1e9c6341&type=Server",
         note: "Shared server link",
       },
       {
-        name: "Roblox Trading Server 7",
+        name: "Roblox Trading Server 07",
         url: "https://www.roblox.com/share?code=aba9aad8f16f914f8f5351964f3c8792&type=Server",
         note: "Shared server link",
       },
       {
-        name: "Roblox Private Server 8",
+        name: "Roblox Private Server 08",
         url: "https://www.roblox.com/games/920587237?privateServerLinkCode=64466865815622831329692512490332",
         note: "Private server link",
       },
       {
-        name: "Roblox Private Server 9",
+        name: "Roblox Private Server 09",
         url: "https://www.roblox.com/games/920587237?privateServerLinkCode=87112831421042745742578857754860",
         note: "Private server link",
       },

@@ -257,16 +257,25 @@ export default function SeminarAcademy() {
 
   if (!isReady) {
     return (
-      <div className="grid min-h-[520px] place-items-center overflow-hidden rounded-[40px] border-4 border-white bg-gradient-to-br from-violet-200 via-pink-100 to-cyan-100 shadow-[0_18px_0_rgba(124,58,237,.18)] dark:border-white/10 dark:from-violet-500/20 dark:via-fuchsia-500/10 dark:to-cyan-500/10">
-        <div className="text-center">
+      <section className="grid min-h-[520px] place-items-center overflow-hidden rounded-[40px] border-4 border-white bg-gradient-to-br from-violet-200 via-pink-100 to-cyan-100 p-7 text-center shadow-[0_18px_0_rgba(124,58,237,.18)] dark:border-white/10 dark:from-violet-500/20 dark:via-fuchsia-500/10 dark:to-cyan-500/10 sm:p-10">
+        <div className="max-w-3xl">
           <div className="mx-auto flex h-20 w-20 animate-bounce items-center justify-center rounded-[28px] bg-gradient-to-br from-violet-600 via-fuchsia-500 to-cyan-500 text-4xl shadow-2xl">
-            🎮
+            🛡️
           </div>
-          <p className="mt-5 text-sm font-black text-slate-700 dark:text-slate-200">
-            Loading your academy adventure…
+          <p className="mt-6 text-xs font-black uppercase tracking-[0.2em] text-violet-700 dark:text-violet-300">
+            CSBT Safe Trader Academy
+          </p>
+          <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-950 dark:text-white sm:text-5xl">
+            Learn safer trading through missions, quizzes, and scam-prevention challenges.
+          </h1>
+          <p className="mx-auto mt-4 max-w-2xl text-sm font-semibold leading-7 text-slate-700 dark:text-slate-300 sm:text-base">
+            Practice payment verification, safer transactions, community conduct, value research, and scam awareness while your academy progress loads.
+          </p>
+          <p className="mt-5 text-xs font-black text-slate-500 dark:text-slate-400">
+            Loading your academy progress…
           </p>
         </div>
-      </div>
+      </section>
     );
   }
 

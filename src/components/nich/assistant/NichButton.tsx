@@ -174,7 +174,7 @@ export default function NichButton({
   }, [open, isReacting]);
 
   return (
-    <div className="fixed bottom-4 right-4 z-[90] flex items-end gap-2 sm:bottom-6 sm:right-6 sm:gap-3">
+    <div className="fixed bottom-20 right-3 z-[80] flex items-end gap-2 sm:bottom-6 sm:right-6 sm:gap-3">
       <motion.button
         type="button"
         onClick={onDismiss}

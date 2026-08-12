@@ -37,44 +37,6 @@ const csbtMeaning = [
   },
 ] as const;
 
-const timeline = [
-  {
-    year: "2021",
-    title: "The journey begins",
-    description:
-      "Nich starts from the same place as many new traders: learning, grinding, and trying to build something from nothing.",
-  },
-  {
-    year: "April 10, 2022",
-    title: "CSBT OFFICIAL is created",
-    description:
-      "A promise becomes a real community built around kindness, support, and equal opportunities.",
-  },
-  {
-    year: "500 members",
-    title: "The first community milestone",
-    description:
-      "A small group of traders begins to grow through trust, activity, and shared experiences.",
-  },
-  {
-    year: "30,000+ members",
-    title: "A community becomes a family",
-    description:
-      "Thousands of Roblox enthusiasts join a welcoming community supported by hospitable, kind, and humorous staff.",
-  },
-  {
-    year: "CSBT HUB",
-    title: "The vision expands",
-    description:
-      "CSBT grows beyond a Facebook community into a complete platform for values, trades, learning, and smarter decisions.",
-  },
-  {
-    year: "The future",
-    title: "Still growing",
-    description:
-      "New tools, better information, stronger AI, and more opportunities for every member who is just getting started.",
-  },
-] as const;
 
 const platformFeatures = [
   {
@@ -102,12 +64,12 @@ const platformFeatures = [
     action: "Ask Nich",
   },
   {
-    icon: "🚀",
-    title: "Built for Everyone",
+    icon: "📈",
+    title: "Demand Trends",
     description:
-      "Fast, responsive, mobile-friendly tools designed for both experienced traders and complete beginners.",
-    href: "/",
-    action: "Explore the hub",
+      "Review market demand alongside raw values so you can judge trades with more context.",
+    href: "/demand",
+    action: "Check demand",
   },
 ] as const;
 
@@ -138,7 +100,7 @@ const roadmap = [
   },
   {
     title: "Demand trends",
-    status: "Planned",
+    status: "Live",
   },
   {
     title: "Personalized recommendations",
@@ -146,32 +108,6 @@ const roadmap = [
   },
 ] as const;
 
-const stats = [
-  {
-    value: "30,000+",
-    label: "Community members",
-  },
-  {
-    value: "2022",
-    label: "Founded",
-  },
-  {
-    value: "24/7",
-    label: "Nich availability",
-  },
-  {
-    value: "100%",
-    label: "Free tools",
-  },
-  {
-    value: "4",
-    label: "Core experiences",
-  },
-  {
-    value: "Growing",
-    label: "Every day",
-  },
-] as const;
 
 export default function AboutPage() {
   const shouldReduceMotion =
@@ -214,13 +150,13 @@ export default function AboutPage() {
 
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle,rgba(255,255,255,.75)_1px,transparent_1px)] bg-[size:34px_34px] opacity-25 dark:opacity-[0.04]" />
 
-      <div className="relative z-10">
+      <div className="relative z-10 min-w-0 lg:pl-72">
         <Navbar />
 
         <div className="mx-auto w-full max-w-7xl px-4 pb-24 pt-8 sm:px-6 sm:pb-32 sm:pt-14">
           {/* Hero */}
 
-          <section className="grid min-h-[700px] items-center gap-14 lg:grid-cols-[1.05fr_0.95fr] lg:gap-20">
+          <section className="grid min-h-[620px] items-center gap-14 lg:grid-cols-[1.05fr_0.95fr] lg:gap-20">
             <motion.div
               initial={{
                 opacity: 0,
@@ -252,12 +188,7 @@ export default function AboutPage() {
               </h1>
 
               <p className="mt-6 max-w-2xl text-base leading-8 text-slate-600 dark:text-slate-300 sm:text-lg">
-                CSBT HUB is more than a pet value
-                website. It is the next chapter of
-                a community built from experience,
-                struggle, kindness, and a promise
-                to help every trader who is just
-                getting started.
+                CSBT HUB brings the CSBT community into one platform for values, trade comparison, demand insights, safer trading, and help from Nich.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -548,89 +479,6 @@ export default function AboutPage() {
             </div>
           </motion.section>
 
-          {/* Timeline */}
-
-          <motion.section
-            {...reveal}
-            className="pt-28 sm:pt-36"
-          >
-            <div className="text-center">
-              <span className="text-xs font-black uppercase tracking-[0.2em] text-violet-500">
-                Our journey
-              </span>
-
-              <h2 className="mt-4 text-4xl font-black tracking-tight text-slate-950 dark:text-white sm:text-5xl">
-                From a promise to a platform
-              </h2>
-            </div>
-
-            <div className="relative mx-auto mt-12 max-w-4xl">
-              <div className="absolute bottom-0 left-[19px] top-0 w-px bg-gradient-to-b from-amber-400 via-orange-400 to-violet-400 sm:left-1/2 sm:-translate-x-1/2" />
-
-              <div className="space-y-8">
-                {timeline.map(
-                  (item, index) => {
-                    const isRight =
-                      index % 2 !== 0;
-
-                    return (
-                      <motion.article
-                        key={`${item.year}-${item.title}`}
-                        initial={{
-                          opacity: 0,
-                          x: shouldReduceMotion
-                            ? 0
-                            : isRight
-                              ? 30
-                              : -30,
-                        }}
-                        whileInView={{
-                          opacity: 1,
-                          x: 0,
-                        }}
-                        viewport={{
-                          once: true,
-                          amount: 0.2,
-                        }}
-                        transition={{
-                          duration:
-                            shouldReduceMotion
-                              ? 0
-                              : 0.5,
-                        }}
-                        className="relative grid pl-14 sm:grid-cols-2 sm:gap-16 sm:pl-0"
-                      >
-                        <div
-                          className={`${
-                            isRight
-                              ? "sm:col-start-2"
-                              : "sm:col-start-1 sm:text-right"
-                          }`}
-                        >
-                          <div className="rounded-[26px] border border-white/70 bg-white/75 p-6 shadow-[0_18px_50px_rgba(15,23,42,.08)] backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.055]">
-                            <span className="text-sm font-black uppercase tracking-[0.12em] text-orange-500">
-                              {item.year}
-                            </span>
-
-                            <h3 className="mt-2 text-xl font-black text-slate-950 dark:text-white">
-                              {item.title}
-                            </h3>
-
-                            <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-400">
-                              {item.description}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="absolute left-2.5 top-7 h-[18px] w-[18px] rounded-full border-4 border-white bg-gradient-to-br from-yellow-400 to-orange-500 shadow-[0_0_0_5px_rgba(251,191,36,.2)] dark:border-slate-900 sm:left-1/2 sm:-translate-x-1/2" />
-                      </motion.article>
-                    );
-                  },
-                )}
-              </div>
-            </div>
-          </motion.section>
-
           {/* Community */}
 
           <motion.section
@@ -736,34 +584,6 @@ export default function AboutPage() {
                 </div>
               </div>
             </div>
-          </motion.section>
-
-          {/* Mission */}
-
-          <motion.section
-            {...reveal}
-            className="pt-28 text-center sm:pt-36"
-          >
-            <span className="text-xs font-black uppercase tracking-[0.2em] text-rose-500">
-              Our mission
-            </span>
-
-            <h2 className="mx-auto mt-4 max-w-5xl text-4xl font-black tracking-tight text-slate-950 dark:text-white sm:text-6xl">
-              We do not just build tools.
-              <span className="block bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 bg-clip-text text-transparent">
-                We build confidence.
-              </span>
-            </h2>
-
-            <p className="mx-auto mt-7 max-w-3xl text-base leading-8 text-slate-600 dark:text-slate-300 sm:text-lg">
-              Our mission is to make trading
-              easier, safer, and more enjoyable.
-              Every feature inside CSBT HUB is
-              designed to reduce confusion,
-              prevent unfair decisions, and help
-              players grow with better
-              information.
-            </p>
           </motion.section>
 
           {/* Features */}
@@ -913,82 +733,6 @@ export default function AboutPage() {
             </div>
           </motion.section>
 
-          {/* Philosophy */}
-
-          <motion.section
-            {...reveal}
-            className="pt-28 sm:pt-36"
-          >
-            <div className="relative overflow-hidden rounded-[36px] border border-slate-800 bg-slate-950 p-8 text-white shadow-[0_35px_90px_rgba(15,23,42,.35)] sm:p-12 lg:p-16">
-              <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-orange-500/20 blur-3xl" />
-
-              <div className="pointer-events-none absolute -bottom-28 -left-20 h-80 w-80 rounded-full bg-violet-500/20 blur-3xl" />
-
-              <div className="relative">
-                <span className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">
-                  Fair trading philosophy
-                </span>
-
-                <h2 className="mt-4 max-w-4xl text-4xl font-black tracking-tight sm:text-6xl">
-                  Numbers do not define every
-                  trade.
-                </h2>
-
-                <div className="mt-8 grid gap-5 text-lg font-bold text-white/70 sm:grid-cols-2 lg:grid-cols-4">
-                  <p>Demand changes.</p>
-                  <p>Updates arrive.</p>
-                  <p>Preferences differ.</p>
-                  <p>Communities evolve.</p>
-                </div>
-
-                <p className="mt-8 max-w-3xl text-base leading-8 text-white/70 sm:text-lg">
-                  Values are guides, not
-                  guarantees. CSBT HUB provides
-                  information to support your
-                  decisions, but every trader
-                  should still consider demand,
-                  rarity, personal preference,
-                  safety, and their own judgment
-                  before completing a trade.
-                </p>
-              </div>
-            </div>
-          </motion.section>
-
-          {/* Stats */}
-
-          <motion.section
-            {...reveal}
-            className="pt-28 sm:pt-36"
-          >
-            <div className="text-center">
-              <span className="text-xs font-black uppercase tracking-[0.2em] text-orange-500">
-                By the numbers
-              </span>
-
-              <h2 className="mt-4 text-4xl font-black tracking-tight text-slate-950 dark:text-white sm:text-5xl">
-                Built through trust and growth
-              </h2>
-            </div>
-
-            <div className="mt-10 grid grid-cols-2 gap-4 lg:grid-cols-3">
-              {stats.map((stat) => (
-                <div
-                  key={stat.label}
-                  className="rounded-[26px] border border-white/70 bg-white/70 p-6 text-center shadow-[0_18px_50px_rgba(15,23,42,.08)] backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.055] sm:p-8"
-                >
-                  <p className="text-3xl font-black text-slate-950 dark:text-white sm:text-5xl">
-                    {stat.value}
-                  </p>
-
-                  <p className="mt-2 text-xs font-black uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400 sm:text-sm">
-                    {stat.label}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </motion.section>
-
           {/* Roadmap */}
 
           <motion.section
@@ -1019,7 +763,7 @@ export default function AboutPage() {
               <div className="grid gap-3">
                 {roadmap.map((item) => {
                   const statusClasses =
-                    item.status === "In progress"
+                    (item.status === "In progress" || item.status === "Live")
                       ? "bg-green-100 text-green-700 dark:bg-green-400/10 dark:text-green-300"
                       : item.status === "Planned"
                         ? "bg-amber-100 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300"
@@ -1052,38 +796,6 @@ export default function AboutPage() {
             </div>
           </motion.section>
 
-          {/* Gratitude */}
-
-          <motion.section
-            {...reveal}
-            className="pt-28 sm:pt-36"
-          >
-            <div className="rounded-[36px] border border-pink-200/70 bg-gradient-to-br from-pink-100/85 via-white/85 to-yellow-100/85 p-8 text-center shadow-[0_30px_90px_rgba(236,72,153,.12)] backdrop-blur-2xl dark:border-pink-400/10 dark:from-pink-500/10 dark:via-white/[0.04] dark:to-amber-500/10 sm:p-12 lg:p-16">
-              <span className="text-5xl">
-                ❤️
-              </span>
-
-              <h2 className="mt-5 text-4xl font-black tracking-tight text-slate-950 dark:text-white sm:text-5xl">
-                Thank you.
-              </h2>
-
-              <p className="mx-auto mt-6 max-w-3xl text-base leading-8 text-slate-600 dark:text-slate-300 sm:text-lg">
-                CSBT would not exist without every
-                member who trusted the community,
-                every staff member who gave their
-                time, every trader who shared
-                feedback, and every newcomer who
-                decided to stay.
-              </p>
-
-              <p className="mx-auto mt-4 max-w-3xl text-xl font-black text-slate-900 dark:text-white">
-                This community was not built by
-                one person. It was built by all of
-                us.
-              </p>
-            </div>
-          </motion.section>
-
           {/* Final Message */}
 
           <motion.section
@@ -1113,24 +825,11 @@ export default function AboutPage() {
 
                 <div className="mt-7 space-y-4 leading-8 text-slate-600 dark:text-slate-300">
                   <p>
-                    Five years ago, I was just
-                    another player trying to build
-                    something.
+                    CSBT grew from a small trading community into a place where thousands of people can learn, trade, and help each other.
                   </p>
 
                   <p>
-                    Today, thousands of people are
-                    part of the community that grew
-                    from that promise.
-                  </p>
-
-                  <p>
-                    Whether you are here to learn
-                    values, make smarter trades,
-                    earn through selling pets, or
-                    find people who share your
-                    passion, there will always be a
-                    place for you in CSBT.
+                    Whether you are checking values, comparing a trade, learning safer practices, or meeting other traders, you have a place here.
                   </p>
                 </div>
 

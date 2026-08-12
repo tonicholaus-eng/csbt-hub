@@ -51,36 +51,18 @@ type ItemImageProps = {
 
 const ITEMS_PER_PAGE = 30;
 
-const categoryOptions: {
-  value: CategoryFilter;
-  label: string;
-  icon: string;
-}[] = [
-  {
-    value: "ALL",
-    label: "All Items",
-    icon: "✨",
-  },
-  {
-    value: "PET",
-    label: "Pets",
-    icon: "🐾",
-  },
-  {
-    value: "PETWEAR",
-    label: "Pet Wear",
-    icon: "🎩",
-  },
-  {
-    value: "EGG",
-    label: "Eggs",
-    icon: "🥚",
-  },
-  {
-    value: "TOY",
-    label: "Toys",
-    icon: "🪀",
-  },
+const categoryOptions: { value: CategoryFilter; label: string; icon: string }[] = [
+  { value: "ALL", label: "All Items", icon: "✨" },
+  { value: "PET", label: "Pets", icon: "🐾" },
+  { value: "PETWEAR", label: "Pet Wear", icon: "🎩" },
+  { value: "EGG", label: "Eggs", icon: "🥚" },
+  { value: "VEHICLE", label: "Vehicles", icon: "🚗" },
+  { value: "FOOD", label: "Food", icon: "🍎" },
+  { value: "GIFT", label: "Gifts", icon: "🎁" },
+  { value: "STROLLER", label: "Strollers", icon: "🛒" },
+  { value: "TOY", label: "Toys", icon: "🪀" },
+  { value: "STICKER", label: "Stickers", icon: "🏷️" },
+  { value: "OTHER", label: "Other", icon: "📦" },
 ];
 
 const tradingItems =
@@ -178,18 +160,7 @@ export default function AddPetModal({
       .trim()
       .toLowerCase();
 
-  const visibleCategoryOptions =
-    useMemo(
-      () =>
-        categoryOptions.filter(
-          (option) =>
-            option.value === "ALL" ||
-            valueSource === "ELVE" ||
-            (option.value !== "EGG" &&
-              option.value !== "TOY"),
-        ),
-      [valueSource],
-    );
+  const visibleCategoryOptions = categoryOptions;
 
   const filteredItems =
     useMemo(() => {
@@ -265,15 +236,6 @@ export default function AddPetModal({
     selectedCategory,
   ]);
 
-  useEffect(() => {
-    if (
-      valueSource === "GCASH" &&
-      (selectedCategory === "EGG" ||
-        selectedCategory === "TOY")
-    ) {
-      setSelectedCategory("ALL");
-    }
-  }, [selectedCategory, valueSource]);
 
   useEffect(() => {
     if (!open) {

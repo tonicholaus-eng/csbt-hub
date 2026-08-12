@@ -16,6 +16,19 @@ const REQUIRED_CATEGORIES = [
   "TOY",
 ];
 
+const SUPPORTED_CATEGORIES = [
+  "PET",
+  "PETWEAR",
+  "EGG",
+  "TOY",
+  "VEHICLE",
+  "FOOD",
+  "GIFT",
+  "STROLLER",
+  "STICKER",
+  "OTHER",
+];
+
 function normalizeName(value) {
   return String(value ?? "")
     .replace(/\\u0026/gi, "&")
@@ -61,26 +74,138 @@ function categoryFromElveType(value) {
     .replace(/[_-]+/g, " ")
     .replace(/\s+/g, " ");
 
-  if (type === "pet" || type === "pets") {
-    return "PET";
+  const aliases = {
+    pet: "PET",
+    pets: "PET",
+    petwear: "PETWEAR",
+    "pet wear": "PETWEAR",
+    egg: "EGG",
+    eggs: "EGG",
+    toy: "TOY",
+    toys: "TOY",
+    vehicle: "VEHICLE",
+    vehicles: "VEHICLE",
+    food: "FOOD",
+    foods: "FOOD",
+    gift: "GIFT",
+    gifts: "GIFT",
+    stroller: "STROLLER",
+    strollers: "STROLLER",
+    sticker: "STICKER",
+    stickers: "STICKER",
+    other: "OTHER",
+    others: "OTHER",
+  };
+
+  return aliases[type] ?? null;
+}
+
+
+function rawItemToSnapshotItem(rawItem, fallbackCategory = null) {
+  if (!rawItem || typeof rawItem !== "object") return null;
+
+  const category =
+    categoryFromElveType(
+      rawItem.type ??
+        rawItem.category ??
+        rawItem.itemType ??
+        rawItem.item_type ??
+        fallbackCategory,
+    ) ?? categoryFromElveType(fallbackCategory);
+
+  const name = String(
+    rawItem.name ??
+      rawItem.itemName ??
+      rawItem.item_name ??
+      rawItem.title ??
+      "",
+  ).trim();
+
+  if (!category || !name) return null;
+
+  const normal =
+    toFiniteNumber(rawItem.rvalue) ??
+    toFiniteNumber(rawItem.regularValue) ??
+    toFiniteNumber(rawItem.regular_value) ??
+    toFiniteNumber(rawItem.sharkValue) ??
+    toFiniteNumber(rawItem.shark_value) ??
+    toFiniteNumber(rawItem.value);
+
+  const neon =
+    category === "PET"
+      ? toFiniteNumber(rawItem.nvalue) ??
+        toFiniteNumber(rawItem.neonValue) ??
+        toFiniteNumber(rawItem.neon_value)
+      : null;
+
+  const mega =
+    category === "PET"
+      ? toFiniteNumber(rawItem.mvalue) ??
+        toFiniteNumber(rawItem.megaValue) ??
+        toFiniteNumber(rawItem.mega_value)
+      : null;
+
+  const image =
+    rawItem.image ??
+    rawItem.imageUrl ??
+    rawItem.image_url ??
+    rawItem.icon ??
+    null;
+
+  return {
+    id: rawItem.id ?? rawItem.itemId ?? rawItem.item_id ?? null,
+    name,
+    category,
+    image: typeof image === "string" ? image : null,
+    normal,
+    neon,
+    mega,
+    status:
+      typeof rawItem.status === "string"
+        ? rawItem.status
+        : null,
+    rarity:
+      typeof rawItem.rarity === "string"
+        ? rawItem.rarity
+        : null,
+  };
+}
+
+function mergeSnapshotItems(baseItems, extraItems) {
+  const merged = new Map();
+
+  for (const item of [...(baseItems ?? []), ...(extraItems ?? [])]) {
+    if (!item?.category || !item?.name) continue;
+    const key = `${item.category}:${normalizeName(item.name)}`;
+    const previous = merged.get(key);
+
+    if (!previous) {
+      merged.set(key, item);
+      continue;
+    }
+
+    merged.set(key, {
+      ...previous,
+      ...item,
+      image: item.image ?? previous.image ?? null,
+      normal: item.normal ?? previous.normal ?? null,
+      neon: item.neon ?? previous.neon ?? null,
+      mega: item.mega ?? previous.mega ?? null,
+      status: item.status ?? previous.status ?? null,
+      rarity: item.rarity ?? previous.rarity ?? null,
+    });
   }
 
-  if (
-    type === "petwear" ||
-    type === "pet wear"
-  ) {
-    return "PETWEAR";
-  }
+  return Array.from(merged.values()).sort((first, second) => {
+    if (first.category !== second.category) {
+      return first.category.localeCompare(second.category);
+    }
 
-  if (type === "egg" || type === "eggs") {
-    return "EGG";
-  }
-
-  if (type === "toy" || type === "toys") {
-    return "TOY";
-  }
-
-  return null;
+    return first.name.localeCompare(second.name, undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+  });
 }
 
 function findPushCallEnd(
@@ -266,53 +391,22 @@ function createSnapshotFromHtml(
     extractInitialPetsPayload(html);
 
   const items = [];
+  const unrecognizedTypes = new Set();
 
   for (const rawItem of payload.initialPets) {
-    const category =
-      categoryFromElveType(rawItem.type);
+    const converted = rawItemToSnapshotItem(rawItem);
 
-    const name = String(
-      rawItem.name ?? "",
-    ).trim();
-
-    if (!category || !name) {
+    if (!converted) {
+      const category = categoryFromElveType(
+        rawItem?.type ?? rawItem?.category ?? rawItem?.itemType ?? rawItem?.item_type,
+      );
+      if (!category && (rawItem?.type ?? rawItem?.category)) {
+        unrecognizedTypes.add(String(rawItem.type ?? rawItem.category));
+      }
       continue;
     }
 
-    const normal =
-      toFiniteNumber(rawItem.rvalue) ??
-      toFiniteNumber(rawItem.value);
-
-    const neon =
-      category === "PET"
-        ? toFiniteNumber(rawItem.nvalue)
-        : null;
-
-    const mega =
-      category === "PET"
-        ? toFiniteNumber(rawItem.mvalue)
-        : null;
-
-    items.push({
-      id: rawItem.id ?? null,
-      name,
-      category,
-      image:
-        typeof rawItem.image === "string"
-          ? rawItem.image
-          : null,
-      normal,
-      neon,
-      mega,
-      status:
-        typeof rawItem.status === "string"
-          ? rawItem.status
-          : null,
-      rarity:
-        typeof rawItem.rarity === "string"
-          ? rawItem.rarity
-          : null,
-    });
+    items.push(converted);
   }
 
   items.sort((first, second) => {
@@ -342,6 +436,8 @@ function createSnapshotFromHtml(
       payload.initialVersion ?? null,
     fetchedAt,
     recordCount: items.length,
+    supportedCategories: SUPPORTED_CATEGORIES,
+    unrecognizedTypes: Array.from(unrecognizedTypes).sort(),
     items,
   };
 }
@@ -515,6 +611,10 @@ function writeSnapshot(
 
 module.exports = {
   ELVE_URL,
+  SUPPORTED_CATEGORIES,
+  categoryFromElveType,
+  mergeSnapshotItems,
+  rawItemToSnapshotItem,
   buildSnapshotMap,
   createSnapshotFromHtml,
   normalizeName,
