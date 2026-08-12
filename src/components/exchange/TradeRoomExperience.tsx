@@ -1,0 +1,155 @@
+"use client";
+
+import Image from "next/image";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useAuthSession } from "../../hooks/useAuthSession";
+import type { ExchangeItem, TrustStats } from "../../lib/exchange/types";
+import { formatTradeValue } from "../../lib/valueSystem";
+
+type Room = {
+  id: string; listing_id: string | null; accepted_offer_id: string | null;
+  user_a: string; user_b: string; status: string; lock_snapshot: {
+    value_source?: string; sender_total?: number; recipient_total?: number;
+    sender_items?: ExchangeItem[]; recipient_items?: ExchangeItem[]; locked_at?: string;
+  };
+  completed_by_a: boolean; completed_by_b: boolean; created_at: string; updated_at: string;
+};
+type Profile = { user_id: string; display_name: string; roblox_username: string | null; avatar_path: string | null };
+type Message = { id: string; sender_id: string; message_type: string; body: string; created_at: string };
+type Event = { id: number; actor_id: string | null; event_type: string; body: string | null; created_at: string };
+type MMRequest = { id: string; status: string; assigned_middleman: string | null; note: string | null };
+type Middleman = { user_id: string; display_name: string; status: string; completed_cases: number };
+
+const quickMessages = ["Hi! Is this still good?", "I’m ready to trade.", "Add me on Roblox.", "I’ll join you.", "Join me when ready.", "Give me a minute.", "Please check the locked offer again.", "Sorry, I need to cancel."];
+
+export default function TradeRoomExperience({ roomId }: { roomId: string }) {
+  const { supabase, user, loading: authLoading } = useAuthSession();
+  const [room, setRoom] = useState<Room | null>(null);
+  const [profiles, setProfiles] = useState<Map<string, Profile>>(new Map());
+  const [trust, setTrust] = useState<Map<string, TrustStats>>(new Map());
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [middlemen, setMiddlemen] = useState<Middleman[]>([]);
+  const [mmRequest, setMmRequest] = useState<MMRequest | null>(null);
+  const [text, setText] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [rating, setRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [staffRole, setStaffRole] = useState<string | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportCategory, setReportCategory] = useState("SWITCH_ATTEMPT");
+  const [reportDetails, setReportDetails] = useState("");
+
+  const load = useCallback(async () => {
+    const client = supabase;
+    if (!client || !user) return;
+    const { data: roomData, error: roomError } = await client.from("trade_rooms").select("*").eq("id", roomId).maybeSingle();
+    if (roomError || !roomData) { setError(roomError?.message ?? "Trade room not found."); return; }
+    const nextRoom = roomData as Room;
+    setRoom(nextRoom);
+    const userIds = [nextRoom.user_a, nextRoom.user_b];
+    const [profileResult, trustResult, messageResult, eventResult, rosterResult, requestResult, staffResult] = await Promise.all([
+      client.from("profiles").select("user_id,display_name,roblox_username,avatar_path").in("user_id", userIds),
+      client.from("marketplace_user_stats").select("*").in("user_id", userIds),
+      client.from("trade_messages").select("id,sender_id,message_type,body,created_at").eq("room_id", roomId).order("created_at", { ascending: true }).limit(300),
+      client.from("trade_room_events").select("id,actor_id,event_type,body,created_at").eq("room_id", roomId).order("created_at", { ascending: true }).limit(200),
+      client.from("middleman_roster").select("user_id,display_name,status,completed_cases").neq("status", "OFFLINE").order("completed_cases", { ascending: false }).limit(20),
+      client.from("middleman_requests").select("id,status,assigned_middleman,note").eq("room_id", roomId).maybeSingle(),
+      client.from("exchange_staff").select("role").eq("user_id", user.id).maybeSingle(),
+    ]);
+    setProfiles(new Map(((profileResult.data ?? []) as Profile[]).map((p) => [p.user_id, p])));
+    setTrust(new Map(((trustResult.data ?? []) as TrustStats[]).map((p) => [p.user_id, p])));
+    setMessages((messageResult.data ?? []) as Message[]);
+    setEvents((eventResult.data ?? []) as Event[]);
+    setMiddlemen((rosterResult.data ?? []) as Middleman[]);
+    setMmRequest((requestResult.data as MMRequest | null) ?? null);
+    setStaffRole(typeof staffResult.data?.role === "string" ? staffResult.data.role : null);
+  }, [roomId, supabase, user]);
+
+  useEffect(() => { if (!authLoading) void load(); }, [authLoading, load]);
+  useEffect(() => {
+    const client = supabase;
+    if (!client || !user) return;
+    const channel = client.channel(`trade-room-${roomId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "trade_messages", filter: `room_id=eq.${roomId}` }, () => void load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "trade_rooms", filter: `id=eq.${roomId}` }, () => void load())
+      .subscribe();
+    return () => { void client.removeChannel(channel); };
+  }, [load, roomId, supabase, user]);
+
+  const isParticipant = Boolean(room && user && (room.user_a === user.id || room.user_b === user.id));
+  const isAssignedMiddleman = Boolean(room && user && mmRequest?.assigned_middleman === user.id && !isParticipant);
+  const isStaffViewer = Boolean(room && user && staffRole && !isParticipant && !isAssignedMiddleman);
+  const isNeutralViewer = isAssignedMiddleman || isStaffViewer;
+  const otherId = room && user && isParticipant ? (room.user_a === user.id ? room.user_b : room.user_a) : null;
+  const meIsA = Boolean(room && user && isParticipant && room.user_a === user.id);
+  const myConfirmed = room && isParticipant ? (meIsA ? room.completed_by_a : room.completed_by_b) : false;
+  const otherConfirmed = room && isParticipant ? (meIsA ? room.completed_by_b : room.completed_by_a) : false;
+  const otherProfile = otherId ? profiles.get(otherId) : null;
+  const otherTrust = otherId ? trust.get(otherId) : null;
+  const traderAProfile = room ? profiles.get(room.user_a) : null;
+  const traderBProfile = room ? profiles.get(room.user_b) : null;
+  const source = room?.lock_snapshot.value_source ?? "GCASH";
+  const myItems = room ? (isNeutralViewer ? room.lock_snapshot.sender_items : meIsA ? room.lock_snapshot.sender_items : room.lock_snapshot.recipient_items) ?? [] : [];
+  const theirItems = room ? (isNeutralViewer ? room.lock_snapshot.recipient_items : meIsA ? room.lock_snapshot.recipient_items : room.lock_snapshot.sender_items) ?? [] : [];
+
+  async function sendMessage(body: string, type: "QUICK" | "TEXT" = "TEXT") {
+    const client = supabase;
+    if (!client || !user || !body.trim()) return;
+    const { error: sendError } = await client.from("trade_messages").insert({ room_id: roomId, sender_id: user.id, message_type: type, body: body.trim().slice(0, 500) });
+    if (sendError) setError(sendError.message); else { setText(""); await load(); }
+  }
+  async function setStatus(status: string) { const client = supabase; if (!client) return; const { error: rpcError } = await client.rpc("marketplace_set_room_status", { p_room_id: roomId, p_status: status }); if (rpcError) setError(rpcError.message); else await load(); }
+  async function confirmCompletion() { const client = supabase; if (!client) return; const { error: rpcError } = await client.rpc("marketplace_confirm_completion", { p_room_id: roomId }); if (rpcError) setError(rpcError.message); else await load(); }
+  async function requestMiddleman() { const client = supabase; if (!client || !user) return; const { error: requestError } = await client.rpc("marketplace_request_middleman", { p_room_id: roomId, p_note: "Requested through CSBT Exchange trade room." }); if (requestError) setError(requestError.message); else await load(); }
+  async function cancelMiddlemanRequest() { const client = supabase; if (!client || !mmRequest) return; const { error: cancelError } = await client.rpc("marketplace_cancel_middleman_request", { p_request_id: mmRequest.id }); if (cancelError) setError(cancelError.message); else await load(); }
+  async function submitReview() { const client = supabase; if (!client || !user || !otherId) return; const { error: reviewError } = await client.from("trade_reviews").insert({ room_id: roomId, reviewer_id: user.id, reviewee_id: otherId, rating, communication: rating, safety: rating, comment: reviewComment.trim().slice(0, 500) || null }); if (reviewError) setError(reviewError.message); else { setReviewOpen(false); await load(); } }
+  async function reportProblem() {
+    const client = supabase;
+    if (!client || !user || !otherId || reportDetails.trim().length < 5) return;
+    const { error: reportError } = await client.from("marketplace_reports").insert({ reporter_id: user.id, target_user_id: otherId, room_id: roomId, category: reportCategory, details: reportDetails.trim().slice(0, 1500) });
+    if (reportError) { setError(reportError.message); return; }
+    const { error: statusError } = await client.rpc("marketplace_set_room_status", { p_room_id: roomId, p_status: "DISPUTED" });
+    if (statusError) setError(statusError.message);
+    setReportOpen(false); setReportDetails(""); await load();
+  }
+
+  if (authLoading) return <div className="min-h-80 animate-pulse rounded-[30px] bg-white/60 dark:bg-white/5" />;
+  if (!user) return <div className="rounded-[28px] bg-white/80 p-6 text-center dark:bg-white/5"><p className="font-black">Sign in to open this trade room.</p><Link href="/profile" className="mt-3 inline-flex rounded-xl bg-amber-400 px-4 py-2 text-xs font-black text-white">Sign in</Link></div>;
+  if (error && !room) return <p className="rounded-2xl bg-rose-50 p-5 font-bold text-rose-700">{error}</p>;
+  if (!room) return <div className="min-h-80 animate-pulse rounded-[30px] bg-white/60 dark:bg-white/5" />;
+
+  return (
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_330px]">
+      <div className="space-y-5">
+        <section className="rounded-[32px] border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-cyan-50 p-5 shadow-lg dark:border-emerald-400/10 dark:from-emerald-400/[0.05] dark:via-slate-950 dark:to-cyan-400/[0.04] sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-300">🔒 CSBT Trade Room</p><h1 className="mt-2 text-3xl font-black text-slate-950 dark:text-white">Agreed offer locked</h1><p className="mt-2 text-sm font-semibold text-slate-500">Trade #{room.id.slice(0, 8)} • {room.status.replaceAll("_", " ")}</p></div>{isNeutralViewer ? <div className="rounded-2xl bg-white/80 px-4 py-3 text-right shadow-sm dark:bg-white/5"><p className="text-[10px] font-black uppercase text-amber-500">{isStaffViewer ? "Moderation view" : "Middleman view"}</p><p className="mt-1 font-black">Locked snapshot</p><p className="text-[10px] font-bold text-slate-400">Read-only trading side view</p></div> : <div className="rounded-2xl bg-white/80 px-4 py-3 text-right shadow-sm dark:bg-white/5"><p className="text-[10px] font-black uppercase text-slate-400">Trading with</p><p className="mt-1 font-black">{otherProfile?.display_name ?? "CSBT Member"}</p><p className="text-[10px] font-bold text-slate-400">Trust {otherTrust?.trust_score ?? 45}/100</p></div>}</div>
+          <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs font-bold leading-5 text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200">🛡️ Trade Lock: if either trader wants to change the agreed items, cancel this room and make a new offer. Never rely on a changed in-game offer that does not match the locked CSBT snapshot.</div>
+          <div className="mt-5 grid gap-4 md:grid-cols-2"><LockedSide title={isNeutralViewer ? `${traderAProfile?.display_name ?? "Trader A"} gives` : "You give"} items={myItems} source={source} /><LockedSide title={isNeutralViewer ? `${traderBProfile?.display_name ?? "Trader B"} gives` : "You receive"} items={theirItems} source={source} /></div>
+        </section>
+
+        {isStaffViewer ? <section className="rounded-[28px] border border-rose-100 bg-rose-50/75 p-5 dark:border-rose-400/10 dark:bg-rose-400/[0.045]"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-rose-600">Moderation review</p><h2 className="mt-1 text-xl font-black">Read-only room evidence</h2><p className="mt-3 text-xs font-semibold leading-5 text-slate-600 dark:text-slate-300">You can inspect the locked offer, message history, and timeline for a submitted report. Moderators cannot change trade status or send room messages.</p><Link href="/exchange/moderation" className="mt-3 inline-flex rounded-xl bg-rose-500 px-4 py-2.5 text-xs font-black text-white">Return to Moderation Desk</Link></section> : isAssignedMiddleman ? <section className="rounded-[28px] border border-amber-100 bg-amber-50/75 p-5 dark:border-amber-400/10 dark:bg-amber-400/[0.045]"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-600">Middleman case</p><h2 className="mt-1 text-xl font-black">Protect the locked agreement</h2></div><span className="rounded-full bg-white px-3 py-1.5 text-xs font-black dark:bg-white/5">{mmRequest?.status?.replaceAll("_", " ") ?? "ASSIGNED"}</span></div><p className="mt-3 text-xs font-semibold leading-5 text-slate-600 dark:text-slate-300">You can see the locked items and participate in the structured room chat, but only the two traders can change transaction status or confirm completion.</p><Link href="/exchange/middleman" className="mt-3 inline-flex rounded-xl bg-amber-400 px-4 py-2.5 text-xs font-black text-white">Return to Middleman Desk</Link></section> : <section className="rounded-[28px] border border-white/70 bg-white/82 p-5 dark:border-white/10 dark:bg-slate-950/65"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-600">Transaction status</p><h2 className="mt-1 text-xl font-black">Complete the trade step by step</h2></div><span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black dark:bg-white/5">{room.status.replaceAll("_", " ")}</span></div><div className="mt-4 grid gap-2 sm:grid-cols-3"><button onClick={() => void setStatus("CONNECTING")} disabled={room.status === "COMPLETED"} className="rounded-2xl border border-slate-200 bg-white p-3 text-xs font-black disabled:opacity-40 dark:border-white/10 dark:bg-white/5">1. Adding / connecting</button><button onClick={() => void setStatus("JOINED")} disabled={room.status === "COMPLETED"} className="rounded-2xl border border-slate-200 bg-white p-3 text-xs font-black disabled:opacity-40 dark:border-white/10 dark:bg-white/5">2. Joined server</button><button onClick={() => void confirmCompletion()} disabled={room.status === "COMPLETED" || myConfirmed} className="rounded-2xl bg-emerald-500 p-3 text-xs font-black text-white disabled:opacity-40">{myConfirmed ? "✓ You confirmed" : "3. Confirm completed"}</button></div>{myConfirmed && !otherConfirmed && <p className="mt-3 text-xs font-bold text-amber-600">Waiting for the other trader to confirm completion.</p>}{room.status === "COMPLETED" && <button onClick={() => setReviewOpen(true)} className="mt-3 rounded-2xl bg-amber-400 px-4 py-2.5 text-xs font-black text-white">Leave a review</button>}</section>}
+
+        <section className="rounded-[28px] border border-white/70 bg-white/82 p-5 dark:border-white/10 dark:bg-slate-950/65"><div className="flex items-center justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-600">Structured chat</p><h2 className="mt-1 text-xl font-black">Coordinate safely</h2></div><p className="text-[10px] font-bold text-slate-400">Links are blocked</p></div>{!isStaffViewer && <div className="mt-4 flex flex-wrap gap-2">{quickMessages.map((message) => <button key={message} onClick={() => void sendMessage(message, "QUICK")} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-black text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">{message}</button>)}</div>}<div className="mt-4 max-h-[340px] space-y-2 overflow-y-auto rounded-2xl bg-slate-50 p-3 dark:bg-slate-950/50">{messages.map((message) => <div key={message.id} className={`flex ${message.sender_id === user.id ? "justify-end" : "justify-start"}`}><div className={`max-w-[82%] rounded-2xl px-3 py-2 text-xs font-semibold ${message.sender_id === user.id ? "bg-amber-400 text-white" : "bg-white text-slate-600 dark:bg-white/5 dark:text-slate-300"}`}>{message.body}</div></div>)}{!messages.length && <p className="py-6 text-center text-xs font-bold text-slate-400">No messages yet. Use a quick message to start.</p>}</div>{!isStaffViewer && <div className="mt-3 flex gap-2"><input value={text} onChange={(event) => setText(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void sendMessage(text); }} placeholder="Message without external links…" className="min-h-11 min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold dark:border-white/10 dark:bg-slate-900"/><button onClick={() => void sendMessage(text)} className="rounded-2xl bg-violet-600 px-4 text-xs font-black text-white">Send</button></div>}</section>
+
+        <section className="rounded-[28px] border border-white/70 bg-white/82 p-5 dark:border-white/10 dark:bg-slate-950/65"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Room timeline</p><div className="mt-3 space-y-2">{events.map((event) => <div key={event.id} className="flex gap-3 text-xs"><span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-amber-400"/><div><p className="font-black text-slate-700 dark:text-slate-200">{event.event_type.replaceAll("_", " ")}</p><p className="mt-0.5 font-semibold text-slate-400">{event.body}</p></div></div>)}</div></section>
+      </div>
+
+      <aside className="space-y-4">
+        {isNeutralViewer ? <section className="rounded-[28px] border border-white/70 bg-white/82 p-5 dark:border-white/10 dark:bg-slate-950/65"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-500">Trade participants</p><div className="mt-3 space-y-3">{[traderAProfile,traderBProfile].map((profile,index) => <div key={profile?.user_id ?? index} className="rounded-2xl bg-slate-50 p-3 dark:bg-white/[0.035]"><p className="text-sm font-black">{profile?.display_name ?? `Trader ${index === 0 ? "A" : "B"}`}</p><p className="mt-1 text-xs font-bold text-slate-400">@{profile?.roblox_username || "Roblox username not set"}</p>{profile?.roblox_username && <button onClick={() => void navigator.clipboard.writeText(profile.roblox_username!)} className="mt-2 rounded-xl border border-slate-200 px-3 py-2 text-[10px] font-black dark:border-white/10">Copy username</button>}</div>)}</div></section> : <section className="rounded-[28px] border border-white/70 bg-white/82 p-5 dark:border-white/10 dark:bg-slate-950/65"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-500">Roblox connection</p><h3 className="mt-1 text-lg font-black">{otherProfile?.display_name ?? "Trader"}</h3><p className="mt-2 text-sm font-bold text-slate-500">@{otherProfile?.roblox_username || "Roblox username not set"}</p>{otherProfile?.roblox_username && <button onClick={() => void navigator.clipboard.writeText(otherProfile.roblox_username!)} className="mt-3 w-full rounded-2xl border border-slate-200 py-2.5 text-xs font-black dark:border-white/10">Copy Roblox Username</button>}</section>}
+
+        {isStaffViewer ? <section className="rounded-[28px] border border-rose-100 bg-rose-50/75 p-5 dark:border-rose-400/10 dark:bg-rose-400/[0.045]"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-rose-600">🚨 Moderation</p><h3 className="mt-1 text-lg font-black">Staff evidence view</h3><p className="mt-2 text-xs font-semibold leading-5 text-slate-600 dark:text-slate-300">Use this room only to review the reported snapshot, timeline, and messages. Resolve the report from the Moderation Desk.</p><Link href="/exchange/moderation" className="mt-3 inline-flex w-full items-center justify-center rounded-2xl bg-rose-500 py-3 text-xs font-black text-white">Open Moderation Desk</Link></section> : isAssignedMiddleman ? <section className="rounded-[28px] border border-amber-100 bg-amber-50/75 p-5 dark:border-amber-400/10 dark:bg-amber-400/[0.045]"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-600 dark:text-amber-300">🛡 Assigned middleman</p><h3 className="mt-1 text-lg font-black">You are protecting this case</h3><p className="mt-2 text-xs font-semibold leading-5 text-slate-600 dark:text-slate-300">Keep communication inside this room, compare the live in-game offer against the locked snapshot, and update the case from your Middleman Desk.</p><Link href="/exchange/middleman" className="mt-3 inline-flex w-full items-center justify-center rounded-2xl bg-amber-400 py-3 text-xs font-black text-white">Open Middleman Desk</Link></section> : <section className="rounded-[28px] border border-amber-100 bg-amber-50/75 p-5 dark:border-amber-400/10 dark:bg-amber-400/[0.045]"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-600 dark:text-amber-300">🛡 CSBT Middleman</p><h3 className="mt-1 text-lg font-black">Need extra protection?</h3>{mmRequest && mmRequest.status !== "CANCELLED" ? <div className="mt-3 rounded-2xl bg-white/80 p-3 dark:bg-slate-950/50"><p className="text-xs font-black">Request: {mmRequest.status}</p><p className="mt-1 text-[10px] font-semibold text-slate-400">{mmRequest.assigned_middleman ? "A CSBT middleman has been assigned." : "Waiting for an approved middleman."}</p>{mmRequest.status !== "COMPLETED" && <button onClick={() => void cancelMiddlemanRequest()} className="mt-2 rounded-xl border border-rose-200 px-3 py-2 text-[10px] font-black text-rose-600 dark:border-rose-400/20">Cancel request</button>}</div> : <button onClick={() => void requestMiddleman()} className="mt-3 w-full rounded-2xl bg-amber-400 py-3 text-xs font-black text-white">Request CSBT Middleman</button>}<div className="mt-3 space-y-2">{middlemen.slice(0,4).map((mm) => <div key={mm.user_id} className="flex items-center justify-between rounded-xl bg-white/70 px-3 py-2 text-xs dark:bg-white/5"><span className="font-black">{mm.status === "ONLINE" ? "🟢" : "🟡"} {mm.display_name}</span><span className="text-[10px] font-bold text-slate-400">{mm.completed_cases} cases</span></div>)}</div></section>}
+
+        <section className="rounded-[28px] border border-rose-100 bg-rose-50/70 p-5 dark:border-rose-400/10 dark:bg-rose-400/[0.045]"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-rose-600">Scam protection</p><ul className="mt-3 space-y-2 text-xs font-semibold leading-5 text-slate-600 dark:text-slate-300"><li>• Never open external “verification” links.</li><li>• Confirm the in-game offer matches the locked CSBT snapshot.</li><li>• Never trust a changed offer until both sides agree again.</li><li>• Use a CSBT middleman for risky cross-trades.</li></ul><div className={`mt-3 grid gap-2 ${isNeutralViewer ? "grid-cols-1" : "grid-cols-2"}`}><Link href="/seminar" className="rounded-xl bg-white py-2 text-center text-[10px] font-black text-rose-600 dark:bg-white/5">Safety Guide</Link>{!isNeutralViewer && <button onClick={() => setReportOpen(true)} className="rounded-xl bg-rose-500 py-2 text-[10px] font-black text-white">Report Problem</button>}</div></section>
+      </aside>
+
+      {error && <div className="fixed bottom-24 left-1/2 z-[120] -translate-x-1/2 rounded-2xl bg-rose-600 px-5 py-3 text-xs font-black text-white shadow-xl">{error}</div>}
+      {reportOpen && <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/65 p-4"><div className="w-full max-w-lg rounded-[28px] bg-white p-5 dark:bg-slate-950"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-rose-500">Exchange safety report</p><h2 className="mt-1 text-xl font-black">Report a problem in this room</h2><select value={reportCategory} onChange={(event) => setReportCategory(event.target.value)} className="mt-4 min-h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-black dark:border-white/10 dark:bg-slate-900"><option value="SWITCH_ATTEMPT">Switch attempt / changed offer</option><option value="SCAM_RISK">Scam risk</option><option value="OFF_PLATFORM_LINK">Off-platform contact/link</option><option value="HARASSMENT">Harassment</option><option value="SPAM">Spam</option><option value="OTHER">Other</option></select><textarea value={reportDetails} onChange={(event) => setReportDetails(event.target.value)} rows={4} maxLength={1500} placeholder="Explain what happened so CSBT staff can review the locked room and timeline…" className="mt-3 w-full rounded-2xl border border-slate-200 p-3 text-sm dark:border-white/10 dark:bg-slate-900"/><div className="mt-3 flex justify-end gap-2"><button onClick={() => setReportOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-black">Cancel</button><button disabled={reportDetails.trim().length < 5} onClick={() => void reportProblem()} className="rounded-xl bg-rose-500 px-4 py-2 text-xs font-black text-white disabled:opacity-40">Submit & dispute room</button></div></div></div>}
+      {reviewOpen && <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/65 p-4"><div className="w-full max-w-lg rounded-[28px] bg-white p-5 dark:bg-slate-950"><h2 className="text-xl font-black">Rate this trader</h2><div className="mt-4 flex gap-2">{[1,2,3,4,5].map((star) => <button key={star} onClick={() => setRating(star)} className={`text-3xl ${star <= rating ? "opacity-100" : "opacity-25"}`}>⭐</button>)}</div><textarea value={reviewComment} onChange={(event) => setReviewComment(event.target.value)} rows={3} maxLength={500} placeholder="Optional review…" className="mt-4 w-full rounded-2xl border border-slate-200 p-3 text-sm dark:border-white/10 dark:bg-slate-900"/><div className="mt-3 flex justify-end gap-2"><button onClick={() => setReviewOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-black">Cancel</button><button onClick={() => void submitReview()} className="rounded-xl bg-amber-400 px-4 py-2 text-xs font-black text-white">Submit review</button></div></div></div>}
+    </div>
+  );
+}
+
+function LockedSide({ title, items, source }: { title: string; items: ExchangeItem[]; source: string }) { const total = items.reduce((sum,item)=>sum+(item.snapshot_value??0)*item.quantity,0); return <div className="rounded-[24px] border border-white/70 bg-white/75 p-4 dark:border-white/10 dark:bg-white/[0.035]"><div className="flex justify-between"><h3 className="text-sm font-black">{title}</h3><span className="text-xs font-black text-slate-400">{source === "GCASH" ? "₱" : "🦈"}{formatTradeValue(total)}</span></div><div className="mt-3 space-y-2">{items.map((item,index)=><div key={`${item.item_id}-${index}`} className="flex items-center gap-2"><span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-slate-100 dark:bg-white/5">{item.image_url?<Image src={item.image_url} alt="" width={40} height={40} unoptimized className="h-9 w-9 object-contain"/>:"📦"}</span><span className="min-w-0 flex-1 truncate text-xs font-black">{item.quantity>1?`${item.quantity}× `:""}{item.value_type!=="NORMAL"?`${item.value_type} `:""}{item.item_name}</span></div>)}</div></div>; }

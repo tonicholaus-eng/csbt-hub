@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   },
 
   description:
-    "Check Adopt Me values, compare trades, review demand, and ask Nich for trading help with CSBT HUB.",
+    "Explore Adopt Me GCash and Elve Shark values, compare trades, track your inventory, follow demand and value history, set alerts, vote W/F/L, and ask Nich on CSBT HUB.",
 
   keywords: [
     "Adopt Me",
@@ -57,7 +57,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "CSBT HUB | Adopt Me Values, Trades & Demand",
     description:
-      "Check Adopt Me values, compare trades, review demand, and ask Nich for help.",
+      "Explore Adopt Me values, compare trades, track inventory, follow demand and value history, vote W/F/L, and ask Nich.",
     url: "https://csbthub.com",
     siteName: "CSBT HUB",
     locale: "en_US",
@@ -77,7 +77,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "CSBT HUB | Adopt Me Values, Trades & Demand",
     description:
-      "Check Adopt Me values, compare trades, review demand, and ask Nich for help.",
+      "Explore Adopt Me values, compare trades, track inventory, follow demand and value history, vote W/F/L, and ask Nich.",
     images: ["/logo.png"],
   },
 

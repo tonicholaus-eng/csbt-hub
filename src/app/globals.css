@@ -603,7 +603,7 @@ img {
 /* =========================
    Mobile performance & dock
 ========================= */
-@media (max-width: 767px) {
+@media (max-width: 1023px) {
   body {
     padding-bottom: calc(74px + env(safe-area-inset-bottom));
   }

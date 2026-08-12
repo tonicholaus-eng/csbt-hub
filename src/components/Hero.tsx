@@ -11,7 +11,9 @@ import {
 import type { PointerEvent } from "react";
 
 type HeroProps = {
-  totalPets: number;
+  totalItems: number;
+  categoryCount: number;
+  generatedAt: string;
 };
 
 const featureItems = [
@@ -19,20 +21,23 @@ const featureItems = [
   { icon: "⚖️", label: "Compare Trades" },
   { icon: "📈", label: "Demand Trends" },
   { icon: "🤖", label: "Ask Nich" },
-];
+] as const;
 
-export default function Hero({
-  totalPets,
-}: HeroProps) {
-  const shouldReduceMotion =
-    useReducedMotion();
+function formatRefreshDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Recently refreshed";
 
-  /*
-   * Normalized pointer position:
-   * -0.5 = left/top
-   *  0   = center
-   *  0.5 = right/bottom
-   */
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "Asia/Manila",
+  }).format(date);
+}
+
+export default function Hero({ totalItems, categoryCount, generatedAt }: HeroProps) {
+  const shouldReduceMotion = useReducedMotion();
+
   const pointerX = useMotionValue(0);
   const pointerY = useMotionValue(0);
 
@@ -48,88 +53,26 @@ export default function Hero({
     mass: 0.45,
   });
 
-  /*
-   * Very small tilt for the whole hero.
-   * This is intentionally subtle for performance.
-   */
-  const rotateX = useTransform(
-    smoothY,
-    [-0.5, 0.5],
-    [1.8, -1.8],
-  );
+  const rotateX = useTransform(smoothY, [-0.5, 0.5], [1.8, -1.8]);
+  const rotateY = useTransform(smoothX, [-0.5, 0.5], [-1.8, 1.8]);
 
-  const rotateY = useTransform(
-    smoothX,
-    [-0.5, 0.5],
-    [-1.8, 1.8],
-  );
+  const glowX = useTransform(smoothX, [-0.5, 0.5], [-90, 90]);
+  const glowY = useTransform(smoothY, [-0.5, 0.5], [-60, 60]);
 
-  /*
-   * Decorative elements move in different
-   * directions to create depth.
-   */
-  const glowX = useTransform(
-    smoothX,
-    [-0.5, 0.5],
-    [-90, 90],
-  );
+  const topCircleX = useTransform(smoothX, [-0.5, 0.5], [18, -18]);
+  const topCircleY = useTransform(smoothY, [-0.5, 0.5], [14, -14]);
 
-  const glowY = useTransform(
-    smoothY,
-    [-0.5, 0.5],
-    [-60, 60],
-  );
+  const bottomCircleX = useTransform(smoothX, [-0.5, 0.5], [-15, 15]);
+  const bottomCircleY = useTransform(smoothY, [-0.5, 0.5], [-12, 12]);
 
-  const topCircleX = useTransform(
-    smoothX,
-    [-0.5, 0.5],
-    [18, -18],
-  );
-
-  const topCircleY = useTransform(
-    smoothY,
-    [-0.5, 0.5],
-    [14, -14],
-  );
-
-  const bottomCircleX = useTransform(
-    smoothX,
-    [-0.5, 0.5],
-    [-15, 15],
-  );
-
-  const bottomCircleY = useTransform(
-    smoothY,
-    [-0.5, 0.5],
-    [-12, 12],
-  );
-
-  function handlePointerMove(
-    event: PointerEvent<HTMLElement>,
-  ) {
-    /*
-     * Disable the effect for touch devices.
-     * It should only follow an actual mouse.
-     */
-    if (
-      shouldReduceMotion ||
-      event.pointerType !== "mouse"
-    ) {
+  function handlePointerMove(event: PointerEvent<HTMLElement>) {
+    if (shouldReduceMotion || event.pointerType !== "mouse") {
       return;
     }
 
-    const bounds =
-      event.currentTarget.getBoundingClientRect();
-
-    const x =
-      (event.clientX - bounds.left) /
-        bounds.width -
-      0.5;
-
-    const y =
-      (event.clientY - bounds.top) /
-        bounds.height -
-      0.5;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const x = (event.clientX - bounds.left) / bounds.width - 0.5;
+    const y = (event.clientY - bounds.top) / bounds.height - 0.5;
 
     pointerX.set(x);
     pointerY.set(y);
@@ -142,14 +85,14 @@ export default function Hero({
 
   const stats = [
     {
-      value: `${totalPets}+`,
+      value: `${totalItems.toLocaleString()}+`,
       label: "Items",
       description: "Tracked values",
     },
     {
-      value: "⚡",
-      label: "Fast Search",
-      description: "Instant results",
+      value: `${categoryCount}`,
+      label: "Categories",
+      description: "Across the CSBT database",
     },
     {
       value: "💎",
@@ -157,11 +100,13 @@ export default function Hero({
       description: "GCash + Elve Shark",
     },
     {
-      value: "🏆",
-      label: "Fair Trades",
-      description: "Trade smarter",
+      value: "🤖",
+      label: "Nich Assistant",
+      description: "Help anytime you need it",
     },
-  ];
+  ] as const;
+
+  const refreshedLabel = formatRefreshDate(generatedAt);
 
   return (
     <motion.section
@@ -198,12 +143,9 @@ export default function Hero({
         md:py-20
       "
     >
-      {/* Static lighting */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,.30),transparent_58%)]" />
-
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_20%,rgba(255,255,255,.11)_45%,transparent_70%)]" />
 
-      {/* Mouse-following light */}
       <motion.div
         aria-hidden="true"
         style={
@@ -214,23 +156,9 @@ export default function Hero({
                 y: glowY,
               }
         }
-        className="
-          pointer-events-none
-          absolute
-          -left-32
-          -top-32
-          hidden
-          h-[500px]
-          w-[500px]
-          rounded-full
-          bg-white/20
-          blur-[90px]
-          will-change-transform
-          md:block
-        "
+        className="pointer-events-none absolute -left-32 -top-32 hidden h-[500px] w-[500px] rounded-full bg-white/20 blur-[90px] will-change-transform md:block"
       />
 
-      {/* Top-right decorative circle */}
       <motion.div
         aria-hidden="true"
         style={
@@ -241,21 +169,9 @@ export default function Hero({
                 y: topCircleY,
               }
         }
-        className="
-          pointer-events-none
-          absolute
-          -right-20
-          -top-20
-          h-72
-          w-72
-          rounded-full
-          border
-          border-white/15
-          will-change-transform
-        "
+        className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full border border-white/15 will-change-transform"
       />
 
-      {/* Bottom-left decorative circle */}
       <motion.div
         aria-hidden="true"
         style={
@@ -266,24 +182,13 @@ export default function Hero({
                 y: bottomCircleY,
               }
         }
-        className="
-          pointer-events-none
-          absolute
-          -bottom-36
-          -left-24
-          h-72
-          w-72
-          rounded-full
-          border
-          border-white/10
-          will-change-transform
-        "
+        className="pointer-events-none absolute -bottom-36 -left-24 h-72 w-72 rounded-full border border-white/10 will-change-transform"
       />
 
       <div className="relative z-10 mx-auto max-w-5xl text-center">
         <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/18 px-5 py-2 text-sm font-bold shadow-md">
           <span aria-hidden="true">🚀</span>
-          Updated Daily
+          Database refreshed {refreshedLabel}
         </span>
 
         <h1 className="mt-8 text-4xl font-black tracking-tight drop-shadow-lg sm:text-6xl md:text-8xl">
@@ -299,19 +204,7 @@ export default function Hero({
           {featureItems.map((item) => (
             <span
               key={item.label}
-              className="
-                rounded-full
-                border
-                border-white/20
-                bg-white/14
-                px-5
-                py-3
-                font-bold
-                shadow-md
-                transition-transform
-                duration-200
-                hover:-translate-y-1
-              "
+              className="rounded-full border border-white/20 bg-white/14 px-5 py-3 font-bold shadow-md transition-transform duration-200 hover:-translate-y-1"
             >
               {item.icon} {item.label}
             </span>
@@ -321,82 +214,21 @@ export default function Hero({
         <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row">
           <Link
             href="/values"
-            className="
-              inline-flex
-              min-h-12
-              items-center
-              justify-center
-              rounded-2xl
-              bg-white
-              px-6
-              py-3
-              font-black
-              text-amber-700
-              shadow-lg
-              transition
-              duration-200
-              hover:-translate-y-1
-              hover:shadow-xl
-              focus-visible:outline-none
-              focus-visible:ring-4
-              focus-visible:ring-white/50
-            "
+            className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-white px-6 py-3 font-black text-amber-700 shadow-lg transition duration-200 hover:-translate-y-1 hover:shadow-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/50"
           >
             Browse Values
           </Link>
 
           <Link
             href="/calculator"
-            className="
-              inline-flex
-              min-h-12
-              items-center
-              justify-center
-              rounded-2xl
-              border
-              border-white/30
-              bg-white/14
-              px-6
-              py-3
-              font-black
-              text-white
-              shadow-md
-              transition
-              duration-200
-              hover:-translate-y-1
-              hover:bg-white/22
-              focus-visible:outline-none
-              focus-visible:ring-4
-              focus-visible:ring-white/40
-            "
+            className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/30 bg-white/14 px-6 py-3 font-black text-white shadow-md transition duration-200 hover:-translate-y-1 hover:bg-white/22 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/40"
           >
             Compare a Trade
           </Link>
 
           <Link
             href="/nich"
-            className="
-              inline-flex
-              min-h-12
-              items-center
-              justify-center
-              rounded-2xl
-              border
-              border-white/30
-              bg-slate-950/20
-              px-6
-              py-3
-              font-black
-              text-white
-              shadow-md
-              transition
-              duration-200
-              hover:-translate-y-1
-              hover:bg-slate-950/30
-              focus-visible:outline-none
-              focus-visible:ring-4
-              focus-visible:ring-white/40
-            "
+            className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/30 bg-slate-950/20 px-6 py-3 font-black text-white shadow-md transition duration-200 hover:-translate-y-1 hover:bg-slate-950/30 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/40"
           >
             Ask Nich
           </Link>
@@ -406,30 +238,11 @@ export default function Hero({
           {stats.map((item) => (
             <div
               key={item.label}
-              className="
-                rounded-3xl
-                border
-                border-white/22
-                bg-white/14
-                p-5
-                shadow-lg
-                transition-transform
-                duration-200
-                hover:-translate-y-1
-                sm:p-6
-              "
+              className="rounded-3xl border border-white/22 bg-white/14 p-5 shadow-lg transition-transform duration-200 hover:-translate-y-1 sm:p-6"
             >
-              <div className="text-4xl font-black sm:text-5xl">
-                {item.value}
-              </div>
-
-              <p className="mt-3 font-black text-white">
-                {item.label}
-              </p>
-
-              <p className="mt-1 text-sm text-white/70">
-                {item.description}
-              </p>
+              <div className="text-4xl font-black sm:text-5xl">{item.value}</div>
+              <p className="mt-3 font-black text-white">{item.label}</p>
+              <p className="mt-1 text-sm text-white/70">{item.description}</p>
             </div>
           ))}
         </div>

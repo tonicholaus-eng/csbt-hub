@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import {
   motion,
   useReducedMotion,
@@ -41,7 +43,6 @@ const abilities = [
 export default function NichPage() {
   const shouldReduceMotion =
     useReducedMotion();
-
   function scrollToChat() {
     document
       .getElementById("nich-chat")
@@ -336,7 +337,7 @@ export default function NichPage() {
               </div>
 
               <div className="mx-auto max-w-4xl">
-                <NichChat variant="embedded" />
+                <Suspense fallback={<div className="h-[520px] animate-pulse rounded-[28px] border border-white/60 bg-white/55 dark:border-white/10 dark:bg-white/5" />}><NichChatWithPrompt /></Suspense>
               </div>
             </motion.div>
           </section>
@@ -395,4 +396,11 @@ export default function NichPage() {
       </div>
     </main>
   );
+}
+
+function NichChatWithPrompt() {
+  const searchParams = useSearchParams();
+  const exchangePrompt = searchParams.get("prompt") ?? undefined;
+
+  return <NichChat variant="embedded" initialPrompt={exchangePrompt} />;
 }

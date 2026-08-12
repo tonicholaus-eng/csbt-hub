@@ -27,13 +27,19 @@ const fields = [
   ["ELVE", "MEGA", "ELVE_MEGA"],
 ];
 
-const rows = [];
+const rowMap = new Map();
 for (const item of items) {
   for (const [source, valueType, field] of fields) {
     const raw = item[field];
+    if (raw === null || raw === undefined || String(raw).trim() === "") continue;
+
     const value = typeof raw === "number" ? raw : Number(raw);
-    if (!Number.isFinite(value)) continue;
-    rows.push({
+    // Zero/null values are not market observations and must not enter
+    // value_history. This also prevents Exchange from treating an
+    // unpriced item as a canonical zero-value listing.
+    if (!Number.isFinite(value) || value <= 0) continue;
+
+    const row = {
       snapshot_date: snapshotDate,
       item_id: item.ID,
       item_name: item.NAME,
@@ -41,13 +47,34 @@ for (const item of items) {
       source,
       value_type: valueType,
       value,
-    });
+    };
+
+    const conflictKey = `${snapshotDate}|${item.ID}|${source}|${valueType}`;
+    const previous = rowMap.get(conflictKey);
+
+    // If legacy punctuation aliases somehow produce the same canonical ID,
+    // prefer the row with the most useful item name/value instead of sending
+    // two conflicting rows in a single Postgres upsert.
+    if (!previous || String(row.item_name).length > String(previous.item_name).length) {
+      rowMap.set(conflictKey, row);
+    }
   }
 }
+
+const rows = Array.from(rowMap.values());
 
 const supabase = createClient(url, secretKey, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
+
+// Older versions of this script converted null to Number(null) === 0 and
+// accidentally stored zero-value history rows. Remove those invalid market
+// observations before writing the current snapshot.
+const { error: cleanupError } = await supabase
+  .from("value_history")
+  .delete()
+  .lte("value", 0);
+if (cleanupError) throw cleanupError;
 
 const batchSize = 500;
 for (let index = 0; index < rows.length; index += batchSize) {

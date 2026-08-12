@@ -68,3 +68,9 @@ See `FOUNDATION_SETUP.md` for the one-time Supabase migration and activation ste
 ## Deployment
 
 Push the cleaned source project to GitHub and connect the repository to Vercel. Add the required environment variables in the Vercel project settings before redeploying.
+
+## CSBT Exchange
+
+The project now includes **CSBT Exchange**, an inventory-aware trading system with smart matches, offer building, counteroffers, locked Trade Rooms, Trust Score, reviews, safety tools, market intelligence, staff moderation, and middleman workflow.
+
+Existing projects should run `src/lib/supabase/exchange.sql` once. See `EXCHANGE_SETUP.md` and `CSBT_EXCHANGE.md` for details.

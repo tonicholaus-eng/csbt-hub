@@ -14,6 +14,7 @@ type NichButtonProps = {
   open: boolean;
   onClick: () => void;
   onDismiss: () => void;
+  tourMode?: boolean;
 };
 
 const helperMessages = [
@@ -27,6 +28,7 @@ export default function NichButton({
   open,
   onClick,
   onDismiss,
+  tourMode = false,
 }: NichButtonProps) {
   const shouldReduceMotion = useReducedMotion();
 
@@ -47,7 +49,7 @@ export default function NichButton({
     : undefined;
 
   const showBubble =
-    !open && (isReacting || showHelperBubble);
+    !tourMode && !open && (isReacting || showHelperBubble);
 
   const mascotAnimation = useMemo(() => {
     if (shouldReduceMotion) {
@@ -175,6 +177,7 @@ export default function NichButton({
 
   return (
     <div className="fixed bottom-20 right-3 z-[80] flex items-end gap-2 sm:bottom-6 sm:right-6 sm:gap-3">
+      {!tourMode && (
       <motion.button
         type="button"
         onClick={onDismiss}
@@ -202,6 +205,7 @@ export default function NichButton({
           <path d="M6 6l12 12M18 6 6 18" />
         </svg>
       </motion.button>
+      )}
 
       <AnimatePresence mode="wait">
         {showBubble && (
@@ -281,8 +285,11 @@ export default function NichButton({
       </AnimatePresence>
 
       <motion.button
+        data-tour="nich-button"
         type="button"
         onClick={onClick}
+        tabIndex={tourMode ? -1 : 0}
+        aria-hidden={tourMode ? true : undefined}
         aria-label={open ? "Close Ask Nich" : "Open Ask Nich"}
         aria-expanded={open}
         initial={{

@@ -6,6 +6,7 @@ import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import AuthCard from "./AuthCard";
 import { useAuthSession } from "../../hooks/useAuthSession";
 import type { ProfileRow } from "../../lib/accountTypes";
+import type { TrustStats } from "../../lib/exchange/types";
 
 const countries = [
   ["", "Not set"],
@@ -48,6 +49,7 @@ export default function ProfileDashboard() {
   const [newPassword, setNewPassword] = useState("");
   const [passwordBusy, setPasswordBusy] = useState(false);
   const [activityCounts, setActivityCounts] = useState({ inventory: 0, wishlist: 0, watches: 0, completedTrades: 0, unread: 0 });
+  const [exchangeTrust, setExchangeTrust] = useState<TrustStats | null>(null);
 
   useEffect(() => {
     if (!supabase || !user) {
@@ -108,17 +110,19 @@ export default function ProfileDashboard() {
   useEffect(() => {
     if (!supabase || !user) {
       setActivityCounts({ inventory: 0, wishlist: 0, watches: 0, completedTrades: 0, unread: 0 });
+      setExchangeTrust(null);
       return;
     }
 
     let active = true;
     void (async () => {
-      const [inventory, wishlist, watches, completedTrades, unread] = await Promise.all([
+      const [inventory, wishlist, watches, completedTrades, unread, exchangeTrustResult] = await Promise.all([
         supabase.from("inventory_items").select("id", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("wishlist_items").select("id", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("value_watchlist").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("enabled", true),
-        supabase.from("trade_history").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "COMPLETED"),
-        supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("is_read", false),
+        supabase.from("trade_history").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "completed"),
+        supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).is("read_at", null),
+        supabase.from("marketplace_user_stats").select("*").eq("user_id", user.id).maybeSingle(),
       ]);
       if (!active) return;
       setActivityCounts({
@@ -128,6 +132,7 @@ export default function ProfileDashboard() {
         completedTrades: completedTrades.count ?? 0,
         unread: unread.count ?? 0,
       });
+      setExchangeTrust((exchangeTrustResult.data as TrustStats | null) ?? null);
     })();
 
     return () => { active = false; };
@@ -293,6 +298,7 @@ export default function ProfileDashboard() {
         </div>
 
         <div className="mt-6 grid grid-cols-2 gap-2 xl:grid-cols-1">
+          <Link href="/exchange" className="col-span-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-600 px-4 py-3 text-sm font-black text-white xl:col-span-1">🔄 CSBT Exchange</Link>
           <Link href="/inventory" className="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-700 dark:bg-white/5 dark:text-slate-200">🎒 Inventory</Link>
           <Link href="/wishlist" className="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-700 dark:bg-white/5 dark:text-slate-200">⭐ Wishlist & alerts</Link>
           <Link href="/notifications" className="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-700 dark:bg-white/5 dark:text-slate-200">🔔 Notifications</Link>
@@ -318,6 +324,8 @@ export default function ProfileDashboard() {
             </div>
           ))}
         </section>
+
+        {exchangeTrust && <section className="rounded-[28px] border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-violet-50 p-5 dark:border-indigo-400/10 dark:from-indigo-400/[0.05] dark:via-slate-950 dark:to-violet-400/[0.04]"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-indigo-600 dark:text-indigo-300">CSBT Exchange reputation</p><h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">Trust {exchangeTrust.trust_score}/100</h2><p className="mt-2 max-w-2xl text-xs font-semibold leading-5 text-slate-500">Built from real Exchange behavior: completed rooms, completion rate, reviews, account age, Roblox verification, protected middleman trades, and upheld reports.</p></div><Link href="/exchange" className="rounded-2xl bg-indigo-600 px-4 py-3 text-xs font-black text-white">Open Exchange</Link></div><div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4"><div className="rounded-2xl bg-white/75 p-3 dark:bg-white/5"><p className="text-xl font-black">{exchangeTrust.completed_trades}</p><p className="text-[9px] font-black uppercase text-slate-400">Completed</p></div><div className="rounded-2xl bg-white/75 p-3 dark:bg-white/5"><p className="text-xl font-black">{exchangeTrust.completion_rate != null ? `${exchangeTrust.completion_rate}%` : "—"}</p><p className="text-[9px] font-black uppercase text-slate-400">Completion rate</p></div><div className="rounded-2xl bg-white/75 p-3 dark:bg-white/5"><p className="text-xl font-black">{exchangeTrust.avg_rating ? `${exchangeTrust.avg_rating}★` : "—"}</p><p className="text-[9px] font-black uppercase text-slate-400">{exchangeTrust.review_count} reviews</p></div><div className="rounded-2xl bg-white/75 p-3 dark:bg-white/5"><p className="text-xl font-black">{exchangeTrust.middleman_trades ?? 0}</p><p className="text-[9px] font-black uppercase text-slate-400">MM trades</p></div></div></section>}
 
         {schemaMissing && (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200">
@@ -381,7 +389,7 @@ export default function ProfileDashboard() {
             ["/trades", "Saved Trade History", "Live", "Keep calculator comparisons and mark them Draft, Pending, Completed, or Cancelled."],
             ["/notifications", "Notifications", "Live", "See value alerts and account activity in one inbox."],
             ["/trade-feed", "Community W/F/L", "Live", "Post trades and learn from community Win, Fair, or Lose voting."],
-            ["#", "Reputation & badges", "Planned", "Reserved for a later safety/reputation phase after community tools are stable."],
+            ["/exchange", "CSBT Exchange", "Live", "Smart matches, offers, counteroffers, Trade Rooms, trust scores, reviews, and market intelligence."],
           ].map(([href, title, status, text]) => (
             href === "#" ? <article key={title} className="rounded-[24px] border border-slate-200/80 bg-white/70 p-5 dark:border-white/10 dark:bg-white/5"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">{status}</p><h3 className="mt-2 font-black text-slate-950 dark:text-white">{title}</h3><p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">{text}</p></article>
             : <Link key={title} href={href} className="rounded-[24px] border border-slate-200/80 bg-white/70 p-5 transition hover:-translate-y-0.5 hover:border-amber-300 dark:border-white/10 dark:bg-white/5"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-600 dark:text-emerald-300">{status}</p><h3 className="mt-2 font-black text-slate-950 dark:text-white">{title}</h3><p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">{text}</p></Link>

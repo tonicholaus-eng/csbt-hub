@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Footer from "../../components/Footer";
 import Navbar from "../../components/Navbar";
 import DemandBoard from "../../components/demand/DemandBoard";
+import ExchangeDemandPulse from "../../components/demand/ExchangeDemandPulse";
 
 export const metadata: Metadata = {
   title: "Demand Trends",
@@ -44,6 +45,7 @@ export default function DemandPage() {
             </p>
           </header>
 
+          <ExchangeDemandPulse />
           <DemandBoard />
         </div>
 

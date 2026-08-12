@@ -278,6 +278,13 @@ function createItem(row, category, warnings, elveMap, elveSnapshotFetchedAt) {
   );
   if (!name) return null;
 
+  const normalizedName = normalizeName(name);
+  const helperOnlyNames = new Set(["add", "addbig", "addsmall", "bigadd"]);
+  if (normalizedName === "nan" || (category === "OTHER" && helperOnlyNames.has(normalizedName))) {
+    warnings.push(`${name}: ignored Elve helper/placeholder record.`);
+    return null;
+  }
+
   const imageValue = findColumnValue(row, [
     "PET IMAGE",
     "PET WEAR IMAGE",
@@ -322,6 +329,13 @@ function createItem(row, category, warnings, elveMap, elveSnapshotFetchedAt) {
   };
 
   if (!elveRecord) warnings.push(`${name}: no matching Elve Shark snapshot record; workbook fallback used.`);
+
+  // Keep legitimate zero-valued Elve items in the searchable master database,
+  // but omit rows that have no regular value at all from either source.
+  if (gcash.normal === null && elve.normal === null) {
+    warnings.push(`${name}: skipped because neither GCash nor Elve has a regular value.`);
+    return null;
+  }
 
   return {
     ID: createId(category, name),
@@ -399,16 +413,65 @@ function createElveOnlyItem(record, category, warnings, elveSnapshotFetchedAt) {
   };
 }
 
+function itemCompletenessScore(item) {
+  const fields = [
+    "GCASH_NORMAL", "GCASH_NEON", "GCASH_MEGA",
+    "ELVE_NORMAL", "ELVE_NEON", "ELVE_MEGA",
+  ];
+
+  let score = 0;
+  for (const field of fields) {
+    if (typeof item[field] === "number" && Number.isFinite(item[field])) score += 1;
+  }
+  if (typeof item.GCASH_NORMAL === "number" && item.GCASH_NORMAL > 0) score += 6;
+  if (item.RARITY) score += 1;
+  if (item.DEMAND_TIER) score += 1;
+  return score;
+}
+
+function mergeDuplicateItem(preferred, fallback) {
+  const merged = { ...fallback, ...preferred };
+  const valueFields = [
+    "GCASH_NORMAL", "GCASH_NEON", "GCASH_MEGA",
+    "ELVE_NORMAL", "ELVE_NEON", "ELVE_MEGA",
+    "NORMAL", "NEON", "MEGA", "INGAME_VALUE",
+  ];
+
+  for (const field of valueFields) {
+    if (merged[field] === null || merged[field] === undefined) {
+      merged[field] = fallback[field] ?? preferred[field] ?? null;
+    }
+  }
+
+  if (!merged.RARITY) merged.RARITY = fallback.RARITY ?? null;
+  if (!merged.DEMAND_TIER) merged.DEMAND_TIER = fallback.DEMAND_TIER ?? null;
+  if (!merged.POTION_VALUES && fallback.POTION_VALUES) merged.POTION_VALUES = fallback.POTION_VALUES;
+  return merged;
+}
+
 function removeDuplicates(items, warnings) {
   const itemMap = new Map();
+
   for (const item of items) {
-    const duplicateKey = `${item.CATEGORY}:${item.NAME.toLowerCase()}`;
-    if (itemMap.has(duplicateKey)) {
-      warnings.push(`Duplicate removed: ${item.CATEGORY} - ${item.NAME}`);
+    // IDs are the canonical key used by URLs, history, inventory, and Exchange.
+    // Punctuation aliases such as "Mr Whiskerpips" and "Mr. Whiskerpips"
+    // intentionally collapse to the same ID and must become one record.
+    const duplicateKey = item.ID;
+    const previous = itemMap.get(duplicateKey);
+
+    if (!previous) {
+      itemMap.set(duplicateKey, item);
       continue;
     }
-    itemMap.set(duplicateKey, item);
+
+    const preferred = itemCompletenessScore(item) > itemCompletenessScore(previous)
+      ? item
+      : previous;
+    const fallback = preferred === item ? previous : item;
+    itemMap.set(duplicateKey, mergeDuplicateItem(preferred, fallback));
+    warnings.push(`Duplicate ID merged: ${item.ID} (${previous.NAME} / ${item.NAME})`);
   }
+
   return Array.from(itemMap.values());
 }
 

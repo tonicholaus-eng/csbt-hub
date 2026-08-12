@@ -37,6 +37,7 @@ type NichChatProps = {
   open?: boolean;
   onClose?: () => void;
   variant?: "floating" | "embedded";
+  initialPrompt?: string;
 };
 
 type ChatMessage = {
@@ -752,6 +753,7 @@ export default function NichChat({
   open = false,
   onClose,
   variant = "floating",
+  initialPrompt,
 }: NichChatProps) {
   const shouldReduceMotion = useReducedMotion();
   const router = useRouter();
@@ -761,6 +763,7 @@ export default function NichChat({
   const isVisible = isEmbedded || open;
 
   const [input, setInput] = useState("");
+  const [initialPromptApplied, setInitialPromptApplied] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [messages, setMessages] =
     useState<ChatMessage[]>(initialMessages);
@@ -791,6 +794,13 @@ export default function NichChat({
   const navigationTimeoutRef = useRef<number | null>(null);
   const copyResetTimeoutRef = useRef<number | null>(null);
   const requestSequenceRef = useRef(0);
+
+  useEffect(() => {
+    if (!initialPrompt || initialPromptApplied) return;
+    setInput(initialPrompt.slice(0, 1800));
+    setInitialPromptApplied(true);
+    window.setTimeout(() => inputRef.current?.focus(), 80);
+  }, [initialPrompt, initialPromptApplied]);
 
   const clearPendingActions = useCallback(() => {
     if (responseTimeoutRef.current !== null) {

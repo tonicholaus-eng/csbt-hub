@@ -96,10 +96,10 @@ function main() {
       errors.push(`${item.NAME}: ${item.CATEGORY} must not have Neon or Mega values.`);
     }
 
-    const hasGcash = typeof item.GCASH_NORMAL === "number" && item.GCASH_NORMAL > 0;
-    const hasElve = typeof item.ELVE_NORMAL === "number" && item.ELVE_NORMAL > 0;
+    const hasGcash = typeof item.GCASH_NORMAL === "number" && Number.isFinite(item.GCASH_NORMAL);
+    const hasElve = typeof item.ELVE_NORMAL === "number" && Number.isFinite(item.ELVE_NORMAL);
     if (!hasGcash && !hasElve) {
-      errors.push(`${item.NAME}: must have at least one positive regular value source.`);
+      errors.push(`${item.NAME}: must have at least one known regular value source.`);
     }
   }
 

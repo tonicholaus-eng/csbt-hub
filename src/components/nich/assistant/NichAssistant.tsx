@@ -10,23 +10,27 @@ const NichIntroMascot = dynamic(() => import("../NichIntroMascot"), {
   ssr: false,
 });
 
-const NICH_INTRO_STORAGE_KEY = "csbt-nich-intro-completed";
+const CSBT_TOUR_PERMANENT_KEY = "csbt-feature-tour-hidden";
+const CSBT_TOUR_SESSION_SKIP_KEY = "csbt-feature-tour-skipped-for-session";
 const NICH_DISMISSED_STORAGE_KEY = "csbt-nich-dismissed-for-session";
 
 export default function NichAssistant() {
   const [isOpen, setIsOpen] = useState(false);
   const [isDismissed, setIsDismissed] = useState(() => {
     try {
-      return (
-        window.sessionStorage.getItem(NICH_DISMISSED_STORAGE_KEY) === "true"
-      );
+      return window.sessionStorage.getItem(NICH_DISMISSED_STORAGE_KEY) === "true";
     } catch {
       return false;
     }
   });
   const [showIntro, setShowIntro] = useState(() => {
     try {
-      return window.localStorage.getItem(NICH_INTRO_STORAGE_KEY) !== "true";
+      const hiddenPermanently =
+        window.localStorage.getItem(CSBT_TOUR_PERMANENT_KEY) === "true";
+      const skippedThisSession =
+        window.sessionStorage.getItem(CSBT_TOUR_SESSION_SKIP_KEY) === "true";
+
+      return !hiddenPermanently && !skippedThisSession;
     } catch {
       return true;
     }
@@ -34,6 +38,7 @@ export default function NichAssistant() {
   const [chatLoaded, setChatLoaded] = useState(false);
 
   function toggleChat() {
+    if (showIntro) return;
     setChatLoaded(true);
     setIsOpen((currentValue) => !currentValue);
   }
@@ -54,11 +59,32 @@ export default function NichAssistant() {
     setIsDismissed(true);
   }
 
+  function skipIntroForNow() {
+    try {
+      window.sessionStorage.setItem(CSBT_TOUR_SESSION_SKIP_KEY, "true");
+    } catch {
+      // The tour can still be skipped when browser storage is blocked.
+    }
+
+    setShowIntro(false);
+  }
+
   function completeIntro() {
     try {
-      window.localStorage.setItem(NICH_INTRO_STORAGE_KEY, "true");
+      window.localStorage.setItem(CSBT_TOUR_PERMANENT_KEY, "true");
     } catch {
-      // Nich continues even if localStorage is unavailable.
+      // Completing the tour still works if localStorage is unavailable.
+    }
+
+    setShowIntro(false);
+  }
+
+  function dontShowIntroAgain() {
+    try {
+      window.localStorage.setItem(CSBT_TOUR_PERMANENT_KEY, "true");
+      window.sessionStorage.removeItem(CSBT_TOUR_SESSION_SKIP_KEY);
+    } catch {
+      // The tour can still close if browser storage is unavailable.
     }
 
     setShowIntro(false);
@@ -70,21 +96,23 @@ export default function NichAssistant() {
 
   return (
     <>
-      <NichIntroMascot open={showIntro} onComplete={completeIntro} />
+      <NichIntroMascot
+        open={showIntro}
+        onComplete={completeIntro}
+        onSkip={skipIntroForNow}
+        onDontShowAgain={dontShowIntroAgain}
+      />
 
-      {!showIntro && (
-        <>
-          {chatLoaded && (
-            <NichChat variant="floating" open={isOpen} onClose={closeChat} />
-          )}
-
-          <NichButton
-            open={isOpen}
-            onClick={toggleChat}
-            onDismiss={dismissAssistant}
-          />
-        </>
+      {chatLoaded && !showIntro && (
+        <NichChat variant="floating" open={isOpen} onClose={closeChat} />
       )}
+
+      <NichButton
+        open={isOpen}
+        onClick={toggleChat}
+        onDismiss={dismissAssistant}
+        tourMode={showIntro}
+      />
     </>
   );
 }

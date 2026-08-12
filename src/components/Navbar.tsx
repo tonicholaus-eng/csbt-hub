@@ -9,7 +9,7 @@ import { useUnreadNotifications } from "../hooks/useUnreadNotifications";
 
 type IconName =
   | "home" | "values" | "demand" | "calculator" | "community" | "servers"
-  | "seminar" | "nich" | "about" | "profile" | "notifications" | "inventory" | "wishlist" | "tradefeed" | "feedback" | "more";
+  | "seminar" | "nich" | "about" | "profile" | "notifications" | "inventory" | "wishlist" | "tradefeed" | "feedback" | "exchange" | "more";
 
 type NavLink = {
   label: string;
@@ -21,6 +21,7 @@ type NavLink = {
 const primaryLinks: NavLink[] = [
   { label: "Home", href: "/", description: "Homepage", icon: "home" },
   { label: "Values", href: "/values", description: "Browse trading values", icon: "values" },
+  { label: "Exchange", href: "/exchange", description: "Smart matches, offers, trade rooms", icon: "exchange" },
   { label: "Demand", href: "/demand", description: "Recent market movement", icon: "demand" },
   { label: "Calculator", href: "/calculator", description: "Compare both offers", icon: "calculator" },
   { label: "Inventory", href: "/inventory", description: "Calculate your whole inventory", icon: "inventory" },
@@ -44,10 +45,17 @@ const accountLinks: NavLink[] = [
 ];
 
 const mobileCore: NavLink[] = [
-  primaryLinks[0],
-  primaryLinks[1],
-  primaryLinks[3],
-  primaryLinks[4],
+  primaryLinks.find((link) => link.href === "/values")!,
+  primaryLinks.find((link) => link.href === "/calculator")!,
+  primaryLinks.find((link) => link.href === "/exchange")!,
+  primaryLinks.find((link) => link.href === "/inventory")!,
+];
+
+const mobileMoreLinks: NavLink[] = [
+  primaryLinks.find((link) => link.href === "/")!,
+  primaryLinks.find((link) => link.href === "/demand")!,
+  ...accountLinks,
+  ...communityLinks,
 ];
 
 export default function Navbar() {
@@ -80,7 +88,7 @@ export default function Navbar() {
 
   return (
     <>
-      <aside className="fixed inset-y-0 left-0 z-50 hidden w-72 p-4 lg:block" aria-label="CSBT HUB sidebar">
+      <aside data-tour="sidebar-container" className="fixed inset-y-0 left-0 z-50 hidden w-72 p-4 lg:block" aria-label="CSBT HUB sidebar">
         <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[30px] border border-white/55 bg-white/86 shadow-[0_24px_80px_rgba(15,23,42,.14)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/88 dark:shadow-[0_28px_90px_rgba(0,0,0,.4)]">
           <Link href="/" className="flex items-center gap-3 border-b border-slate-200/75 px-5 py-5 dark:border-white/10">
             <Image src="/logo.png" alt="" width={52} height={52} priority className="h-[52px] w-[52px] rounded-full object-cover shadow-sm" />
@@ -127,10 +135,10 @@ export default function Navbar() {
         </div>
       </header>
 
-      <nav className="fixed inset-x-0 bottom-0 z-[70] border-t border-slate-200/80 bg-white/94 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_35px_rgba(15,23,42,.1)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/95 lg:hidden" aria-label="Mobile primary navigation">
+      <nav data-tour="mobile-dock" className="fixed inset-x-0 bottom-0 z-[70] border-t border-slate-200/80 bg-white/94 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_35px_rgba(15,23,42,.1)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/95 lg:hidden" aria-label="Mobile primary navigation">
         <div className="mx-auto grid max-w-xl grid-cols-5 gap-1">
           {mobileCore.map((link) => <MobileDockLink key={link.href} link={link} active={active(link.href)} />)}
-          <button type="button" onClick={() => setMoreOpen(true)} className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-black ${moreOpen ? "bg-amber-100 text-amber-800 dark:bg-amber-400/10 dark:text-amber-300" : "text-slate-500 dark:text-slate-400"}`} aria-label="More navigation">
+          <button type="button" onClick={() => setMoreOpen(true)} className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-black ${moreOpen ? "bg-amber-100 text-amber-800 dark:bg-amber-400/10 dark:text-amber-300" : "text-slate-500 dark:text-slate-400"}`} data-tour="nav-more" aria-label="More navigation">
             <NavIcon name="more" />
             <span>More</span>
           </button>
@@ -150,7 +158,7 @@ export default function Navbar() {
             </div>
 
             <div className="grid gap-2 sm:grid-cols-2">
-              {[primaryLinks[2], ...accountLinks, ...communityLinks].map((link) => (
+              {mobileMoreLinks.map((link) => (
                 <Link key={link.href} href={link.href} className={`flex items-center gap-3 rounded-2xl border px-3 py-3 ${active(link.href) ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200" : "border-slate-200 bg-slate-50 text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-200"}`}>
                   <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm dark:bg-slate-900">
                     <NavIcon name={link.icon} />
@@ -176,6 +184,17 @@ export default function Navbar() {
 }
 
 function NavGroup({ title, links, active, unread }: { title: string; links: NavLink[]; active: (href: string) => boolean; unread: number }) {
+  const getTourTarget = (href: string) => {
+    switch (href) {
+      case "/values": return "nav-values";
+      case "/calculator": return "nav-calculator";
+      case "/exchange": return "nav-exchange";
+      case "/inventory": return "nav-inventory";
+      case "/trade-feed": return "nav-trade-feed";
+      case "/nich": return "nav-nich";
+      default: return undefined;
+    }
+  };
   return (
     <div className="mb-5 last:mb-0">
       <p className="px-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">{title}</p>
@@ -183,7 +202,7 @@ function NavGroup({ title, links, active, unread }: { title: string; links: NavL
         {links.map((link) => {
           const selected = active(link.href);
           return (
-            <Link key={link.href} href={link.href} aria-current={selected ? "page" : undefined} className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 transition ${selected ? "bg-amber-100 text-amber-900 dark:bg-amber-400/10 dark:text-amber-200" : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/5"}`}>
+            <Link key={link.href} href={link.href} data-tour={getTourTarget(link.href)} aria-current={selected ? "page" : undefined} className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 transition ${selected ? "bg-amber-100 text-amber-900 dark:bg-amber-400/10 dark:text-amber-200" : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/5"}`}>
               <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/80 shadow-sm dark:bg-white/5">
                 <NavIcon name={link.icon} />
                 {link.icon === "notifications" && unread > 0 && <span className="absolute -right-1 -top-1 h-4 min-w-4 rounded-full bg-rose-500 px-1 text-center text-[9px] font-black leading-4 text-white">{unread > 99 ? "99+" : unread}</span>}
@@ -201,8 +220,17 @@ function NavGroup({ title, links, active, unread }: { title: string; links: NavL
 }
 
 function MobileDockLink({ link, active }: { link: NavLink; active: boolean }) {
+  const tourTarget = link.href === "/values"
+    ? "nav-values"
+    : link.href === "/calculator"
+      ? "nav-calculator"
+      : link.href === "/exchange"
+        ? "nav-exchange"
+        : link.href === "/inventory"
+          ? "nav-inventory"
+          : undefined;
   return (
-    <Link href={link.href} aria-current={active ? "page" : undefined} className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-black ${active ? "bg-amber-100 text-amber-800 dark:bg-amber-400/10 dark:text-amber-300" : "text-slate-500 dark:text-slate-400"}`}>
+    <Link href={link.href} data-tour={tourTarget} aria-current={active ? "page" : undefined} className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-black ${active ? "bg-amber-100 text-amber-800 dark:bg-amber-400/10 dark:text-amber-300" : "text-slate-500 dark:text-slate-400"}`}>
       <NavIcon name={link.icon} />
       <span>{link.label}</span>
     </Link>
@@ -233,6 +261,7 @@ function NavIcon({ name }: { name: IconName }) {
     case "wishlist": return <svg viewBox="0 0 24 24" className={common} fill="none" stroke="currentColor" strokeWidth="2"><path d="m12 21-1.5-1.35C5.4 15.1 2 12 2 8.2A4.2 4.2 0 0 1 6.2 4 4.6 4.6 0 0 1 12 7.1 4.6 4.6 0 0 1 17.8 4 4.2 4.2 0 0 1 22 8.2c0 3.8-3.4 6.9-8.5 11.45L12 21Z"/></svg>;
     case "tradefeed": return <svg viewBox="0 0 24 24" className={common} fill="none" stroke="currentColor" strokeWidth="2"><path d="M7 7h11l-3-3m3 3-3 3M17 17H6l3 3m-3-3 3-3"/></svg>;
     case "feedback": return <svg viewBox="0 0 24 24" className={common} fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 5h16v12H8l-4 4V5Z"/><path d="M8 9h8M8 13h5"/></svg>;
+    case "exchange": return <svg viewBox="0 0 24 24" className={common} fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 7h13l-3-3m3 3-3 3"/><path d="M20 17H7l3 3m-3-3 3-3"/><circle cx="5" cy="7" r="2"/><circle cx="19" cy="17" r="2"/></svg>;
     case "more": return <svg viewBox="0 0 24 24" className={common} fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>;
   }
 }

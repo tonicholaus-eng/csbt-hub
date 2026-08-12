@@ -1,10 +1,8 @@
-"use client";
-
 import Image from "next/image";
 import Link from "next/link";
 
 const capabilities = [
-  { icon: "💎", title: "Pet Values", description: "Ask about estimated values for pets in the database." },
+  { icon: "💎", title: "Item Values", description: "Ask about estimated values for pets and other supported items." },
   { icon: "⚖️", title: "Trade Advice", description: "Compare offers and understand which side has more value." },
   { icon: "🔍", title: "Nearby Values", description: "Find pets with values close to the amount you provide." },
   { icon: "🧮", title: "Calculator Help", description: "Get guidance while building and reviewing a trade." },
@@ -12,14 +10,14 @@ const capabilities = [
 
 export default function MeetNich() {
   return (
-    <section aria-labelledby="meet-nich-title" className="home-paint-containment relative min-w-0 overflow-hidden rounded-[36px] border border-white/60 bg-white/78 shadow-[0_22px_64px_rgba(15,23,42,.10)] dark:border-white/10 dark:bg-slate-900/72 dark:shadow-[0_22px_64px_rgba(0,0,0,.28)]">
+    <section aria-labelledby="meet-nich-title" className="home-paint-containment relative min-w-0 overflow-hidden rounded-[30px] sm:rounded-[36px] border border-white/60 bg-white/78 shadow-[0_22px_64px_rgba(15,23,42,.10)] dark:border-white/10 dark:bg-slate-900/72 dark:shadow-[0_22px_64px_rgba(0,0,0,.28)]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_45%,rgba(250,204,21,.16),transparent_32%),radial-gradient(circle_at_90%_10%,rgba(168,85,247,.10),transparent_30%)]" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-amber-400 via-orange-400 to-violet-500" />
 
-      <div className="relative grid items-center gap-10 px-5 py-10 sm:px-8 sm:py-14 lg:grid-cols-[0.9fr_1.1fr] lg:gap-14 lg:px-14 lg:py-16">
+      <div className="relative grid items-center gap-8 px-5 py-9 sm:gap-10 sm:px-8 sm:py-14 lg:grid-cols-[0.9fr_1.1fr] lg:gap-14 lg:px-14 lg:py-16">
         <div className="relative mx-auto flex w-full max-w-md items-center justify-center">
           <div className="pointer-events-none absolute h-64 w-64 rounded-full bg-amber-300/25 blur-[55px] dark:bg-amber-400/10 sm:h-72 sm:w-72" />
-          <div className="relative h-64 w-64 overflow-hidden rounded-[38px] border-4 border-white/80 bg-gradient-to-br from-yellow-100 via-white to-orange-100 shadow-[0_24px_52px_rgba(245,158,11,.24)] dark:border-white/10 sm:h-80 sm:w-80">
+          <div className="relative h-56 w-56 overflow-hidden rounded-[38px] border-4 border-white/80 bg-gradient-to-br from-yellow-100 via-white to-orange-100 shadow-[0_24px_52px_rgba(245,158,11,.24)] dark:border-white/10 sm:h-72 sm:w-72 lg:h-80 lg:w-80">
             <Image
               src="/nich/nich-face.png"
               alt="Nich, the CSBT HUB trading assistant"
@@ -39,7 +37,7 @@ export default function MeetNich() {
           <span className="inline-flex rounded-full border border-violet-200/80 bg-violet-50/80 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.18em] text-violet-700 shadow-sm dark:border-violet-400/15 dark:bg-violet-400/10 dark:text-violet-300">
             Built-in Trading Assistant
           </span>
-          <h2 id="meet-nich-title" className="mt-5 text-4xl font-black tracking-tight text-slate-900 dark:text-white sm:text-5xl">Meet Nich</h2>
+          <h2 id="meet-nich-title" className="mt-5 text-3xl font-black tracking-tight text-slate-900 dark:text-white sm:text-5xl">Meet Nich</h2>
           <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600 dark:text-slate-300 sm:text-lg">
             Not sure if a trade is good? Ask Nich for a second look. Nich can check values, compare offers, find nearby-value pets, and guide you through CSBT HUB.
           </p>
