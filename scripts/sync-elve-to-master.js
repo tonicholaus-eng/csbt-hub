@@ -77,13 +77,72 @@ function normalizeHeader(value) {
     .replace(/[^A-Z0-9]/g, "");
 }
 
+function findHeaderIndices(headerRow, candidates) {
+  const candidateSet = new Set(candidates.map(normalizeHeader));
+  const indices = [];
+  headerRow.forEach((header, index) => {
+    if (candidateSet.has(normalizeHeader(header))) indices.push(index);
+  });
+  return indices;
+}
+
 function findHeaderIndex(headerRow, candidates) {
-  const normalized = headerRow.map(normalizeHeader);
-  for (const candidate of candidates) {
-    const index = normalized.indexOf(normalizeHeader(candidate));
-    if (index >= 0) return index;
+  // Prefer the left-most matching alias.  This matters when an older sync
+  // accidentally appended PET NAME after an existing ITEM NAME column.
+  // The original master column is normally the left-most populated one.
+  const indices = findHeaderIndices(headerRow, candidates);
+  return indices.length ? Math.min(...indices) : -1;
+}
+
+function firstNonBlankName(row, headerRow, candidates) {
+  const indices = findHeaderIndices(headerRow, candidates).sort((a, b) => a - b);
+  for (const index of indices) {
+    const value = row?.[index];
+    if (value === null || value === undefined) continue;
+    if (typeof value === "string" && value.trim() === "") continue;
+    return value;
   }
-  return -1;
+  return null;
+}
+
+function mergeDuplicateItemRows(rows, headerRow, nameHeaders) {
+  const output = [headerRow];
+  const rowByKey = new Map();
+  let merged = 0;
+
+  for (let rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
+    const sourceRow = Array.from(rows[rowIndex] ?? []);
+    while (sourceRow.length < headerRow.length) sourceRow.push(null);
+
+    const name = firstNonBlankName(sourceRow, headerRow, nameHeaders);
+    if (!name) {
+      output.push(sourceRow);
+      continue;
+    }
+
+    const key = normalizeName(name);
+    const existingIndex = rowByKey.get(key);
+    if (existingIndex === undefined) {
+      rowByKey.set(key, output.length);
+      output.push(sourceRow);
+      continue;
+    }
+
+    // Merge only missing cells into the first/original row.  This preserves
+    // hand-maintained GCash values while still recovering any data that only
+    // exists on an accidentally appended duplicate row.
+    const targetRow = output[existingIndex];
+    for (let col = 0; col < headerRow.length; col += 1) {
+      const target = targetRow[col];
+      const source = sourceRow[col];
+      const targetBlank = target === null || target === undefined || (typeof target === "string" && target.trim() === "");
+      const sourcePresent = !(source === null || source === undefined || (typeof source === "string" && source.trim() === ""));
+      if (targetBlank && sourcePresent) targetRow[col] = source;
+    }
+    merged += 1;
+  }
+
+  return { rows: output, merged };
 }
 
 function ensureSheet(workbook, config) {
@@ -103,6 +162,18 @@ function ensureSheet(workbook, config) {
 
   const headerRow = rows[0];
   for (const header of config.headers) {
+    const normalizedHeader = normalizeHeader(header);
+    const isNameAlias = config.nameHeaders.some(
+      (candidate) => normalizeHeader(candidate) === normalizedHeader,
+    );
+    const isImageAlias = config.imageHeaders.some(
+      (candidate) => normalizeHeader(candidate) === normalizedHeader,
+    );
+
+    // If an equivalent name/image alias already exists, do not append a
+    // second semantic column (e.g. PET NAME beside ITEM NAME).
+    if (isNameAlias && findHeaderIndex(headerRow, config.nameHeaders) >= 0) continue;
+    if (isImageAlias && findHeaderIndex(headerRow, config.imageHeaders) >= 0) continue;
     if (findHeaderIndex(headerRow, [header]) < 0) headerRow.push(header);
   }
 
@@ -176,6 +247,12 @@ function updateSheet(workbook, snapshotItems, category, config) {
     if (elveMegaIndex >= 0) rows[rowIndex][elveMegaIndex] = record.mega ?? null;
   }
 
+  // Clean up duplicate rows created by older sync versions that used a second
+  // name alias column.  The first/original row wins and missing cells are
+  // merged into it, so staff-maintained GCash values are never overwritten.
+  const deduped = mergeDuplicateItemRows(rows, headerRow, config.nameHeaders);
+  rows.splice(0, rows.length, ...deduped.rows);
+
   // Rewrite only this worksheet's cell grid. GCash and any extra columns remain
   // untouched because rows were read from the existing workbook first.
   const rebuilt = XLSX.utils.aoa_to_sheet(rows);
@@ -194,7 +271,14 @@ function updateSheet(workbook, snapshotItems, category, config) {
   }
 
   workbook.Sheets[config.sheet] = rebuilt;
-  return { category, sheet: config.sheet, records: records.length, added, updated };
+  return {
+    category,
+    sheet: config.sheet,
+    records: records.length,
+    added,
+    updated,
+    duplicatesMerged: deduped.merged,
+  };
 }
 
 function main() {
@@ -215,7 +299,9 @@ function main() {
   console.log("Synced Elve Shark values into source-data/trading-data.xlsx.");
   console.log(`Backup: ${backupPath}`);
   for (const result of results) {
-    console.log(`${result.category}: ${result.records} Elve records (${result.added} new workbook rows).`);
+    console.log(
+      `${result.category}: ${result.records} Elve records (${result.added} new workbook rows, ${result.duplicatesMerged} duplicate rows merged).`,
+    );
   }
 }
 

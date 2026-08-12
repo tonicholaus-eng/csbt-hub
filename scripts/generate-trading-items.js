@@ -109,9 +109,17 @@ function findColumnValue(row, possibleColumns) {
   const normalizedRow = normalizeRow(row);
   for (const columnName of possibleColumns) {
     const normalizedColumn = normalizeColumnName(columnName);
-    if (Object.prototype.hasOwnProperty.call(normalizedRow, normalizedColumn)) {
-      return normalizedRow[normalizedColumn];
+    if (!Object.prototype.hasOwnProperty.call(normalizedRow, normalizedColumn)) {
+      continue;
     }
+
+    // A workbook can legitimately contain more than one alias column (for
+    // example ITEM NAME plus an older PET NAME column).  A blank value in
+    // the first alias must not hide a populated value in a later alias.
+    const value = normalizedRow[normalizedColumn];
+    if (value === null || value === undefined) continue;
+    if (typeof value === "string" && value.trim() === "") continue;
+    return value;
   }
   return undefined;
 }
