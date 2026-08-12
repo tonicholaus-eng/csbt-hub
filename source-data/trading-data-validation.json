@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-08-12T09:32:57.130Z",
+  "generatedAt": "2026-08-12T14:12:28.790Z",
   "categories": {
-    "PET": 769,
+    "PET": 763,
     "PETWEAR": 947,
     "EGG": 37,
     "VEHICLE": 268,
@@ -12,14 +12,8 @@
     "STICKER": 365,
     "OTHER": 32
   },
-  "total": 3397,
+  "total": 3391,
   "warnings": [
-    "2023 Uplift Butterfly: no matching Elve Shark snapshot record; workbook fallback used.",
-    "Dango Penguin: no matching Elve Shark snapshot record; workbook fallback used.",
-    "Malayan Tapir: no matching Elve Shark snapshot record; workbook fallback used.",
-    "Mecha R4BBIT - 1.15: no matching Elve Shark snapshot record; workbook fallback used.",
-    "Pet Rock: no matching Elve Shark snapshot record; workbook fallback used.",
-    "Woolly Rhino: no matching Elve Shark snapshot record; workbook fallback used.",
     "Dylan: no matching Elve Shark snapshot record; workbook fallback used.",
     "Dylan: missing or invalid Excel image; using /images/pets/Dylan.png",
     "Echo brown wizard hat: no matching Elve Shark snapshot record; workbook fallback used.",
