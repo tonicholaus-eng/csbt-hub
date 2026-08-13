@@ -81,6 +81,8 @@ export function createNearbyPetsResponse(
     return {
       text: `I couldn’t find any ${label} close to ${formatNumber(targetValue)} value.`,
       intent: "nearbyValue",
+      localConfidence: 0.99,
+      aiEligible: false,
       reaction: "searchEmpty",
       typingDuration: 450,
       suggestions: [
@@ -121,6 +123,8 @@ export function createNearbyPetsResponse(
       `Source: ${VALUE_SOURCE_LABELS[source]}. The difference shown is from your target.`,
     ].join("\n"),
     intent: "nearbyValue",
+    localConfidence: 0.99,
+    aiEligible: false,
     reaction: "searchFound",
     typingDuration: 600,
     suggestions: [

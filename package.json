@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test:nich": "tsx scripts/test-nich-brain.ts",
+    "test:nich-local": "tsx scripts/test-nich-local-max.ts",
     "data:validate": "node scripts/validate-trading-data.js",
     "generate:data": "node scripts/generate-trading-items.js",
     "update:elve": "node scripts/update-elve-shark-values.js",

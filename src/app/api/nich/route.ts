@@ -80,6 +80,13 @@ const AI_ALWAYS_SKIPPED_INTENTS = new Set<NichIntent>([
   "goodbye",
   "help",
   "calculatorHelp",
+  "inventory",
+  "offerBuilder",
+  "wishlist",
+  "exchange",
+  "valueHistory",
+  "counterOffer",
+  "tradingProfile",
   "navigation",
 ]);
 
@@ -150,6 +157,13 @@ const FACT_SENSITIVE_INTENTS = new Set<NichIntent>([
   "petLookup",
   "nearbyValue",
   "tradeComparison",
+  "inventory",
+  "offerBuilder",
+  "wishlist",
+  "exchange",
+  "valueHistory",
+  "counterOffer",
+  "tradingProfile",
 ]);
 
 /**
@@ -165,6 +179,13 @@ const FUNCTIONAL_ENGLISH_INTENTS = new Set<NichIntent>([
   "calculatorHelp",
   "tradeAdvice",
   "tradeComparison",
+  "inventory",
+  "offerBuilder",
+  "wishlist",
+  "exchange",
+  "valueHistory",
+  "counterOffer",
+  "tradingProfile",
   "navigation",
 ]);
 
@@ -208,6 +229,13 @@ const VALID_INTENTS = new Set<NichIntent>([
   "calculatorHelp",
   "tradeAdvice",
   "tradeComparison",
+  "inventory",
+  "offerBuilder",
+  "wishlist",
+  "exchange",
+  "valueHistory",
+  "counterOffer",
+  "tradingProfile",
   "navigation",
   "fallback",
 ]);
@@ -775,6 +803,14 @@ function shouldUseAI(
   message: string,
   deterministicResponse: NichResponse,
 ) {
+  if (
+    deterministicResponse.aiEligible === false ||
+    (typeof deterministicResponse.localConfidence === "number" &&
+      deterministicResponse.localConfidence >= 0.9)
+  ) {
+    return false;
+  }
+
   const styleMode =
     normalizeAIStyleMode(
       process.env.NICH_AI_STYLE_MODE,

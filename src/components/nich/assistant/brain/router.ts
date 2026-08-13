@@ -15,6 +15,9 @@ import createPetLookupResponse from "./petLookup";
 import createTradeComparisonResponse from "./tradeComparison";
 import createSmartFallbackResponse from "./smartFallback";
 import createWebsiteKnowledgeResponse from "./websiteKnowledge";
+import createLocalIntelligenceResponse, {
+  enhanceTradeResponseLocally,
+} from "./localIntelligence";
 
 import type {
   NichBrainInput,
@@ -404,10 +407,20 @@ function createHelpResponse(): NichResponse {
       "⚖️ Comparing offers for a Win, Fair, or Lose result",
       "🔎 Finding items near a certain value",
       "🧮 Using the Trade Calculator",
+      "🎒 Reading your saved Inventory and checking what you can afford",
+      "🧠 Building optimized offers from items you actually own",
+      "⭐ Ranking which Wishlist target you’re closest to",
+      "🔁 Finding CSBT Exchange listings that fit your inventory",
+      "📈 Checking recent value movement for saved items",
+      "💧 Comparing demand/liquidity and spotting upgrades vs downgrades",
+      "🛠️ Fixing an unfair trade with a local counteroffer suggestion",
+      "👤 Using your saved trading preferences and trade history",
       "💬 Remembering items and trades from recent messages",
+      "🧩 Remembering offer constraints like ‘don’t use Turtle’ or ‘high demand only’",
       "🧭 Finding pages and features on CSBT HUB",
       "",
       "When a name could mean several items, I’ll ask you to choose instead of guessing.",
+      "You can type naturally too: ‘can my inv afford owl’, ‘build me an owl offer without turtle’, or ‘find exchange trades I can do’.",
     ].join("\n"),
     intent: "help",
     reaction: "wave",
@@ -919,6 +932,7 @@ export function routeNichMessage(
     NichBrainInput = {
       message: resolution.message,
       context: input.context,
+      localData: input.localData,
     };
 
   /**
@@ -992,6 +1006,14 @@ export function routeNichMessage(
     response =
       createHelpResponse();
   } else {
+    const localIntelligenceResponse =
+      createLocalIntelligenceResponse(
+        resolvedInput,
+      );
+
+    if (localIntelligenceResponse) {
+      response = localIntelligenceResponse;
+    } else {
     const websiteResponse =
       createWebsiteKnowledgeResponse(
         resolvedInput.message,
@@ -1044,6 +1066,14 @@ export function routeNichMessage(
           analysis,
         );
     }
+    }
+  }
+
+  if (response.tradeComparison) {
+    response = enhanceTradeResponseLocally(
+      response,
+      resolvedInput,
+    );
   }
 
   return attachConversationMetadata(

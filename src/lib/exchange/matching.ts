@@ -12,6 +12,10 @@ import type {
 
 const DEMAND_SCORE: Record<string, number> = { S: 100, A: 86, B: 72, C: 58, D: 42 };
 
+export function getDemandScore(tier: string | null | undefined) {
+  return DEMAND_SCORE[String(tier ?? "").toUpperCase()] ?? 60;
+}
+
 export const DEFAULT_MARKETPLACE_PREFERENCES: MarketplacePreferences = {
   value_source: "GCASH",
   prefer_upgrades: true,
@@ -105,8 +109,15 @@ export function scoreListingMatch(
   // A member should not be penalized simply because their whole inventory is much larger than
   // the listing. Estimate whether Exchange can actually assemble a close offer from what they own.
   const builtForTarget = targetValue > 0
-    ? buildGreedyOffer(inventory, listing.value_source, targetValue, preferences.prefer_high_demand ? 0.08 : 0.02)
-    : { items: [] as ExchangeItem[], total: 0 };
+    ? buildOptimizedOffer(inventory, listing.value_source, targetValue, {
+        highDemandOnly: preferences.prefer_high_demand && preferences.avoid_hard_to_trade,
+        maxItems: preferences.avoid_randoms ? 7 : 10,
+        maxOverpayPercent: preferences.prefer_overpays ? 0.12 : 0.07,
+        minTargetPercent: 0.88,
+        demandBias: preferences.prefer_high_demand ? 0.12 : 0.035,
+        itemCountBias: preferences.avoid_randoms ? 0.01 : 0.004,
+      })
+    : { items: [] as ExchangeItem[], total: 0, differencePercent: -100, averageDemand: 0 };
   const valueDifferencePercent = targetValue > 0
     ? Math.abs(builtForTarget.total - targetValue) / targetValue * 100
     : 0;
@@ -223,6 +234,32 @@ type Candidate = {
   demand: number;
 };
 
+export type OfferBuildConstraints = {
+  excludedItemIds?: Set<string>;
+  preferredItemIds?: Set<string>;
+  highDemandOnly?: boolean;
+  minimumDemandScore?: number;
+  demandScoreOverrides?: Map<string, number>;
+  allowedCategories?: Set<string>;
+  excludedCategories?: Set<string>;
+  allowedValueTypes?: Set<ValueType>;
+  minUnitValue?: number;
+  maxUnitValue?: number;
+  maxCopiesPerItem?: number;
+  maxItems?: number;
+  maxOverpayPercent?: number;
+  minTargetPercent?: number;
+  demandBias?: number;
+  itemCountBias?: number;
+};
+
+export type OptimizedOffer = {
+  items: ExchangeItem[];
+  total: number;
+  differencePercent: number;
+  averageDemand: number;
+};
+
 function expandInventory(inventory: InventoryExchangeRow[], source: ValueSource): Candidate[] {
   const candidates: Candidate[] = [];
   for (const row of inventory) {
@@ -238,51 +275,151 @@ function expandInventory(inventory: InventoryExchangeRow[], source: ValueSource)
   return candidates;
 }
 
-function buildGreedyOffer(
-  inventory: InventoryExchangeRow[],
-  source: ValueSource,
-  target: number,
-  demandBias: number,
-) {
-  const pool = expandInventory(inventory, source);
-  const selected: Candidate[] = [];
-  let total = 0;
-
-  while (pool.length && total < target && selected.length < 18) {
-    const remaining = Math.max(0, target - total);
-    pool.sort((a, b) => {
-      const aDistance = Math.abs(remaining - a.unitValue) - a.demand * demandBias;
-      const bDistance = Math.abs(remaining - b.unitValue) - b.demand * demandBias;
-      return aDistance - bDistance;
-    });
-    const next = pool.shift();
-    if (!next) break;
-    selected.push(next);
-    total += next.unitValue;
-  }
-
+function groupCandidates(selected: Candidate[]): ExchangeItem[] {
   const grouped = new Map<string, ExchangeItem>();
   for (const candidate of selected) {
     const key = `${candidate.item.ID}:${candidate.row.value_type}:${candidate.row.potion_status}`;
     const existing = grouped.get(key);
     if (existing) {
       existing.quantity += 1;
-    } else {
-      grouped.set(key, {
-        item_id: candidate.item.ID,
-        item_name: candidate.item.NAME,
-        image_url: candidate.item.IMAGE || null,
-        category: candidate.item.CATEGORY,
-        value_type: candidate.row.value_type as ValueType,
-        potion_status: candidate.row.potion_status,
-        quantity: 1,
-        snapshot_value: candidate.unitValue,
-        demand_tier: candidate.item.DEMAND_TIER ?? null,
-      });
+      continue;
     }
+    grouped.set(key, {
+      item_id: candidate.item.ID,
+      item_name: candidate.item.NAME,
+      image_url: candidate.item.IMAGE || null,
+      category: candidate.item.CATEGORY,
+      value_type: candidate.row.value_type as ValueType,
+      potion_status: candidate.row.potion_status,
+      quantity: 1,
+      snapshot_value: candidate.unitValue,
+      demand_tier: candidate.item.DEMAND_TIER ?? null,
+    });
+  }
+  return Array.from(grouped.values());
+}
+
+/**
+ * Beam-search offer builder. Unlike the original greedy builder, this explores
+ * multiple combinations and can honor exclusions, item-count caps and demand
+ * preferences. It stays deterministic and intentionally bounded for browsers.
+ */
+export function buildOptimizedOffer(
+  inventory: InventoryExchangeRow[],
+  source: ValueSource,
+  targetValue: number,
+  constraints: OfferBuildConstraints = {},
+): OptimizedOffer {
+  if (targetValue <= 0 || !inventory.length) {
+    return { items: [], total: 0, differencePercent: -100, averageDemand: 0 };
   }
 
-  return { items: Array.from(grouped.values()), total };
+  const excluded = constraints.excludedItemIds ?? new Set<string>();
+  const preferred = constraints.preferredItemIds ?? new Set<string>();
+  const maxItems = Math.max(1, Math.min(18, constraints.maxItems ?? 10));
+  const minTargetPercent = Math.max(0.5, Math.min(1.15, constraints.minTargetPercent ?? 0.84));
+  const maxOverpayPercent = Math.max(0, Math.min(0.5, constraints.maxOverpayPercent ?? 0.12));
+  const demandBias = constraints.demandBias ?? 0.035;
+  const upperBound = targetValue * (1 + maxOverpayPercent);
+
+  const allowedCategories = constraints.allowedCategories;
+  const excludedCategories = constraints.excludedCategories ?? new Set<string>();
+  const allowedValueTypes = constraints.allowedValueTypes;
+  const minimumDemand = Math.max(0, constraints.minimumDemandScore ?? (constraints.highDemandOnly ? DEMAND_SCORE.A : 0));
+  const minUnitValue = Math.max(0, constraints.minUnitValue ?? 0);
+  const maxUnitValue = Math.max(minUnitValue, constraints.maxUnitValue ?? Number.POSITIVE_INFINITY);
+  const maxCopiesPerItem = Math.max(1, Math.min(20, constraints.maxCopiesPerItem ?? 20));
+
+  let pool = expandInventory(inventory, source)
+    .map((candidate) => ({
+      ...candidate,
+      demand: constraints.demandScoreOverrides?.get(candidate.item.ID) ?? candidate.demand,
+    }))
+    .filter((candidate) => !excluded.has(candidate.item.ID))
+    .filter((candidate) => candidate.demand >= minimumDemand)
+    .filter((candidate) => !allowedCategories?.size || allowedCategories.has(String(candidate.item.CATEGORY).toUpperCase()))
+    .filter((candidate) => !excludedCategories.has(String(candidate.item.CATEGORY).toUpperCase()))
+    .filter((candidate) => !allowedValueTypes?.size || allowedValueTypes.has(candidate.row.value_type as ValueType))
+    .filter((candidate) => candidate.unitValue >= minUnitValue && candidate.unitValue <= maxUnitValue)
+    .sort((a, b) => {
+      const aPreferred = preferred.has(a.item.ID) ? 1 : 0;
+      const bPreferred = preferred.has(b.item.ID) ? 1 : 0;
+      return bPreferred - aPreferred || b.demand - a.demand || b.unitValue - a.unitValue;
+    });
+
+  // Keep the search bounded while preserving a useful mix of high-value and
+  // high-demand candidates. Quantities remain represented as separate units.
+  if (pool.length > 72) pool = pool.slice(0, 72);
+
+  type State = {
+    selected: Candidate[];
+    total: number;
+    demandTotal: number;
+    preferredCount: number;
+  };
+
+  let beam: State[] = [{ selected: [], total: 0, demandTotal: 0, preferredCount: 0 }];
+  let best: State | null = null;
+  const beamWidth = 360;
+
+  const scoreState = (state: State) => {
+    const diff = Math.abs(state.total - targetValue) / targetValue;
+    const avgDemand = state.selected.length ? state.demandTotal / state.selected.length : 0;
+    const underPenalty = state.total < targetValue * minTargetPercent ? 0.5 : 0;
+    const overPenalty = state.total > upperBound ? 0.8 : 0;
+    const itemPenalty = state.selected.length * (constraints.itemCountBias ?? 0.004);
+    const preferredBonus = state.preferredCount * 0.018;
+    return diff + underPenalty + overPenalty + itemPenalty - (avgDemand / 100) * demandBias - preferredBonus;
+  };
+
+  for (const candidate of pool) {
+    const nextStates = [...beam];
+    for (const state of beam) {
+      if (state.selected.length >= maxItems) continue;
+      if (state.selected.filter((selected) => selected.item.ID === candidate.item.ID).length >= maxCopiesPerItem) continue;
+      // Allow modest overpay exploration but discard combinations far beyond
+      // anything a practical offer should contain.
+      if (state.total + candidate.unitValue > targetValue * 1.35) continue;
+      nextStates.push({
+        selected: [...state.selected, candidate],
+        total: state.total + candidate.unitValue,
+        demandTotal: state.demandTotal + candidate.demand,
+        preferredCount: state.preferredCount + (preferred.has(candidate.item.ID) ? 1 : 0),
+      });
+    }
+
+    nextStates.sort((a, b) => scoreState(a) - scoreState(b));
+
+    // Deduplicate very similar totals/item counts so the beam explores a wider
+    // variety of combinations instead of quantity permutations of one result.
+    const deduped: State[] = [];
+    const seen = new Set<string>();
+    for (const state of nextStates) {
+      const bucketSize = Math.max(1, targetValue * 0.0025);
+      const key = `${Math.round(state.total / bucketSize)}:${state.selected.length}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      deduped.push(state);
+      if (deduped.length >= beamWidth) break;
+    }
+    beam = deduped;
+
+    const candidateBest = beam[0];
+    if (candidateBest && (!best || scoreState(candidateBest) < scoreState(best))) best = candidateBest;
+  }
+
+  const selected = best?.selected ?? [];
+  const total = best?.total ?? 0;
+  const averageDemand = selected.length
+    ? selected.reduce((sum, candidate) => sum + candidate.demand, 0) / selected.length
+    : 0;
+
+  return {
+    items: groupCandidates(selected),
+    total,
+    differencePercent: ((total - targetValue) / targetValue) * 100,
+    averageDemand,
+  };
 }
 
 export function buildOfferSuggestions(
@@ -301,7 +438,11 @@ export function buildOfferSuggestions(
 
   return configs.map((config) => {
     const target = targetValue * config.multiplier;
-    const built = buildGreedyOffer(inventory, source, target, config.demandBias);
+    const built = buildOptimizedOffer(inventory, source, target, {
+      demandBias: config.demandBias,
+      maxOverpayPercent: config.id === "lowball" ? 0.04 : config.id === "competitive" ? 0.1 : 0.07,
+      minTargetPercent: config.id === "lowball" ? 0.84 : 0.9,
+    });
     return {
       id: config.id,
       label: config.label,

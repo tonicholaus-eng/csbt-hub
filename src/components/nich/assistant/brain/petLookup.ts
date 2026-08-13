@@ -285,6 +285,8 @@ export function createPetLookupResponse(
   return {
     text,
     intent: "petLookup",
+    localConfidence: 0.99,
+    aiEligible: false,
     reaction: "searchFound",
     typingDuration: Math.min(500 + matches.length * 100, 1_100),
     suggestions: createPetSuggestions(lastMatch.pet, source, lastMatch.variant),

@@ -17,6 +17,9 @@ import {
 } from "framer-motion";
 
 import routeNichMessage from "./brain/router";
+import useNichLocalData, {
+  enrichNichLocalDataForMessage,
+} from "./useNichLocalData";
 import type {
   NichConversationContext,
   NichIntent,
@@ -83,6 +86,13 @@ const validIntents =
     "calculatorHelp",
     "tradeAdvice",
     "tradeComparison",
+    "inventory",
+    "offerBuilder",
+    "wishlist",
+    "exchange",
+    "valueHistory",
+    "counterOffer",
+    "tradingProfile",
     "navigation",
     "fallback",
   ]);
@@ -295,6 +305,10 @@ function sanitizeTradeComparison(
         | "win"
         | "fair"
         | "lose",
+    ...(value.valueSource === "GCASH" ||
+    value.valueSource === "ELVE"
+      ? { valueSource: value.valueSource }
+      : {}),
   };
 }
 
@@ -402,6 +416,114 @@ function sanitizeConversationContext(
   ) {
     context.lastNumericValue =
       value.lastNumericValue;
+  }
+
+  if (
+    value.lastValueSource === "GCASH" ||
+    value.lastValueSource === "ELVE"
+  ) {
+    context.lastValueSource =
+      value.lastValueSource;
+  }
+
+  if (isRecord(value.tradingGoal)) {
+    const goal = value.tradingGoal;
+    const validObjectives = new Set([
+      "FAIR",
+      "LOWBALL",
+      "COMPETITIVE",
+      "HIGH_DEMAND",
+      "UPGRADE",
+      "DOWNGRADE",
+    ]);
+
+    context.tradingGoal = {
+      ...(typeof goal.targetItemId === "string"
+        ? { targetItemId: goal.targetItemId }
+        : {}),
+      ...(typeof goal.targetItemName === "string"
+        ? { targetItemName: goal.targetItemName }
+        : {}),
+      ...(goal.valueSource === "GCASH" ||
+      goal.valueSource === "ELVE"
+        ? { valueSource: goal.valueSource }
+        : {}),
+      ...(typeof goal.objective === "string" &&
+      validObjectives.has(goal.objective)
+        ? {
+            objective:
+              goal.objective as NonNullable<
+                NichConversationContext["tradingGoal"]
+              >["objective"],
+          }
+        : {}),
+      ...(Array.isArray(goal.excludedItemIds)
+        ? {
+            excludedItemIds:
+              goal.excludedItemIds
+                .filter(
+                  (id): id is string =>
+                    typeof id === "string",
+                )
+                .slice(0, 30),
+          }
+        : {}),
+      ...(Array.isArray(goal.preferredItemIds)
+        ? {
+            preferredItemIds:
+              goal.preferredItemIds
+                .filter(
+                  (id): id is string =>
+                    typeof id === "string",
+                )
+                .slice(0, 30),
+          }
+        : {}),
+      ...(Array.isArray(goal.allowedCategories)
+        ? { allowedCategories: goal.allowedCategories.filter((value): value is string => typeof value === "string").slice(0, 12) }
+        : {}),
+      ...(Array.isArray(goal.excludedCategories)
+        ? { excludedCategories: goal.excludedCategories.filter((value): value is string => typeof value === "string").slice(0, 12) }
+        : {}),
+      ...(Array.isArray(goal.allowedValueTypes)
+        ? {
+            allowedValueTypes: goal.allowedValueTypes.filter(
+              (value): value is "NORMAL" | "NEON" | "MEGA" => value === "NORMAL" || value === "NEON" || value === "MEGA",
+            ),
+          }
+        : {}),
+      ...(isFiniteNumber(goal.minUnitValue) ? { minUnitValue: Math.max(0, goal.minUnitValue) } : {}),
+      ...(isFiniteNumber(goal.maxUnitValue) ? { maxUnitValue: Math.max(0, goal.maxUnitValue) } : {}),
+      ...(isFiniteNumber(goal.maxCopiesPerItem) ? { maxCopiesPerItem: Math.max(1, Math.min(20, Math.round(goal.maxCopiesPerItem))) } : {}),
+      ...(typeof goal.preferFewItems === "boolean" ? { preferFewItems: goal.preferFewItems } : {}),
+      ...(typeof goal.preferManyItems === "boolean" ? { preferManyItems: goal.preferManyItems } : {}),
+      ...(typeof goal.minimumDemandTier === "string" && ["S", "A", "B", "C", "D"].includes(goal.minimumDemandTier)
+        ? { minimumDemandTier: goal.minimumDemandTier as "S" | "A" | "B" | "C" | "D" }
+        : {}),
+      ...(isFiniteNumber(goal.maxItems)
+        ? {
+            maxItems: Math.max(
+              1,
+              Math.min(
+                18,
+                Math.round(goal.maxItems),
+              ),
+            ),
+          }
+        : {}),
+      ...(typeof goal.highDemandOnly === "boolean"
+        ? {
+            highDemandOnly:
+              goal.highDemandOnly,
+          }
+        : {}),
+      ...(typeof goal.avoidOverpay === "boolean"
+        ? {
+            avoidOverpay:
+              goal.avoidOverpay,
+          }
+        : {}),
+    };
   }
 
   if (lastTradeComparison) {
@@ -761,6 +883,7 @@ export default function NichChat({
 
   const isEmbedded = variant === "embedded";
   const isVisible = isEmbedded || open;
+  const localData = useNichLocalData(isVisible);
 
   const [input, setInput] = useState("");
   const [initialPromptApplied, setInitialPromptApplied] = useState(false);
@@ -1101,10 +1224,18 @@ export default function NichChat({
        * exact CSBT values. The server may enhance this response with a free
        * local Ollama model or the optional Gemini free tier.
        */
+      const effectiveLocalData =
+        await enrichNichLocalDataForMessage(
+          localData,
+          trimmedMessage,
+          conversationContext,
+        );
+
       let response: NichResponse =
         routeNichMessage({
           message: trimmedMessage,
           context: conversationContext,
+          localData: effectiveLocalData,
         });
 
       const history = messages
@@ -1141,60 +1272,62 @@ export default function NichChat({
         responseTimeoutRef.current = null;
       }
 
-      const requestController =
-        new AbortController();
+      if (response.aiEligible !== false) {
+        const requestController =
+          new AbortController();
 
-      const requestTimeout =
-        window.setTimeout(() => {
-          requestController.abort();
-        }, 130_000);
+        const requestTimeout =
+          window.setTimeout(() => {
+            requestController.abort();
+          }, 130_000);
 
-      try {
-        const apiResponse = await fetch(
-          "/api/nich",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type":
-                "application/json",
+        try {
+          const apiResponse = await fetch(
+            "/api/nich",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+              signal:
+                requestController.signal,
+              body: JSON.stringify({
+                message: trimmedMessage,
+                context: conversationContext,
+                history,
+              }),
             },
-            signal:
-              requestController.signal,
-            body: JSON.stringify({
-              message: trimmedMessage,
-              context: conversationContext,
-              history,
-            }),
-          },
-        );
+          );
 
-        if (apiResponse.ok) {
-          const payload =
-            (await apiResponse.json()) as {
-              response?: NichResponse;
-            };
+          if (apiResponse.ok) {
+            const payload =
+              (await apiResponse.json()) as {
+                response?: NichResponse;
+              };
 
-          if (
-            payload.response &&
-            typeof payload.response.text ===
-              "string" &&
-            typeof payload.response.intent ===
-              "string" &&
-            typeof payload.response.reaction ===
-              "string"
-          ) {
-            response = payload.response;
+            if (
+              payload.response &&
+              typeof payload.response.text ===
+                "string" &&
+              typeof payload.response.intent ===
+                "string" &&
+              typeof payload.response.reaction ===
+                "string"
+            ) {
+              response = payload.response;
+            }
           }
+        } catch {
+          /*
+           * Network failures are intentionally silent here because the local
+           * NICH brain already produced a complete fallback response.
+           */
+        } finally {
+          window.clearTimeout(
+            requestTimeout,
+          );
         }
-      } catch {
-        /*
-         * Network failures are intentionally silent here because the local
-         * NICH brain already produced a complete fallback response.
-         */
-      } finally {
-        window.clearTimeout(
-          requestTimeout,
-        );
       }
 
       if (
@@ -1268,6 +1401,7 @@ export default function NichChat({
     [
       conversationContext,
       isTyping,
+      localData,
       messages,
       onClose,
       react,

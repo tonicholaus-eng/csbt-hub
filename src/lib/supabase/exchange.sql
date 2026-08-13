@@ -816,7 +816,7 @@ set search_path = ''
 as $$
 declare
   new_listing_id uuid;
-  item jsonb;
+  item_row jsonb;
   normalized_source text := upper(coalesce(p_value_source,'GCASH'));
   normalized_intent text := upper(coalesce(p_intent,'OPEN_OFFERS'));
   normalized_side text;
@@ -832,21 +832,21 @@ begin
   if jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) < 1 or jsonb_array_length(p_items) > 36 then raise exception 'Listing must contain 1 to 36 item rows'; end if;
   if coalesce(p_title,'') ~* '(https?://|www[.]|discord[.]gg|bit[.]ly|tinyurl[.])' or coalesce(p_note,'') ~* '(https?://|www[.]|discord[.]gg|bit[.]ly|tinyurl[.])' then raise exception 'External links are not allowed in Exchange listings'; end if;
 
-  select count(*) into have_count from jsonb_array_elements(p_items) item where upper(item->>'side') = 'HAVE';
+  select count(*) into have_count from jsonb_array_elements(p_items) as item_entry where upper(item_entry->>'side') = 'HAVE';
   if have_count < 1 then raise exception 'Add at least one item you have'; end if;
-  if normalized_intent = 'SPECIFIC' and not exists (select 1 from jsonb_array_elements(p_items) item where upper(item->>'side') = 'WANT') then raise exception 'Specific listings need at least one wanted item'; end if;
+  if normalized_intent = 'SPECIFIC' and not exists (select 1 from jsonb_array_elements(p_items) as item_entry where upper(item_entry->>'side') = 'WANT') then raise exception 'Specific listings need at least one wanted item'; end if;
 
   insert into public.marketplace_listings (user_id,value_source,intent,title,note,preferences,allow_counteroffers)
   values (auth.uid(),normalized_source,normalized_intent,nullif(left(trim(coalesce(p_title,'')),90),''),nullif(left(trim(coalesce(p_note,'')),600),''),coalesce(p_preferences,'{}'::jsonb),coalesce(p_allow_counteroffers,true))
   returning id into new_listing_id;
 
-  for item in select * from jsonb_array_elements(p_items)
+  for item_row in select value from jsonb_array_elements(p_items) as item_entry(value)
   loop
-    normalized_side := upper(coalesce(item->>'side',''));
-    normalized_value_type := upper(coalesce(item->>'value_type','NORMAL'));
+    normalized_side := upper(coalesce(item_row->>'side',''));
+    normalized_value_type := upper(coalesce(item_row->>'value_type','NORMAL'));
     if normalized_side not in ('HAVE','WANT') then raise exception 'Invalid listing item side'; end if;
     if normalized_value_type not in ('NORMAL','NEON','MEGA') then raise exception 'Invalid item variant'; end if;
-    if nullif(trim(coalesce(item->>'item_id','')),'') is null then raise exception 'Missing item ID'; end if;
+    if nullif(trim(coalesce(item_row->>'item_id','')),'') is null then raise exception 'Missing item ID'; end if;
 
     canonical_name := null;
     canonical_category := null;
@@ -854,14 +854,14 @@ begin
     select vh.item_name, vh.category, vh.value
       into canonical_name, canonical_category, canonical_value
     from public.value_history vh
-    where vh.item_id = item->>'item_id'
+    where vh.item_id = item_row->>'item_id'
       and upper(vh.source) = normalized_source
       and upper(vh.value_type) = normalized_value_type
     order by vh.snapshot_date desc, vh.captured_at desc
     limit 1;
 
     if canonical_name is null then
-      raise exception 'Item % / % is not in the current CSBT value catalog', item->>'item_id', normalized_value_type;
+      raise exception 'Item % / % is not in the current CSBT value catalog', item_row->>'item_id', normalized_value_type;
     end if;
 
     insert into public.marketplace_listing_items (
@@ -869,19 +869,19 @@ begin
     ) values (
       new_listing_id,
       normalized_side,
-      item->>'item_id',
+      item_row->>'item_id',
       left(canonical_name,120),
       case
-        when coalesce(item->>'image_url','') ~ '^/images/' then item->>'image_url'
-        when coalesce(item->>'image_url','') ~ '^https://elvebredd[.]com/' then item->>'image_url'
+        when coalesce(item_row->>'image_url','') ~ '^/images/' then item_row->>'image_url'
+        when coalesce(item_row->>'image_url','') ~ '^https://elvebredd[.]com/' then item_row->>'image_url'
         else null
       end,
       upper(coalesce(canonical_category,'OTHER')),
       normalized_value_type,
-      upper(coalesce(item->>'potion_status','BASE')),
-      greatest(1,least(99,coalesce((item->>'quantity')::integer,1))),
+      upper(coalesce(item_row->>'potion_status','BASE')),
+      greatest(1,least(99,coalesce((item_row->>'quantity')::integer,1))),
       canonical_value,
-      case when upper(coalesce(item->>'demand_tier','')) in ('S','A','B','C','D') then upper(item->>'demand_tier') else null end
+      case when upper(coalesce(item_row->>'demand_tier','')) in ('S','A','B','C','D') then upper(item_row->>'demand_tier') else null end
     );
   end loop;
 
@@ -911,7 +911,7 @@ declare
   parent_row public.marketplace_offers%rowtype;
   recipient uuid;
   new_offer_id uuid;
-  item jsonb;
+  item_row jsonb;
   sender_count integer;
   recipient_count integer;
   normalized_source text := upper(coalesce(p_value_source,'GCASH'));
@@ -944,8 +944,8 @@ begin
   if recipient = auth.uid() then raise exception 'You cannot offer to yourself'; end if;
   if public.marketplace_users_blocked(auth.uid(),recipient) then raise exception 'This trade is blocked'; end if;
 
-  select count(*) into sender_count from jsonb_array_elements(p_items) item where upper(item->>'side') = 'SENDER';
-  select count(*) into recipient_count from jsonb_array_elements(p_items) item where upper(item->>'side') = 'RECIPIENT';
+  select count(*) into sender_count from jsonb_array_elements(p_items) as item_entry where upper(item_entry->>'side') = 'SENDER';
+  select count(*) into recipient_count from jsonb_array_elements(p_items) as item_entry where upper(item_entry->>'side') = 'RECIPIENT';
   if sender_count < 1 or recipient_count < 1 then raise exception 'Both sides need at least one item'; end if;
 
   -- Totals and compatibility are intentionally initialized server-side. The client values in
@@ -955,13 +955,13 @@ begin
   values (p_listing_id,auth.uid(),recipient,p_parent_offer_id,normalized_source,0,0,70,coalesce(p_explanation,'{}'::jsonb),nullif(left(trim(coalesce(p_note,'')),500),''))
   returning id into new_offer_id;
 
-  for item in select * from jsonb_array_elements(p_items)
+  for item_row in select value from jsonb_array_elements(p_items) as item_entry(value)
   loop
-    normalized_side := upper(coalesce(item->>'side',''));
-    normalized_value_type := upper(coalesce(item->>'value_type','NORMAL'));
+    normalized_side := upper(coalesce(item_row->>'side',''));
+    normalized_value_type := upper(coalesce(item_row->>'value_type','NORMAL'));
     if normalized_side not in ('SENDER','RECIPIENT') then raise exception 'Invalid offer item side'; end if;
     if normalized_value_type not in ('NORMAL','NEON','MEGA') then raise exception 'Invalid item variant'; end if;
-    if nullif(trim(coalesce(item->>'item_id','')),'') is null then raise exception 'Missing item ID'; end if;
+    if nullif(trim(coalesce(item_row->>'item_id','')),'') is null then raise exception 'Missing item ID'; end if;
 
     canonical_name := null;
     canonical_category := null;
@@ -969,33 +969,33 @@ begin
     select vh.item_name, vh.category, vh.value
       into canonical_name, canonical_category, canonical_value
     from public.value_history vh
-    where vh.item_id = item->>'item_id'
+    where vh.item_id = item_row->>'item_id'
       and upper(vh.source) = normalized_source
       and upper(vh.value_type) = normalized_value_type
     order by vh.snapshot_date desc, vh.captured_at desc
     limit 1;
 
     if canonical_name is null then
-      raise exception 'Item % / % is not in the current CSBT value catalog', item->>'item_id', normalized_value_type;
+      raise exception 'Item % / % is not in the current CSBT value catalog', item_row->>'item_id', normalized_value_type;
     end if;
 
     insert into public.marketplace_offer_items (offer_id,side,item_id,item_name,image_url,category,value_type,potion_status,quantity,snapshot_value,demand_tier)
     values (
       new_offer_id,
       normalized_side,
-      item->>'item_id',
+      item_row->>'item_id',
       left(canonical_name,120),
       case
-        when coalesce(item->>'image_url','') ~ '^/images/' then item->>'image_url'
-        when coalesce(item->>'image_url','') ~ '^https://elvebredd[.]com/' then item->>'image_url'
+        when coalesce(item_row->>'image_url','') ~ '^/images/' then item_row->>'image_url'
+        when coalesce(item_row->>'image_url','') ~ '^https://elvebredd[.]com/' then item_row->>'image_url'
         else null
       end,
       upper(coalesce(canonical_category,'OTHER')),
       normalized_value_type,
-      upper(coalesce(item->>'potion_status','BASE')),
-      greatest(1,least(99,coalesce((item->>'quantity')::integer,1))),
+      upper(coalesce(item_row->>'potion_status','BASE')),
+      greatest(1,least(99,coalesce((item_row->>'quantity')::integer,1))),
       canonical_value,
-      case when upper(coalesce(item->>'demand_tier','')) in ('S','A','B','C','D') then upper(item->>'demand_tier') else null end
+      case when upper(coalesce(item_row->>'demand_tier','')) in ('S','A','B','C','D') then upper(item_row->>'demand_tier') else null end
     );
   end loop;
 

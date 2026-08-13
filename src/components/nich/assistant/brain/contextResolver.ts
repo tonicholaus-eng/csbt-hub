@@ -355,6 +355,29 @@ function resolveNearbyValueFollowUp(
   };
 }
 
+function resolveTradingGoalFollowUp(
+  message: string,
+  context: NichConversationContext,
+): ContextResolution | null {
+  const goal = context.tradingGoal;
+  if (!goal?.targetItemName) return null;
+
+  const normalized = normalizeText(message);
+  const isOfferConstraintFollowUp =
+    /\b(?:cheaper|lower|lowball|competitive|stronger|better|high demand|demand only|without|dont use|do not use|wag gamitin|huwag gamitin|use my|include my|max|maximum|up to|no overpay|dont overpay|do not overpay|another offer|same offer|redo|try again|pets only|pet wear only|vehicles only|toys only|normal only|neon only|mega only|no pet wear|no vehicles|no toys|few items|fewer items|more items|smaller adds|no duplicates|one of each|protect|keep my top|wishlist|items under|items over|item cap|s tier|a tier|b tier|reset constraints|clear constraints|use anything)\b/.test(
+      normalized,
+    );
+
+  if (!isOfferConstraintFollowUp) return null;
+
+  return {
+    message: `Build me an offer for ${goal.targetItemName}. ${message}`,
+    usedContext: true,
+    expired: false,
+    reason: "trading-goal-follow-up",
+  };
+}
+
 function resolveOrdinalReferences(
   message: string,
   context: NichConversationContext,
@@ -495,6 +518,16 @@ export function resolveContextualMessage({
       expired: true,
       reason: "context-expired",
     };
+  }
+
+  const goalFollowUp =
+    resolveTradingGoalFollowUp(
+      trimmedMessage,
+      context,
+    );
+
+  if (goalFollowUp) {
+    return goalFollowUp;
   }
 
   const advanced =
