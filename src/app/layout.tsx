@@ -6,6 +6,7 @@ import GlobalNichAssistant from "../components/nich/GlobalNichAssistant";
 import PerformanceProvider from "../components/PerformanceProvider";
 import ThemeProvider from "../components/ThemeProvider";
 import ThemeDecorations from "../components/theme/ThemeDecorations";
+import BirthdayEventGateway from "../components/birthday/BirthdayEventGateway";
 
 import "./globals.css";
 
@@ -132,6 +133,7 @@ export default function RootLayout({
         <ThemeProvider>
           <PerformanceProvider>
             <ThemeDecorations />
+            <BirthdayEventGateway />
             {children}
             <GlobalNichAssistant />
           </PerformanceProvider>

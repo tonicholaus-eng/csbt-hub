@@ -36,6 +36,9 @@ import {
 } from "./memory/context";
 import useNich from "./useNich";
 import type { NichVisionApiResponse } from "../../../lib/nich/vision";
+import { useBirthdayEventActive } from "../../../hooks/useBirthdayEventActive";
+import { birthdayEvent, openBirthdayEvent } from "../../../config/birthdayEvent";
+import { PartyHat } from "../../birthday/BirthdayIcons";
 
 type NichChatProps = {
   open?: boolean;
@@ -965,6 +968,7 @@ export default function NichChat({
   const { react } = useNich();
 
   const isEmbedded = variant === "embedded";
+  const birthdayActive = useBirthdayEventActive();
   const isVisible = isEmbedded || open;
   const localData = useNichLocalData(isVisible);
 
@@ -1870,6 +1874,7 @@ export default function NichChat({
                   sizes="48px"
                 />
                 </div>
+                {birthdayActive && <PartyHat aria-hidden="true" className="birthday-nich-chat-hat h-7 w-7"/>}
               </motion.div>
 
               <div className="min-w-0 flex-1">
@@ -1895,6 +1900,7 @@ export default function NichChat({
               </div>
 
               <div className="flex shrink-0 items-center gap-2">
+                {birthdayActive && <button type="button" onClick={() => openBirthdayEvent("nich")} className="birthday-nich-trigger hidden min-h-11 rounded-xl px-3 text-[11px] font-black sm:inline-flex" aria-label={`Open ${birthdayEvent.person.name} birthday scan`}>🎂 <span>{birthdayEvent.person.name}&apos;s Birthday</span></button>}
                 <button
                   type="button"
                   onClick={() => {
