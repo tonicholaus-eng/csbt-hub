@@ -135,28 +135,15 @@ export default function AboutPage() {
   };
 
   return (
-    <main className="relative min-h-screen overflow-x-hidden bg-[#fff8e9] text-slate-900 transition-colors duration-300 dark:bg-[#07111f] dark:text-white">
-      {/* Background */}
+    <main className="csbt-page overflow-x-hidden">
 
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,#e7f8ff_0%,#fff9e7_26%,#fff1dd_56%,#f7efff_82%,#edf9ff_100%)] dark:bg-[linear-gradient(180deg,#07111f_0%,#0a1728_30%,#11182a_65%,#0b1626_100%)]" />
-
-      <div className="pointer-events-none absolute -left-48 top-24 h-[560px] w-[560px] rounded-full bg-yellow-300/25 blur-[115px] dark:bg-amber-500/10" />
-
-      <div className="pointer-events-none absolute -right-52 top-[780px] h-[680px] w-[680px] rounded-full bg-violet-300/20 blur-[130px] dark:bg-violet-500/10" />
-
-      <div className="pointer-events-none absolute left-1/2 top-[1900px] h-[720px] w-[720px] -translate-x-1/2 rounded-full bg-cyan-300/15 blur-[135px] dark:bg-cyan-500/10" />
-
-      <div className="pointer-events-none absolute -left-40 top-[3200px] h-[620px] w-[620px] rounded-full bg-orange-300/15 blur-[125px] dark:bg-orange-500/10" />
-
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle,rgba(255,255,255,.75)_1px,transparent_1px)] bg-[size:34px_34px] opacity-25 dark:opacity-[0.04]" />
-
-      <div className="relative z-10 min-w-0 lg:pl-72">
+      <div className="relative z-10 min-w-0 lg:pl-[268px]">
         <Navbar />
 
-        <div className="mx-auto w-full max-w-7xl px-4 pb-24 pt-8 sm:px-6 sm:pb-32 sm:pt-14">
+        <div className="mx-auto w-full max-w-[1320px] px-3 pb-24 pt-6 sm:px-6 sm:pb-32 sm:pt-10 lg:px-8">
           {/* Hero */}
 
-          <section className="grid min-h-[620px] items-center gap-14 lg:grid-cols-[1.05fr_0.95fr] lg:gap-20">
+          <section className="grid min-h-[520px] items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
             <motion.div
               initial={{
                 opacity: 0,
@@ -180,9 +167,9 @@ export default function AboutPage() {
                 Our Story
               </span>
 
-              <h1 className="mt-6 max-w-4xl text-5xl font-black tracking-tight text-slate-950 dark:text-white sm:text-6xl lg:text-7xl">
+              <h1 className="mt-6 max-w-4xl text-4xl font-black tracking-[-.045em] text-[var(--foreground)] sm:text-5xl lg:text-6xl">
                 Built by traders,
-                <span className="block bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 bg-clip-text text-transparent">
+                <span className="block text-[var(--gold-dark)] dark:text-[var(--gold-bright)]">
                   for traders.
                 </span>
               </h1>
@@ -196,7 +183,7 @@ export default function AboutPage() {
                   href="https://www.facebook.com/groups/5352107604807631"
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex min-h-[52px] items-center justify-center rounded-2xl bg-gradient-to-r from-blue-500 to-indigo-600 px-7 py-4 font-black text-white shadow-[0_16px_40px_rgba(59,130,246,.28)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_48px_rgba(59,130,246,.38)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-400/40"
+                  className="inline-flex min-h-[52px] items-center justify-center rounded-2xl bg-[var(--gold)] px-7 py-4 font-black text-slate-950 shadow-[var(--shadow-gold)] transition duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-400/30"
                 >
                   Join CSBT Community
                 </a>
@@ -233,26 +220,9 @@ export default function AboutPage() {
               }}
               className="relative mx-auto w-full max-w-lg"
             >
-              <div className="pointer-events-none absolute -inset-8 rounded-[50px] bg-gradient-to-br from-yellow-300/30 via-orange-300/20 to-violet-300/25 blur-3xl dark:from-amber-500/15 dark:via-orange-500/10 dark:to-violet-500/15" />
+              <div className="pointer-events-none absolute -inset-8 rounded-[50px] bg-[radial-gradient(circle,rgba(217,162,27,.16),transparent_68%)] blur-3xl" />
 
               <motion.div
-                animate={
-                  shouldReduceMotion
-                    ? undefined
-                    : {
-                        y: [0, -10, 0],
-                        rotate: [
-                          -0.7,
-                          0.7,
-                          -0.7,
-                        ],
-                      }
-                }
-                transition={{
-                  duration: 6,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
                 className="relative overflow-hidden rounded-[38px] border-4 border-white/80 bg-white shadow-[0_35px_90px_rgba(15,23,42,.2)] dark:border-white/10 dark:bg-slate-900"
               >
                 <div className="relative aspect-[3/4] w-full">
@@ -278,23 +248,6 @@ export default function AboutPage() {
               </motion.div>
 
               <motion.div
-                animate={
-                  shouldReduceMotion
-                    ? undefined
-                    : {
-                        y: [0, -8, 0],
-                        rotate: [
-                          -3,
-                          2,
-                          -3,
-                        ],
-                      }
-                }
-                transition={{
-                  duration: 4,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
                 className="absolute -bottom-6 -left-4 max-w-[240px] rounded-[24px] border border-white/80 bg-white/95 p-4 text-sm font-bold leading-6 text-slate-700 shadow-xl backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/95 dark:text-slate-200 sm:-left-12"
               >
                 “Everyone starts somewhere.”
@@ -323,7 +276,7 @@ export default function AboutPage() {
                 </div>
 
                 <div className="p-7 sm:p-10 lg:p-14">
-                  <span className="text-xs font-black uppercase tracking-[0.2em] text-orange-500">
+                  <span className="text-xs font-black uppercase tracking-[0.2em] text-[var(--gold-dark)] dark:text-[var(--gold-bright)]">
                     A message from the creator
                   </span>
 
@@ -462,7 +415,7 @@ export default function AboutPage() {
                     }}
                     className="group rounded-[28px] border border-white/70 bg-white/70 p-6 text-left shadow-[0_18px_50px_rgba(15,23,42,.08)] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:bg-white dark:border-white/10 dark:bg-white/[0.055] dark:hover:bg-white/[0.08]"
                   >
-                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-yellow-300 to-orange-400 text-3xl font-black text-white shadow-lg transition duration-300 group-hover:rotate-3 group-hover:scale-105">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--gold)] text-3xl font-black text-slate-950 shadow-lg transition duration-300 group-hover:rotate-3 group-hover:scale-105">
                       {item.letter}
                     </div>
 
@@ -485,14 +438,14 @@ export default function AboutPage() {
             {...reveal}
             className="pt-28 sm:pt-36"
           >
-            <div className="relative overflow-hidden rounded-[36px] border border-blue-200/70 bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 p-7 text-white shadow-[0_30px_90px_rgba(79,70,229,.28)] sm:p-12 lg:p-16">
+            <div className="relative overflow-hidden rounded-[36px] border border-white/10 bg-[#0a1423] p-7 text-white shadow-[var(--shadow-md)] sm:p-12 lg:p-16">
               <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-white/15 blur-3xl" />
 
-              <div className="pointer-events-none absolute -bottom-32 -left-24 h-96 w-96 rounded-full bg-cyan-300/20 blur-3xl" />
+              <div className="pointer-events-none absolute -bottom-32 -left-24 h-96 w-96 rounded-full bg-amber-300/10 blur-3xl" />
 
               <div className="relative grid gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
                 <div>
-                  <span className="text-xs font-black uppercase tracking-[0.2em] text-blue-100">
+                  <span className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">
                     CSBT OFFICIAL
                   </span>
 
@@ -540,7 +493,7 @@ export default function AboutPage() {
                     href="https://www.facebook.com/groups/5352107604807631"
                     target="_blank"
                     rel="noreferrer"
-                    className="mt-8 inline-flex min-h-[52px] items-center justify-center rounded-2xl bg-white px-7 py-4 font-black text-blue-700 shadow-xl transition duration-300 hover:-translate-y-1 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/40"
+                    className="mt-8 inline-flex min-h-[52px] items-center justify-center rounded-2xl bg-[var(--gold)] px-7 py-4 font-black text-slate-950 shadow-[var(--shadow-gold)] transition duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/40"
                   >
                     Join CSBT OFFICIAL →
                   </a>
@@ -632,7 +585,7 @@ export default function AboutPage() {
                     }}
                     className="group rounded-[30px] border border-white/70 bg-white/70 p-7 shadow-[0_20px_60px_rgba(15,23,42,.08)] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:bg-white hover:shadow-[0_25px_65px_rgba(15,23,42,.13)] dark:border-white/10 dark:bg-white/[0.055] dark:hover:bg-white/[0.08]"
                   >
-                    <div className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-gradient-to-br from-yellow-100 to-orange-100 text-3xl shadow-sm transition duration-300 group-hover:scale-105 dark:from-amber-400/15 dark:to-orange-400/10">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-[var(--surface-selected)] text-3xl shadow-sm ring-1 ring-[var(--border-gold)] transition duration-200 group-hover:scale-[1.03]">
                       {feature.icon}
                     </div>
 
@@ -646,7 +599,7 @@ export default function AboutPage() {
 
                     <Link
                       href={feature.href}
-                      className="mt-6 inline-flex font-black text-orange-600 transition group-hover:translate-x-1 dark:text-orange-300"
+                      className="mt-6 inline-flex font-black text-[var(--gold-dark)] transition group-hover:translate-x-1 dark:text-[var(--gold-bright)]"
                     >
                       {feature.action} →
                     </Link>
@@ -667,19 +620,7 @@ export default function AboutPage() {
                 <div className="pointer-events-none absolute inset-8 rounded-full bg-yellow-300/35 blur-[80px] dark:bg-amber-500/15" />
 
                 <motion.div
-                  animate={
-                    shouldReduceMotion
-                      ? undefined
-                      : {
-                          y: [0, -10, 0],
-                        }
-                  }
-                  transition={{
-                    duration: 4.5,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                  className="relative aspect-square overflow-hidden rounded-[34px] border-4 border-white bg-gradient-to-br from-yellow-100 to-orange-100 shadow-2xl dark:border-white/10"
+                  className="relative aspect-square overflow-hidden rounded-[34px] border-4 border-white bg-[var(--surface-selected)] shadow-2xl dark:border-white/10"
                 >
                   <Image
                     src="/nich/nich-face.png"
@@ -775,7 +716,7 @@ export default function AboutPage() {
                       className="flex items-center justify-between gap-4 rounded-[22px] border border-white/70 bg-white/70 px-5 py-4 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.055]"
                     >
                       <div className="flex items-center gap-3">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-yellow-300 to-orange-400 font-black text-white">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--gold)] font-black text-slate-950">
                           ✓
                         </span>
 
@@ -818,7 +759,7 @@ export default function AboutPage() {
               <div className="flex flex-col justify-center p-8 sm:p-12 lg:p-16">
                 <p className="text-3xl font-black leading-tight text-slate-950 dark:text-white sm:text-5xl">
                   “No one starts rich.
-                  <span className="block text-orange-500">
+                  <span className="block text-[var(--gold-dark)] dark:text-[var(--gold-bright)]">
                     Everyone starts somewhere.”
                   </span>
                 </p>
@@ -837,7 +778,7 @@ export default function AboutPage() {
                   Welcome to CSBT.
                 </p>
 
-                <p className="mt-1 text-2xl font-black text-orange-500">
+                <p className="mt-1 text-2xl font-black text-[var(--gold-dark)] dark:text-[var(--gold-bright)]">
                   Welcome home.
                 </p>
 
@@ -850,7 +791,7 @@ export default function AboutPage() {
                     href="https://www.facebook.com/groups/5352107604807631"
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex min-h-[52px] items-center justify-center rounded-2xl bg-gradient-to-r from-blue-500 to-indigo-600 px-7 py-4 font-black text-white shadow-lg transition duration-300 hover:-translate-y-1"
+                    className="inline-flex min-h-[52px] items-center justify-center rounded-2xl bg-[var(--gold)] px-7 py-4 font-black text-slate-950 shadow-[var(--shadow-gold)] transition duration-200 hover:-translate-y-0.5"
                   >
                     Join the community
                   </a>

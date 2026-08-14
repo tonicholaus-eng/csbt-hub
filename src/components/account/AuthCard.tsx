@@ -148,7 +148,7 @@ export default function AuthCard({ supabase, onAuthenticated, compact = false }:
         <button
           type="submit"
           disabled={busy}
-          className="min-h-12 w-full rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 px-4 font-black text-slate-950 shadow-sm disabled:opacity-60"
+          className="min-h-12 w-full rounded-2xl csbt-theme-primary px-4 font-black text-slate-950 shadow-sm disabled:opacity-60"
         >
           {busy ? "Please wait…" : mode === "signup" ? "Create CSBT account" : "Sign in"}
         </button>

@@ -35,6 +35,7 @@ import {
   updateNichContext,
 } from "./memory/context";
 import useNich from "./useNich";
+import type { NichVisionApiResponse } from "../../../lib/nich/vision";
 
 type NichChatProps = {
   open?: boolean;
@@ -67,6 +68,49 @@ const NICH_CHAT_STORAGE_VERSION = 1;
 const NICH_CHAT_EXPIRY_MS =
   30 * 60 * 1000;
 const MAX_SAVED_MESSAGES = 60;
+const NICH_VISION_SESSION_CACHE_PREFIX = "csbt-hub:nich-vision:v1:";
+const NICH_VISION_SESSION_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+type CachedNichVisionPayload = {
+  savedAt: number;
+  payload: NichVisionApiResponse;
+};
+
+async function getVisionFileHash(file: File) {
+  if (!globalThis.crypto?.subtle) return null;
+  try {
+    const digest = await globalThis.crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+    return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  } catch {
+    return null;
+  }
+}
+
+function readVisionSessionCache(hash: string | null): NichVisionApiResponse | null {
+  if (!hash || typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(`${NICH_VISION_SESSION_CACHE_PREFIX}${hash}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as CachedNichVisionPayload;
+    if (!parsed || typeof parsed.savedAt !== "number" || !parsed.payload || Date.now() - parsed.savedAt > NICH_VISION_SESSION_CACHE_TTL_MS) {
+      window.sessionStorage.removeItem(`${NICH_VISION_SESSION_CACHE_PREFIX}${hash}`);
+      return null;
+    }
+    return parsed.payload;
+  } catch {
+    return null;
+  }
+}
+
+function writeVisionSessionCache(hash: string | null, payload: NichVisionApiResponse) {
+  if (!hash || typeof window === "undefined" || !payload.ok) return;
+  try {
+    const entry: CachedNichVisionPayload = { savedAt: Date.now(), payload };
+    window.sessionStorage.setItem(`${NICH_VISION_SESSION_CACHE_PREFIX}${hash}`, JSON.stringify(entry));
+  } catch {
+    // Storage may be unavailable/private; vision still works normally.
+  }
+}
 
 const validVariants =
   new Set<PetVariant>([
@@ -871,6 +915,45 @@ function TradeResultCard({
   );
 }
 
+async function optimizeNichScreenshot(file: File): Promise<File> {
+  const safeOriginal = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+  try {
+    const bitmap = await createImageBitmap(file);
+    const maxDimension = 1536;
+    const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+
+    if (scale === 1 && file.size <= 2_500_000 && safeOriginal.has(file.type)) {
+      bitmap.close();
+      return file;
+    }
+
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d", { alpha: false });
+
+    if (!context) {
+      bitmap.close();
+      return file;
+    }
+
+    context.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close();
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, "image/jpeg", 0.9);
+    });
+
+    if (!blob) return file;
+    return new File([blob], "nich-screenshot.jpg", { type: "image/jpeg", lastModified: Date.now() });
+  } catch {
+    return file;
+  }
+}
+
 export default function NichChat({
   open = false,
   onClose,
@@ -913,6 +996,7 @@ export default function NichChat({
     useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const responseTimeoutRef = useRef<number | null>(null);
   const navigationTimeoutRef = useRef<number | null>(null);
   const copyResetTimeoutRef = useRef<number | null>(null);
@@ -1222,7 +1306,7 @@ export default function NichChat({
       /*
        * The local brain remains the guaranteed fallback and the source of
        * exact CSBT values. The server may enhance this response with a free
-       * local Ollama model or the optional Gemini free tier.
+       * local Ollama model or the optional Gemini API.
        */
       const effectiveLocalData =
         await enrichNichLocalDataForMessage(
@@ -1410,6 +1494,132 @@ export default function NichChat({
     ],
   );
 
+  const analyzeScreenshot = useCallback(
+    async (file: File) => {
+      if (isTyping) return;
+
+      const requestId = requestSequenceRef.current + 1;
+      requestSequenceRef.current = requestId;
+
+      const userMessage: ChatMessage = {
+        id: createMessageId(),
+        sender: "user",
+        text: `📷 Screenshot uploaded: ${file.name}`,
+        createdAt: Date.now(),
+      };
+
+      setMessages((currentMessages) => [...currentMessages, userMessage]);
+      setIsTyping(true);
+      react("search");
+
+      try {
+        if (file.size > 12 * 1024 * 1024) {
+          throw new Error("That image is too large. Please use a screenshot under 12 MB.");
+        }
+
+        const optimized = await optimizeNichScreenshot(file);
+        const visionHash = await getVisionFileHash(optimized);
+        const cachedPayload = readVisionSessionCache(visionHash);
+
+        let payload: NichVisionApiResponse;
+        let apiOk = false;
+
+        if (cachedPayload) {
+          payload = cachedPayload;
+          apiOk = true;
+        } else {
+          const formData = new FormData();
+          formData.append("image", optimized, optimized.name);
+
+          const controller = new AbortController();
+          const timeout = window.setTimeout(() => controller.abort(), 60_000);
+          let apiResponse: Response;
+
+          try {
+            apiResponse = await fetch("/api/nich/vision", {
+              method: "POST",
+              body: formData,
+              signal: controller.signal,
+            });
+          } finally {
+            window.clearTimeout(timeout);
+          }
+
+          apiOk = apiResponse.ok;
+          try {
+            payload = (await apiResponse.json()) as NichVisionApiResponse;
+          } catch {
+            payload = { ok: false, message: "Nich couldn’t read the screenshot response." };
+          }
+
+          if (apiOk) writeVisionSessionCache(visionHash, payload);
+        }
+
+        if (requestSequenceRef.current !== requestId) return;
+
+        let response: NichResponse;
+
+        if (apiOk && payload.localPrompt) {
+          response = routeNichMessage({
+            message: payload.localPrompt,
+            context: conversationContext,
+            localData,
+          });
+          response = {
+            ...response,
+            aiEligible: false,
+            localConfidence: 1,
+            text: payload.imageType === "TRADE"
+              ? response.text
+              : [payload.message, "", response.text].filter(Boolean).join("\n"),
+          };
+        } else {
+          response = {
+            text: payload.message || "Nich couldn’t analyze that screenshot. Try a clearer crop or type the trade manually.",
+            intent: "fallback",
+            reaction: "searchEmpty",
+            aiEligible: false,
+            localConfidence: 1,
+            typingDuration: 240,
+          };
+        }
+
+        const nichMessage: ChatMessage = {
+          id: createMessageId(),
+          sender: "nich",
+          text: response.text,
+          createdAt: Date.now(),
+          suggestions: response.suggestions,
+          intent: response.intent,
+          tradeComparison: response.tradeComparison,
+        };
+
+        setMessages((currentMessages) => [...currentMessages, nichMessage]);
+        setConversationContext((currentContext) => updateNichContext(currentContext, response));
+        react(response.reaction);
+      } catch (error) {
+        if (requestSequenceRef.current !== requestId) return;
+        const message = error instanceof Error && error.message
+          ? error.message
+          : "Nich couldn’t analyze that screenshot. Try again or type the trade manually.";
+        setMessages((currentMessages) => [
+          ...currentMessages,
+          {
+            id: createMessageId(),
+            sender: "nich",
+            text: message,
+            createdAt: Date.now(),
+            intent: "fallback",
+          },
+        ]);
+        react("searchEmpty");
+      } finally {
+        if (requestSequenceRef.current === requestId) setIsTyping(false);
+      }
+    },
+    [conversationContext, isTyping, localData, react],
+  );
+
   function handleSubmit(
     event: FormEvent<HTMLFormElement>,
   ) {
@@ -1436,7 +1646,7 @@ export default function NichChat({
         dark:bg-black/95
         dark:shadow-[0_30px_90px_rgba(0,0,0,.6)]
         sm:h-[720px]
-        sm:rounded-[36px]
+        lg:rounded-[30px]
       `
     : `
         fixed
@@ -1454,17 +1664,17 @@ export default function NichChat({
         backdrop-blur-2xl
         dark:bg-black/95
         dark:shadow-[0_30px_90px_rgba(0,0,0,.7)]
-        sm:left-auto
-        sm:top-auto
-        sm:bottom-6
-        sm:right-6
-        sm:h-[700px]
-        sm:max-h-[calc(100dvh-3rem)]
-        sm:w-[470px]
-        sm:rounded-[36px]
-        sm:border
-        sm:border-white/70
-        sm:dark:border-white/10
+        lg:left-auto
+        lg:top-auto
+        lg:bottom-6
+        lg:right-6
+        lg:h-[700px]
+        lg:max-h-[calc(100dvh-3rem)]
+        lg:w-[470px]
+        lg:rounded-[30px]
+        lg:border
+        lg:border-white/70
+        lg:dark:border-white/10
         lg:w-[490px]
       `;
 
@@ -1587,7 +1797,7 @@ export default function NichChat({
                     <button
                       type="button"
                       onClick={clearChat}
-                      className="rounded-xl bg-gradient-to-r from-yellow-400 to-orange-500 px-4 py-2 text-sm font-black text-black shadow-[0_0_22px_rgba(245,180,25,.35)] transition hover:brightness-110"
+                      className="min-h-11 rounded-xl bg-rose-500 px-4 py-2 text-sm font-black text-white transition hover:bg-rose-600"
                     >
                       Clear chat
                     </button>
@@ -1603,13 +1813,13 @@ export default function NichChat({
                 ? undefined
                 : "max(0.75rem, env(safe-area-inset-top))",
             }}
-            className={`relative shrink-0 overflow-hidden border-b border-white/20 bg-gradient-to-r from-yellow-300 via-amber-300 to-orange-300 transition-all duration-300 dark:border-amber-300/10 dark:from-[#120d00] dark:via-[#4a3200] dark:to-[#120d00] ${
+            className={`relative shrink-0 overflow-hidden border-b border-violet-400/15 bg-[linear-gradient(135deg,rgba(124,92,228,.16),rgba(124,92,228,.07))] transition-all duration-300 dark:border-violet-400/15 dark:bg-[linear-gradient(135deg,#15102b,#0b1322)] ${
               isHeaderCompact
                 ? "px-4 py-2.5 sm:px-5"
                 : "px-4 py-4 sm:px-5"
             }`}
           >
-            <div className="pointer-events-none absolute -right-8 -top-12 h-32 w-32 rounded-full bg-white/30 blur-2xl dark:bg-amber-200/10" />
+            <div className="pointer-events-none absolute -right-8 -top-12 h-32 w-32 rounded-full bg-violet-300/10 blur-2xl dark:bg-violet-300/5" />
 
             <div className="relative flex items-center gap-3">
               <motion.div
@@ -1618,9 +1828,9 @@ export default function NichChat({
                     ? {
                         rotate: 360,
                         boxShadow: [
-                          "0 0 0 rgba(245,180,25,0)",
-                          "0 0 24px rgba(245,180,25,.75)",
-                          "0 0 0 rgba(245,180,25,0)",
+                          "0 0 0 rgba(124,92,228,0)",
+                          "0 0 18px rgba(124,92,228,.42)",
+                          "0 0 0 rgba(124,92,228,0)",
                         ],
                       }
                     : {
@@ -1644,13 +1854,13 @@ export default function NichChat({
                         duration: 0.25,
                       }
                 }
-                className={`relative shrink-0 rounded-full bg-gradient-to-br from-yellow-200 via-amber-400 to-orange-500 p-[2px] transition-all duration-300 ${
+                className={`relative shrink-0 rounded-full bg-violet-500/70 p-[2px] transition-all duration-300 ${
                   isHeaderCompact
                     ? "h-10 w-10"
                     : "h-12 w-12"
                 }`}
               >
-                <div className="relative h-full w-full overflow-hidden rounded-full border border-black/20 bg-yellow-50 dark:bg-black">
+                <div className="relative h-full w-full overflow-hidden rounded-full border border-violet-400/20 bg-violet-50 dark:bg-[#0b1322]">
                   <Image
                   src="/nich/nich-face.png"
                   alt="Nich"
@@ -1659,15 +1869,13 @@ export default function NichChat({
                   className="object-cover object-[50%_35%]"
                   sizes="48px"
                 />
-
-                  <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500" />
                 </div>
               </motion.div>
 
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h2
-                    className={`truncate font-black text-gray-950 transition-all duration-300 dark:text-amber-50 ${
+                    className={`truncate font-black text-[var(--foreground)] transition-all duration-300 ${
                       isHeaderCompact
                         ? "text-base"
                         : "text-lg"
@@ -1676,19 +1884,13 @@ export default function NichChat({
                     Nich
                   </h2>
 
-                  <span className="rounded-full bg-white/65 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-amber-800 dark:border dark:border-amber-300/15 dark:bg-black/30 dark:text-amber-200">
+                  <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-violet-700 ring-1 ring-violet-400/15 dark:text-violet-200">
                     CSBT Assistant
                   </span>
                 </div>
 
-                <p className="mt-0.5 text-xs font-semibold text-gray-700 dark:text-amber-50/85">
-                  <span className="mr-1 text-green-600">
-                    ●
-                  </span>
-
-                  {isTyping
-                    ? "Nich is thinking..."
-                    : "Online · Your trading buddy"}
+                <p className="mt-0.5 text-xs font-semibold text-[var(--foreground-muted)]">
+                  {isTyping ? "Nich is thinking..." : "Ready for your next question"}
                 </p>
               </div>
 
@@ -1700,7 +1902,7 @@ export default function NichChat({
                   }}
                   aria-label="Start a new Nich chat"
                   title="Start a new chat"
-                  className="flex h-10 items-center justify-center rounded-xl bg-white/65 px-3 text-[11px] font-black text-amber-900 shadow-sm transition hover:bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60 dark:border dark:border-white/10 dark:bg-white/10 dark:text-amber-100 dark:hover:bg-white/[0.16]"
+                  className="flex min-h-11 items-center justify-center rounded-xl bg-[var(--surface-2)] px-3 text-[11px] font-black text-[var(--foreground)] shadow-sm transition hover:bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60 dark:border dark:border-white/10 dark:bg-white/10 dark:text-white dark:hover:bg-white/[0.16]"
                 >
                   New chat
                 </button>
@@ -1710,7 +1912,7 @@ export default function NichChat({
                     type="button"
                     onClick={onClose}
                     aria-label="Close Ask Nich"
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/70 text-lg font-black text-gray-900 shadow-sm transition hover:bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60 dark:border dark:border-white/10 dark:bg-white/10 dark:text-amber-100 dark:hover:bg-white/[0.16]"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-2)] text-lg font-black text-[var(--foreground)] shadow-sm transition hover:bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60 dark:border dark:border-white/10 dark:bg-white/10 dark:text-white dark:hover:bg-white/[0.16]"
                   >
                     ✕
                   </button>
@@ -1719,14 +1921,14 @@ export default function NichChat({
             </div>
           </div>
 
-          <div className="relative min-h-0 flex-1 overflow-hidden bg-white dark:bg-black">
-            <div className="pointer-events-none absolute inset-0 z-0 opacity-35 dark:opacity-25 bg-[radial-gradient(circle,rgba(245,180,25,.22)_1px,transparent_1px)] bg-[size:24px_24px]" />
-            <div className="pointer-events-none absolute inset-0 z-0 opacity-20 dark:opacity-[0.12] bg-[linear-gradient(rgba(245,180,25,.14)_1px,transparent_1px),linear-gradient(90deg,rgba(245,180,25,.14)_1px,transparent_1px)] bg-[size:72px_72px]" />
+          <div className="relative min-h-0 flex-1 overflow-hidden bg-[var(--surface-2)] dark:bg-[#08111e]">
+            <div className="pointer-events-none absolute inset-0 z-0 opacity-35 dark:opacity-25 bg-[radial-gradient(circle,rgba(124,92,228,.13)_1px,transparent_1px)] bg-[size:24px_24px]" />
+            <div className="pointer-events-none absolute inset-0 z-0 opacity-20 dark:opacity-[0.12] bg-[linear-gradient(rgba(124,92,228,.08)_1px,transparent_1px),linear-gradient(90deg,rgba(124,92,228,.08)_1px,transparent_1px)] bg-[size:72px_72px]" />
 
             <div
               ref={messagesContainerRef}
               onScroll={handleMessagesScroll}
-              className="nich-gold-scrollbar relative z-10 h-full overflow-y-auto overscroll-contain bg-gradient-to-b from-white/90 via-yellow-50/20 to-orange-50/20 px-3 py-5 dark:bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.06),transparent_24%),linear-gradient(to_bottom,rgba(0,0,0,.92),rgba(0,0,0,.98))] sm:px-5 sm:py-6"
+              className="nich-gold-scrollbar relative z-10 h-full overflow-y-auto overscroll-contain bg-gradient-to-b from-white/90 via-violet-50/10 to-white/90 px-3 py-5 dark:bg-[radial-gradient(circle_at_top,rgba(124,92,228,0.055),transparent_24%),linear-gradient(to_bottom,rgba(0,0,0,.92),rgba(0,0,0,.98))] sm:px-5 sm:py-6"
             >
               <div className="space-y-5 sm:space-y-6">
               {messages.map((message) => {
@@ -1770,7 +1972,7 @@ export default function NichChat({
                     }`}
                   >
                     {isNich && (
-                      <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border border-amber-300/35 bg-black shadow-[0_0_14px_rgba(245,180,25,.18)]">
+                      <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border border-violet-400/30 bg-[#0b1322] shadow-[0_0_14px_rgba(124,92,228,.14)]">
                         <Image
                           src="/nich/nich-face.png"
                           alt=""
@@ -1802,7 +2004,7 @@ export default function NichChat({
                         className={`whitespace-pre-line rounded-[24px] px-5 py-4 text-sm leading-7 shadow-sm ${
                           isNich
                             ? "rounded-bl-md border border-gray-100 bg-white font-medium text-gray-700 dark:border-white/10 dark:bg-black/80 dark:text-slate-100 dark:shadow-[0_12px_28px_rgba(0,0,0,.38)]"
-                            : "rounded-br-md bg-gradient-to-br from-yellow-300 to-orange-300 font-semibold text-gray-950 dark:border dark:border-amber-400/20 dark:bg-neutral-950 dark:bg-none dark:text-amber-100 dark:shadow-[0_12px_28px_rgba(0,0,0,.42)]"
+                            : "rounded-br-md bg-[var(--surface-selected)] font-semibold text-[var(--foreground)] ring-1 ring-[var(--border-gold)] dark:border dark:border-amber-400/20 dark:bg-amber-400/[0.07] dark:bg-none dark:text-white dark:shadow-[0_12px_28px_rgba(0,0,0,.42)]"
                         }`}
                       >
                         {visibleText}
@@ -1830,7 +2032,7 @@ export default function NichChat({
                                 message.text,
                               );
                             }}
-                            className="rounded-md px-1.5 py-0.5 font-bold text-amber-600 transition hover:bg-amber-400/10 hover:text-amber-500 dark:text-amber-300/70 dark:hover:text-amber-200"
+                            className="min-h-8 rounded-md px-1.5 py-0.5 font-bold text-violet-600 transition hover:bg-violet-400/10 hover:text-violet-500 dark:text-violet-300/80 dark:hover:text-violet-200"
                           >
                             {copiedMessageId ===
                             message.id
@@ -1847,7 +2049,7 @@ export default function NichChat({
                                 message.id,
                               );
                             }}
-                            className="rounded-md px-1.5 py-0.5 font-bold text-amber-600 transition hover:bg-amber-400/10 hover:text-amber-500 dark:text-amber-300/70 dark:hover:text-amber-200"
+                            className="min-h-8 rounded-md px-1.5 py-0.5 font-bold text-violet-600 transition hover:bg-violet-400/10 hover:text-violet-500 dark:text-violet-300/80 dark:hover:text-violet-200"
                           >
                             {isExpanded
                               ? "Show less"
@@ -1872,7 +2074,7 @@ export default function NichChat({
                   }}
                   className="flex items-end gap-2"
                 >
-                  <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border border-yellow-200 bg-yellow-50">
+                  <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border border-violet-200 bg-violet-50">
                     <Image
                       src="/nich/nich-face.png"
                       alt=""
@@ -1904,7 +2106,7 @@ export default function NichChat({
                           repeat: Infinity,
                           delay: dot * 0.15,
                         }}
-                        className="h-2 w-2 rounded-full bg-amber-400"
+                        className="h-2 w-2 rounded-full bg-violet-400"
                       />
                     ))}
                   </div>
@@ -1941,7 +2143,7 @@ export default function NichChat({
                     scrollToBottom("smooth");
                   }}
                   aria-label="Scroll to the newest message"
-                  className="absolute bottom-5 right-4 z-30 flex h-10 w-10 items-center justify-center rounded-full border border-amber-300/25 bg-black/85 text-lg text-amber-200 shadow-[0_0_22px_rgba(245,180,25,.28)] backdrop-blur-xl transition hover:scale-105 hover:border-amber-300/45"
+                  className="absolute bottom-5 right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-violet-400/25 bg-[#0b1322]/90 text-lg text-violet-200 shadow-[0_8px_24px_rgba(0,0,0,.24)] transition hover:border-violet-300/45"
                 >
                   ↓
                 </motion.button>
@@ -1963,7 +2165,7 @@ export default function NichChat({
                         )
                       }
                       disabled={isTyping}
-                      className="shrink-0 rounded-full border border-yellow-200 bg-yellow-50 px-3 py-2 text-[11px] font-bold text-amber-800 transition hover:border-yellow-300 hover:bg-yellow-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-400/20 dark:bg-white/[0.06] dark:backdrop-blur-sm dark:text-amber-200 dark:hover:bg-amber-400/15"
+                      className="shrink-0 rounded-full border border-violet-200 bg-violet-50 px-3 py-2 text-[11px] font-bold text-amber-800 transition hover:border-yellow-300 hover:bg-yellow-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-violet-400/20 dark:bg-violet-400/[0.07] dark:text-violet-200 dark:hover:bg-violet-400/12"
                     >
                       {suggestion.label}
                     </button>
@@ -1982,7 +2184,30 @@ export default function NichChat({
             }}
             className="shrink-0 bg-white px-3 pb-3 pt-2 dark:bg-black sm:px-4 sm:pb-4"
           >
-            <div className="flex items-end gap-2 rounded-[22px] border border-gray-200 bg-gray-50 p-2 shadow-inner focus-within:border-yellow-300 focus-within:ring-4 focus-within:ring-yellow-100 dark:border-white/10 dark:bg-white/[0.04] dark:backdrop-blur-md dark:focus-within:ring-yellow-400/10">
+            <div className="flex items-end gap-2 rounded-[22px] border border-gray-200 bg-gray-50 p-2 shadow-inner focus-within:border-violet-300 focus-within:ring-4 focus-within:ring-violet-100 dark:border-white/10 dark:bg-white/[0.04] dark:backdrop-blur-md dark:focus-within:ring-violet-400/10">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0];
+                  event.currentTarget.value = "";
+                  if (file) void analyzeScreenshot(file);
+                }}
+              />
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isTyping}
+                aria-label="Upload an Adopt Me screenshot"
+                title="Analyze a trade or inventory screenshot"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-violet-200 bg-white text-lg shadow-sm transition hover:border-violet-300 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 dark:border-violet-300/15 dark:bg-violet-400/[0.06] dark:hover:bg-violet-400/10"
+              >
+                📷
+              </button>
+
               <textarea
                 ref={inputRef}
                 value={input}
@@ -2009,9 +2234,9 @@ export default function NichChat({
                 type="submit"
                 disabled={!input.trim() || isTyping}
                 aria-label="Send message"
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-yellow-400 to-orange-500 text-lg font-black text-white transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 ${
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-600 text-lg font-black text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 ${
                   input.trim() && !isTyping
-                    ? "shadow-[0_0_26px_rgba(245,180,25,.75),0_8px_22px_rgba(0,0,0,.35)]"
+                    ? "shadow-[0_10px_28px_rgba(124,92,228,.28)]"
                     : "shadow-md"
                 }`}
               >
@@ -2020,8 +2245,7 @@ export default function NichChat({
             </div>
 
             <p className="mt-2 text-center text-[9px] font-medium text-gray-400 sm:text-[10px]">
-              Nich uses the CSBT database. Always
-              verify values before trading.
+              📷 Screenshot recognition uses Gemini only when you upload an image. Values and W/F/L still come from CSBT.
             </p>
           </form>
         </motion.aside>

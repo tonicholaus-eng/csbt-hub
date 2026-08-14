@@ -70,7 +70,7 @@ type SearchablePetName = {
   searchableName: string;
   normalizedName: string;
   isAlias: boolean;
-  aliasSource?: "manual" | "automatic";
+  aliasSource?: "manual" | "automatic" | "trader";
 };
 
 type PositionedPetMatch =
@@ -78,6 +78,11 @@ type PositionedPetMatch =
     start: number;
     end: number;
   };
+
+export type PetMessageSpan = PetMessageMatch & {
+  start: number;
+  end: number;
+};
 
 type ApproximatePetCandidate = {
   pet: PetRecord;
@@ -114,6 +119,8 @@ const MANUAL_PET_ALIASES: Record<
   fd: "Frost Dragon",
   "frost drag": "Frost Dragon",
   "frost drg": "Frost Dragon",
+  frostdrag: "Frost Dragon",
+  frostdrg: "Frost Dragon",
   frostdragon: "Frost Dragon",
   "frost dragn": "Frost Dragon",
   "frost dagon": "Frost Dragon",
@@ -122,11 +129,15 @@ const MANUAL_PET_ALIASES: Record<
   sd: "Shadow Dragon",
   "shadow drag": "Shadow Dragon",
   "shadow drg": "Shadow Dragon",
+  shadowdrag: "Shadow Dragon",
+  shadowdrg: "Shadow Dragon",
   shadowdragon: "Shadow Dragon",
 
   bd: "Bat Dragon",
   "bat drag": "Bat Dragon",
   "bat drg": "Bat Dragon",
+  batdrag: "Bat Dragon",
+  batdragn: "Bat Dragon",
   batdragon: "Bat Dragon",
 
   ssbd: "Strawberry Shortcake Bat Dragon",
@@ -148,29 +159,37 @@ const MANUAL_PET_ALIASES: Record<
   ar: "Arctic Reindeer",
   "arctic rein": "Arctic Reindeer",
   "arctic reind": "Arctic Reindeer",
+  arcticrein: "Arctic Reindeer",
+  arcticreind: "Arctic Reindeer",
   arcticreindeer: "Arctic Reindeer",
 
   eu: "Evil Unicorn",
   "evil uni": "Evil Unicorn",
   eviluni: "Evil Unicorn",
+  evilunic: "Evil Unicorn",
   evilunicorn: "Evil Unicorn",
   "evil unicorn pet": "Evil Unicorn",
 
   "albino monk": "Albino Monkey",
+  albinomonk: "Albino Monkey",
+  albmonk: "Albino Monkey",
   albinomonkey: "Albino Monkey",
 
   mk: "Monkey King",
   "king monk": "Monkey King",
+  monkking: "Monkey King",
   monkeyking: "Monkey King",
 
   kanga: "Kangaroo",
   kang: "Kangaroo",
   kangroo: "Kangaroo",
   kangro: "Kangaroo",
+  kangarooo: "Kangaroo",
 
   par: "Parrot",
   parr: "Parrot",
   parot: "Parrot",
+  parro: "Parrot",
 
   uni: "Unicorn",
   turt: "Turtle",
@@ -305,6 +324,44 @@ const FUZZY_IGNORED_WORDS =
     "win",
     "your",
     "yours",
+
+    // Common Tagalog/Taglish glue words. Ignoring these during fuzzy name
+    // recovery lets users type naturally without making the item query noisy.
+    "ako",
+    "akin",
+    "ba",
+    "bigay",
+    "bibigay",
+    "gamit",
+    "gamitin",
+    "halaga",
+    "huwag",
+    "ito",
+    "iyan",
+    "yan",
+    "yun",
+    "kanya",
+    "kanila",
+    "kapalit",
+    "ko",
+    "kuha",
+    "lang",
+    "magkano",
+    "makukuha",
+    "mga",
+    "mo",
+    "naman",
+    "ng",
+    "niya",
+    "nya",
+    "para",
+    "po",
+    "presyo",
+    "sa",
+    "siya",
+    "sila",
+    "wag",
+    "yung",
   ]);
 
 const ITEM_QUERY_WORDS = [
@@ -335,6 +392,13 @@ const ITEM_QUERY_WORDS = [
   "fr",
   "nfr",
   "mfr",
+  "magkano",
+  "presyo",
+  "halaga",
+  "ano value",
+  "ano worth",
+  "worth ba",
+  "value ba",
 ] as const;
 
 const UNAVAILABLE_VALUE_WORDS =
@@ -362,6 +426,9 @@ export function normalizeText(
     .replace(/[’']/g, "")
     .replace(/&/g, " and ")
     .replace(/[-_/]+/g, " ")
+    // Common visual typo in chat: 0wl / c0w / fr0st. Only convert zero
+    // when it touches letters so year/quantity numbers stay intact.
+    .replace(/0(?=[a-z])|(?<=[a-z])0/g, "o")
     .replace(/([a-z])(\d)/g, "$1 $2")
     .replace(/(\d)([a-z])/g, "$1 $2")
     .replace(
@@ -412,47 +479,148 @@ function singularizeWord(
   return word;
 }
 
+function collapseExcessiveLetterRepeats(value: string) {
+  return value.replace(/([a-z])\1{2,}/g, "$1");
+}
+
+function normalizeSimpleLeetspeak(value: string) {
+  return value
+    .split(" ")
+    .map((word) => {
+      if (!/[a-z]/.test(word) || !/[01345]/.test(word)) {
+        return word;
+      }
+
+      return word
+        .replace(/0/g, "o")
+        .replace(/1/g, "i")
+        .replace(/3/g, "e")
+        .replace(/4/g, "a")
+        .replace(/5/g, "s");
+    })
+    .join(" ");
+}
+
+function joinSpelledLetterRuns(value: string) {
+  const words = getWords(value);
+  const output: string[] = [];
+
+  for (let index = 0; index < words.length;) {
+    if (/^[a-z]$/.test(words[index])) {
+      let end = index;
+      while (end < words.length && /^[a-z]$/.test(words[end])) {
+        end += 1;
+      }
+
+      const run = words.slice(index, end);
+      if (run.length >= 3) {
+        output.push(run.join(""));
+      } else {
+        output.push(...run);
+      }
+      index = end;
+      continue;
+    }
+
+    output.push(words[index]);
+    index += 1;
+  }
+
+  return output.join(" ");
+}
+
+const ATTACHED_TRADE_CODES = [
+  "mfr",
+  "nfr",
+  "mf",
+  "mr",
+  "nf",
+  "nr",
+  "np",
+  "fr",
+] as const;
+
+function stripAttachedTradeCodes(value: string) {
+  const words = getWords(value);
+  const alternatives = new Set<string>();
+
+  for (let index = 0; index < words.length; index += 1) {
+    const word = words[index];
+
+    for (const code of ATTACHED_TRADE_CODES) {
+      if (word.length >= code.length + 3 && word.startsWith(code)) {
+        const clone = [...words];
+        clone[index] = word.slice(code.length);
+        alternatives.add(clone.join(" "));
+      }
+
+      if (word.length >= code.length + 3 && word.endsWith(code)) {
+        const clone = [...words];
+        clone[index] = word.slice(0, -code.length);
+        alternatives.add(clone.join(" "));
+      }
+    }
+  }
+
+  return Array.from(alternatives);
+}
+
 function createSearchPhraseAlternatives(
   value: string,
 ) {
-  const words = getWords(value).filter(
-    (word) =>
-      !FUZZY_IGNORED_WORDS.has(word) &&
-      !/^\d+$/.test(word) &&
-      ![
-        "one",
-        "two",
-        "three",
-        "four",
-        "five",
-        "six",
-        "seven",
-        "eight",
-        "nine",
-        "ten",
-        "eleven",
-        "twelve",
-        "thirteen",
-        "fourteen",
-        "fifteen",
-        "sixteen",
-        "seventeen",
-        "eighteen",
-      ].includes(word),
-  );
+  const quantityWords = new Set([
+    "one",
+    "two",
+    "three",
+    "four",
+    "five",
+    "six",
+    "seven",
+    "eight",
+    "nine",
+    "ten",
+    "eleven",
+    "twelve",
+    "thirteen",
+    "fourteen",
+    "fifteen",
+    "sixteen",
+    "seventeen",
+    "eighteen",
+  ]);
 
-  if (words.length === 0) {
-    return [];
+  const sourceForms = new Set<string>([
+    normalizeText(value),
+    collapseExcessiveLetterRepeats(normalizeText(value)),
+    normalizeSimpleLeetspeak(normalizeText(value)),
+    joinSpelledLetterRuns(normalizeText(value)),
+    ...stripAttachedTradeCodes(value),
+  ]);
+
+  const results = new Set<string>();
+
+  for (const source of sourceForms) {
+    const words = getWords(source).filter(
+      (word) =>
+        !FUZZY_IGNORED_WORDS.has(word) &&
+        !/^\d+$/.test(word) &&
+        !quantityWords.has(word),
+    );
+
+    if (words.length === 0) {
+      continue;
+    }
+
+    const original = words.join(" ");
+    const singular = words
+      .map(singularizeWord)
+      .join(" ");
+
+    results.add(original);
+    results.add(singular);
   }
 
-  const original = words.join(" ");
-  const singular = words
-    .map(singularizeWord)
-    .join(" ");
-
-  return Array.from(
-    new Set([original, singular]),
-  ).filter(Boolean);
+  return Array.from(results).filter(Boolean);
 }
 
 function looksLikeItemRequest(
@@ -634,14 +802,14 @@ function getAllowedFuzzyDistance(
   }
 
   if (length <= 8) {
-    return 1;
-  }
-
-  if (length <= 14) {
     return 2;
   }
 
-  return 3;
+  if (length <= 14) {
+    return 3;
+  }
+
+  return 4;
 }
 
 function tokensMatchInOrder(
@@ -712,6 +880,27 @@ function getApproximateMatch(
           query.length,
         similarity:
           0.91 + Math.min(coverage, 1) * 0.07,
+        matchKind: "prefix",
+      };
+    }
+  }
+
+  // Trader shorthand often drops spaces and clips the end of a word:
+  // "batdrag", "frostdrag", "arcticrein", etc. Compare compact forms
+  // before falling back to edit distance so these remain fully local.
+  const compactQuery = query.replace(/\s+/g, "");
+  const compactCandidate = candidate.replace(/\s+/g, "");
+
+  if (
+    compactQuery.length >= 4 &&
+    compactCandidate.startsWith(compactQuery)
+  ) {
+    const coverage = compactQuery.length / compactCandidate.length;
+    if (coverage >= 0.5) {
+      return {
+        normalizedName: candidate,
+        distance: compactCandidate.length - compactQuery.length,
+        similarity: 0.92 + Math.min(coverage, 1) * 0.065,
         matchKind: "prefix",
       };
     }
@@ -788,7 +977,7 @@ function getApproximateMatch(
   }
 
   const hasDifferentFirstCharacter =
-    query[0] !== candidate[0];
+    compactQuery[0] !== compactCandidate[0];
 
   if (
     hasDifferentFirstCharacter &&
@@ -801,15 +990,14 @@ function getApproximateMatch(
   }
 
   const longestLength = Math.max(
-    query.length,
-    candidate.length,
+    compactQuery.length,
+    compactCandidate.length,
   );
 
-  const distance =
-    calculateEditDistance(
-      query,
-      candidate,
-    );
+  const distance = Math.min(
+    calculateEditDistance(query, candidate),
+    calculateEditDistance(compactQuery, compactCandidate),
+  );
 
   if (
     hasDifferentFirstCharacter &&
@@ -1329,14 +1517,72 @@ function buildAutomaticPetAliases() {
 const AUTOMATIC_PET_ALIASES =
   buildAutomaticPetAliases();
 
+function getTraderClipCandidates(name: string) {
+  const words = getWords(name).filter((word) => word.length >= 2);
+  if (words.length < 2) return [];
+
+  const candidates = new Set<string>();
+  const compact = words.join("");
+  const first = words[0];
+  const last = words.at(-1)!;
+
+  if (last.length >= 5) {
+    candidates.add(`${first}${last.slice(0, 4)}`);
+    candidates.add(`${first}${last.slice(0, 5)}`);
+  }
+
+  if (words.length === 2) {
+    candidates.add(words.map((word) => word.slice(0, Math.min(4, word.length))).join(""));
+  }
+
+  const clippedAll = words
+    .map((word, index) => index === 0 ? word : word.slice(0, Math.min(4, word.length)))
+    .join("");
+  candidates.add(clippedAll);
+
+  // Only useful if this is actually shorter than the official compact name.
+  return Array.from(candidates).filter((alias) =>
+    alias.length >= 4 && alias.length < compact.length && !AUTO_ALIAS_BLOCKLIST.has(alias),
+  );
+}
+
+function buildTraderClipAliases() {
+  const targetsByAlias = new Map<string, Set<string>>();
+
+  for (const pet of petRecords) {
+    if (pet.CATEGORY !== "PET") continue;
+
+    for (const alias of getTraderClipCandidates(pet.NAME)) {
+      if (Object.prototype.hasOwnProperty.call(MANUAL_PET_ALIASES, alias)) continue;
+      if (Object.prototype.hasOwnProperty.call(AUTOMATIC_PET_ALIASES, alias)) continue;
+      if (recordsByNormalizedName.has(alias)) continue;
+
+      const targets = targetsByAlias.get(alias) ?? new Set<string>();
+      targets.add(pet.NAME);
+      targetsByAlias.set(alias, targets);
+    }
+  }
+
+  const aliases: Record<string, string> = {};
+  for (const [alias, targets] of targetsByAlias) {
+    if (targets.size !== 1) continue;
+    aliases[alias] = Array.from(targets)[0];
+  }
+
+  return aliases;
+}
+
+const TRADER_CLIP_ALIASES = buildTraderClipAliases();
+
 /**
- * Manual aliases are applied last so they always override generated initials.
+ * Manual aliases are applied last so they always override generated shortcuts.
  */
 const PET_ALIASES: Record<
   string,
   string
 > = {
   ...AUTOMATIC_PET_ALIASES,
+  ...TRADER_CLIP_ALIASES,
   ...MANUAL_PET_ALIASES,
 };
 
@@ -1368,6 +1614,11 @@ const searchablePetNames: SearchablePetName[] =
             MANUAL_PET_ALIASES,
             alias,
           );
+        const isTraderAlias =
+          Object.prototype.hasOwnProperty.call(
+            TRADER_CLIP_ALIASES,
+            alias,
+          );
 
         return [
           {
@@ -1378,7 +1629,9 @@ const searchablePetNames: SearchablePetName[] =
             isAlias: true,
             aliasSource: isManualAlias
               ? "manual"
-              : "automatic",
+              : isTraderAlias
+                ? "trader"
+                : "automatic",
           },
         ];
       },
@@ -2193,8 +2446,8 @@ function findPositionedPets(
     const searchablePet of searchablePetNames
   ) {
     if (
-      searchablePet.aliasSource ===
-        "automatic" &&
+      (searchablePet.aliasSource === "automatic" ||
+        searchablePet.aliasSource === "trader") &&
       !canUseAutomaticAliasInMessage(
         normalizedMessage,
         searchablePet.normalizedName,
@@ -2493,10 +2746,10 @@ function detectVariantForPosition(
   );
 }
 
-function findPetsInSection(
+export function findPetSpansInSection(
   section: string,
-  lineIndex: number,
-): PetMessageMatch[] {
+  lineIndex = 0,
+): PetMessageSpan[] {
   const exactMatches =
     findPositionedPets(
       section,
@@ -2514,54 +2767,35 @@ function findPetsInSection(
     ...exactMatches,
     ...fuzzyMatches,
   ].sort(
-    (
-      firstMatch,
-      secondMatch,
-    ) =>
-      firstMatch.start -
-      secondMatch.start,
+    (firstMatch, secondMatch) =>
+      firstMatch.start - secondMatch.start,
   );
 
-  return positionedMatches.map(
-    (match, index) => {
-      const previousMatch =
-        index > 0
-          ? positionedMatches[
-              index - 1
-            ]
-          : undefined;
+  return positionedMatches.map((match, index) => {
+    const previousMatch = index > 0 ? positionedMatches[index - 1] : undefined;
+    const requestedVariant =
+      match.variant ??
+      detectVariantForPosition(section, match, previousMatch);
 
-      const requestedVariant =
-        match.variant ??
-        detectVariantForPosition(
-          section,
-          match,
-          previousMatch,
-        );
+    return {
+      pet: match.pet,
+      matchedName: match.matchedName,
+      variant: match.pet.CATEGORY === "PETWEAR" ? "normal" : requestedVariant,
+      lineIndex,
+      quantity: detectQuantityForPosition(section, match, previousMatch),
+      confidence: match.confidence,
+      matchKind: match.matchKind,
+      start: match.start,
+      end: match.end,
+    };
+  });
+}
 
-      return {
-        pet: match.pet,
-        matchedName:
-          match.matchedName,
-        variant:
-          match.pet.CATEGORY ===
-            "PETWEAR"
-            ? "normal"
-            : requestedVariant,
-        lineIndex,
-        quantity:
-          detectQuantityForPosition(
-            section,
-            match,
-            previousMatch,
-          ),
-        confidence:
-          match.confidence,
-        matchKind:
-          match.matchKind,
-      };
-    },
-  );
+function findPetsInSection(
+  section: string,
+  lineIndex: number,
+): PetMessageMatch[] {
+  return findPetSpansInSection(section, lineIndex).map(({ start: _start, end: _end, ...match }) => match);
 }
 
 function splitMessageIntoSections(

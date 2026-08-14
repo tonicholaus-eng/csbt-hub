@@ -23,6 +23,9 @@ const DEFAULT_OLLAMA_TIMEOUT_MS = 120_000;
 const DEFAULT_GEMINI_TIMEOUT_MS = 45_000;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_REQUESTS = 24;
+const DEFAULT_GEMINI_TEXT_DAILY_LIMIT = 25;
+const DEFAULT_AI_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+const MAX_AI_CACHE_ENTRIES = 500;
 
 const requestBuckets = new Map<
   string,
@@ -31,6 +34,10 @@ const requestBuckets = new Map<
     resetAt: number;
   }
 >();
+
+const aiTextCache = new Map<string, { text: string; expiresAt: number }>();
+const geminiInFlight = new Map<string, Promise<GeneratedAIText | null>>();
+let geminiDailyBucket = { day: "", count: 0 };
 
 type HistoryMessage = {
   role: "user" | "assistant";
@@ -66,7 +73,7 @@ type GeminiResponsePayload = {
 
 type GeneratedAIText = {
   text: string;
-  provider: "ollama" | "gemini-free";
+  provider: "ollama" | "gemini";
 };
 
 type NichAIStyleMode =
@@ -108,6 +115,17 @@ const TRADE_EXPLANATION_PHRASES = [
   "good trade",
   "bad trade",
   "worth doing",
+] as const;
+
+const AI_EXPLICIT_OPT_IN_PHRASES = [
+  "use ai",
+  "use gemini",
+  "ask gemini",
+  "ask the ai",
+  "ai answer",
+  "ai explanation",
+  "think deeper",
+  "deep explanation",
 ] as const;
 
 const TAGALOG_CURSE_REPLY = "tanginamoka rin";
@@ -731,9 +749,9 @@ function normalizeAIStyleMode(
     return normalized;
   }
 
-  // "all" styles explanations and complex results, while simple pet lookups stay deterministic and clean.
-  // Set NICH_AI_STYLE_MODE=advice to save API usage.
-  return "all";
+  // Default to advice-only so Local Max handles ordinary value/WFL work without paid API calls.
+  // Set NICH_AI_STYLE_MODE=all only if you explicitly want more AI rewriting.
+  return "advice";
 }
 
 function normalizeForRouting(value: string) {
@@ -799,6 +817,20 @@ function containsTagalogCurse(message: string) {
   );
 }
 
+function isEnabledSetting(value: string | undefined, fallback = false) {
+  if (value === undefined) return fallback;
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) return true;
+  if (["0", "false", "no", "off"].includes(normalized)) return false;
+  return fallback;
+}
+
+function isExplicitAIRequest(message: string) {
+  return AI_EXPLICIT_OPT_IN_PHRASES.some((phrase) =>
+    containsRoutingPhrase(message, phrase),
+  );
+}
+
 function shouldUseAI(
   message: string,
   deterministicResponse: NichResponse,
@@ -811,52 +843,39 @@ function shouldUseAI(
     return false;
   }
 
-  const styleMode =
-    normalizeAIStyleMode(
-      process.env.NICH_AI_STYLE_MODE,
-    );
-
-  if (
-    styleMode === "off" ||
-    AI_ALWAYS_SKIPPED_INTENTS.has(
-      deterministicResponse.intent,
-    )
-  ) {
+  const styleMode = normalizeAIStyleMode(process.env.NICH_AI_STYLE_MODE);
+  if (styleMode === "off" || AI_ALWAYS_SKIPPED_INTENTS.has(deterministicResponse.intent)) {
     return false;
   }
 
+  const explicitAI = isExplicitAIRequest(message);
+
+  // Credit guard: an unrecognized trading/user message should stay local and
+  // ask for clarification instead of silently spending Gemini credits.
+  if (deterministicResponse.intent === "fallback") {
+    return explicitAI || isEnabledSetting(process.env.NICH_ALLOW_AI_FALLBACK, false);
+  }
+
+  if (deterministicResponse.intent === "tradeComparison") {
+    if (!isEnabledSetting(process.env.NICH_ALLOW_AI_TRADE_EXPLANATIONS, false)) {
+      return false;
+    }
+    return explicitAI || TRADE_EXPLANATION_PHRASES.some((phrase) =>
+      containsRoutingPhrase(message, phrase),
+    );
+  }
+
+  if (deterministicResponse.intent === "tradeAdvice") {
+    return explicitAI || isEnabledSetting(process.env.NICH_ALLOW_AI_ADVICE, false);
+  }
+
+  // "all" remains an explicit admin override, but only for non-authoritative
+  // feature categories that have not already been marked local-only above.
   if (styleMode === "all") {
-    return (
-      deterministicResponse.intent ===
-        "nearbyValue" ||
-      deterministicResponse.intent ===
-        "tradeComparison" ||
-      deterministicResponse.intent ===
-        "tradeAdvice" ||
-      deterministicResponse.intent ===
-        "fallback"
-    );
+    return deterministicResponse.intent === "nearbyValue";
   }
 
-  if (
-    deterministicResponse.intent ===
-    "tradeComparison"
-  ) {
-    return TRADE_EXPLANATION_PHRASES.some(
-      (phrase) =>
-        containsRoutingPhrase(
-          message,
-          phrase,
-        ),
-    );
-  }
-
-  return (
-    deterministicResponse.intent ===
-      "tradeAdvice" ||
-    deterministicResponse.intent ===
-      "fallback"
-  );
+  return false;
 }
 
 function getTimeoutSetting(
@@ -912,7 +931,7 @@ function getGeminiModelCandidates() {
   const configured =
     process.env.NICH_GEMINI_MODELS?.trim() ||
     process.env.NICH_GEMINI_MODEL?.trim() ||
-    "gemini-3.5-flash,gemini-3.5-flash-lite";
+    "gemini-3.6-flash,gemini-3.5-flash-lite";
 
   return Array.from(
     new Set(
@@ -1642,7 +1661,78 @@ async function generateWithOllama({
   }
 }
 
-async function generateWithGeminiFree({
+function hashCacheKey(value: string) {
+  let first = 2166136261;
+  let second = 0x9e3779b9;
+
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    first ^= code;
+    first = Math.imul(first, 16777619);
+    second ^= code + ((second << 6) >>> 0) + (second >>> 2);
+  }
+
+  return `${(first >>> 0).toString(36)}-${(second >>> 0).toString(36)}-${value.length}`;
+}
+
+function getAITextCacheTtlMs() {
+  return Math.floor(
+    parseNumberSetting(
+      process.env.NICH_AI_CACHE_TTL_MS,
+      DEFAULT_AI_CACHE_TTL_MS,
+      60_000,
+      24 * 60 * 60 * 1000,
+    ),
+  );
+}
+
+function pruneAITextCache(now = Date.now()) {
+  for (const [key, entry] of aiTextCache) {
+    if (entry.expiresAt <= now) aiTextCache.delete(key);
+  }
+
+  while (aiTextCache.size > MAX_AI_CACHE_ENTRIES) {
+    const oldest = aiTextCache.keys().next().value as string | undefined;
+    if (!oldest) break;
+    aiTextCache.delete(oldest);
+  }
+}
+
+function consumeGeminiTextDailyQuota() {
+  const day = new Date().toISOString().slice(0, 10);
+  if (geminiDailyBucket.day !== day) {
+    geminiDailyBucket = { day, count: 0 };
+  }
+
+  const limit = Math.floor(
+    parseNumberSetting(
+      process.env.NICH_GEMINI_TEXT_DAILY_LIMIT,
+      DEFAULT_GEMINI_TEXT_DAILY_LIMIT,
+      1,
+      100_000,
+    ),
+  );
+
+  if (geminiDailyBucket.count >= limit) return false;
+  geminiDailyBucket.count += 1;
+  return true;
+}
+
+function createGeminiCacheKey(
+  message: string,
+  history: HistoryMessage[],
+  deterministicResponse: NichResponse,
+) {
+  return hashCacheKey([
+    message,
+    deterministicResponse.intent,
+    deterministicResponse.text,
+    history.slice(-6).map((item) => `${item.role}:${item.content}`).join("\n"),
+    getGeminiModelCandidates().join(","),
+  ].join("\n---\n"));
+}
+
+async function generateWithGeminiUncached({
   message,
   history,
   deterministicResponse,
@@ -1658,23 +1748,24 @@ async function generateWithGeminiFree({
     return null;
   }
 
+  // Gemini 3.6 no longer supports prefilled model turns. Keep the small
+  // conversation recap as plain context inside one user turn instead.
+  const recentConversation = history
+    .slice(-6)
+    .map((item) => `${item.role === "assistant" ? "Nich" : "User"}: ${item.content}`)
+    .join("\n");
+
   const input = [
-    ...history.map((item) => ({
-      role:
-        item.role === "assistant"
-          ? "model"
-          : "user",
-      parts: [
-        {
-          text: item.content,
-        },
-      ],
-    })),
     {
       role: "user",
       parts: [
         {
-          text: message,
+          text: [
+            recentConversation ? `RECENT CONVERSATION\n${recentConversation}` : "",
+            `CURRENT USER MESSAGE\n${message}`,
+          ]
+            .filter(Boolean)
+            .join("\n\n"),
         },
       ],
     },
@@ -1722,20 +1813,17 @@ async function generateWithGeminiFree({
                 parseNumberSetting(
                   process.env
                     .NICH_GEMINI_MAX_TOKENS,
-                  1_200,
+                  600,
                   128,
                   8_192,
                 ),
               ),
-              temperature:
-                parseNumberSetting(
+              thinkingConfig: {
+                thinkingLevel:
                   process.env
-                    .NICH_GEMINI_TEMPERATURE,
-                  0.7,
-                  0,
-                  1.5,
-                ),
-              topP: 0.9,
+                    .NICH_GEMINI_THINKING_LEVEL
+                    ?.trim() || "minimal",
+              },
             },
           }),
         },
@@ -1758,7 +1846,7 @@ async function generateWithGeminiFree({
             : `Gemini request failed with status ${response.status}.`;
 
         console.warn(
-          `[NICH Gemini free tier: ${model}]`,
+          `[NICH Gemini: ${model}]`,
           detail,
         );
         continue;
@@ -1775,11 +1863,11 @@ async function generateWithGeminiFree({
 
       return {
         text: generatedText,
-        provider: "gemini-free",
+        provider: "gemini",
       };
     } catch (error) {
       console.warn(
-        `[NICH Gemini free tier: ${model}] Request unavailable:`,
+        `[NICH Gemini: ${model}] Request unavailable:`,
         error,
       );
     } finally {
@@ -1788,6 +1876,53 @@ async function generateWithGeminiFree({
   }
 
   return null;
+}
+
+async function generateWithGemini({
+  message,
+  history,
+  deterministicResponse,
+}: {
+  message: string;
+  history: HistoryMessage[];
+  deterministicResponse: NichResponse;
+}): Promise<GeneratedAIText | null> {
+  const key = createGeminiCacheKey(message, history, deterministicResponse);
+  const now = Date.now();
+  const cached = aiTextCache.get(key);
+
+  if (cached && cached.expiresAt > now) {
+    return { text: cached.text, provider: "gemini" };
+  }
+  if (cached) aiTextCache.delete(key);
+
+  const existing = geminiInFlight.get(key);
+  if (existing) return existing;
+
+  if (!consumeGeminiTextDailyQuota()) {
+    console.warn("[NICH Gemini] Daily text safety limit reached; using local response.");
+    return null;
+  }
+
+  const promise = generateWithGeminiUncached({
+    message,
+    history,
+    deterministicResponse,
+  }).then((result) => {
+    if (result?.text) {
+      pruneAITextCache();
+      aiTextCache.set(key, {
+        text: result.text,
+        expiresAt: Date.now() + getAITextCacheTtlMs(),
+      });
+    }
+    return result;
+  }).finally(() => {
+    geminiInFlight.delete(key);
+  });
+
+  geminiInFlight.set(key, promise);
+  return promise;
 }
 
 async function generateAIText({
@@ -1824,7 +1959,7 @@ async function generateAIText({
     });
 
   const geminiAttempt = () =>
-    generateWithGeminiFree({
+    generateWithGemini({
       message,
       history,
       deterministicResponse,
@@ -1903,6 +2038,17 @@ export async function GET() {
       ),
       geminiModels:
         getGeminiModelCandidates(),
+      creditGuard: {
+        allowFallbackAI: isEnabledSetting(process.env.NICH_ALLOW_AI_FALLBACK, false),
+        allowTradeExplanationAI: isEnabledSetting(process.env.NICH_ALLOW_AI_TRADE_EXPLANATIONS, false),
+        allowAdviceAI: isEnabledSetting(process.env.NICH_ALLOW_AI_ADVICE, false),
+        textDailySafetyLimit: Math.floor(parseNumberSetting(
+          process.env.NICH_GEMINI_TEXT_DAILY_LIMIT,
+          DEFAULT_GEMINI_TEXT_DAILY_LIMIT,
+          1,
+          100_000,
+        )),
+      },
       ollamaConfiguredForRuntime:
         canUseOllamaOnCurrentRuntime(),
       fallback: "deterministic-csbt-engine",

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AuthCard from "./AuthCard";
 import { useAuthSession } from "../../hooks/useAuthSession";
+import { EmptyState, Surface } from "../ui/CSBTUI";
 
 type SavedItem = {
   item_id?: string;
@@ -111,7 +112,7 @@ export default function TradeHistory() {
   if (!user) return <div className="mx-auto max-w-xl"><AuthCard supabase={supabase} /></div>;
 
   return (
-    <section className="rounded-[30px] border border-white/65 bg-white/75 p-4 shadow-[0_24px_70px_rgba(15,23,42,.1)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/65 sm:p-6">
+    <Surface as="section" className="p-4 sm:p-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-600 dark:text-amber-300">Saved comparisons</p>
@@ -120,7 +121,7 @@ export default function TradeHistory() {
         </div>
         <div className="flex flex-wrap gap-1 rounded-2xl bg-slate-100 p-1 dark:bg-slate-900">
           {statuses.map((status) => (
-            <button key={status} type="button" onClick={() => setFilter(status)} className={`rounded-xl px-3 py-2 text-[10px] font-black capitalize ${filter === status ? "bg-white text-slate-900 shadow-sm dark:bg-white/10 dark:text-white" : "text-slate-400"}`}>{status}</button>
+            <button key={status} type="button" onClick={() => setFilter(status)} className={`min-h-11 rounded-xl px-3 py-2 text-[10px] font-black capitalize ${filter === status ? "bg-white text-slate-900 shadow-sm dark:bg-white/10 dark:text-white" : "text-slate-400"}`}>{status}</button>
           ))}
         </div>
       </div>
@@ -129,11 +130,7 @@ export default function TradeHistory() {
       {error && !schemaMissing && <p className="mt-5 rounded-2xl bg-rose-50 p-4 text-sm font-bold text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
 
       {!schemaMissing && visible.length === 0 ? (
-        <div className="py-14 text-center">
-          <div className="text-4xl">🧮</div>
-          <h3 className="mt-3 text-lg font-black text-slate-900 dark:text-white">No saved trades here yet</h3>
-          <p className="mt-1 text-sm text-slate-400">Use the Trade Calculator and tap “Save this trade.”</p>
-        </div>
+        <div className="mt-6"><EmptyState icon="↔" title="No saved trades here yet" description="Use the Trade Calculator to compare an offer, then save it here to track its status." href="/calculator" actionLabel="Open calculator" /></div>
       ) : (
         <div className="mt-6 grid gap-4">
           {visible.map((trade) => (
@@ -160,18 +157,18 @@ export default function TradeHistory() {
               </div>
 
               <div className="mt-4 flex flex-wrap items-center gap-2">
-                <select value={trade.status} disabled={busyId === trade.id} onChange={(event) => void updateStatus(trade.id, event.target.value as TradeRow["status"])} className="min-h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black dark:border-white/10 dark:bg-slate-900">
+                <select value={trade.status} disabled={busyId === trade.id} onChange={(event) => void updateStatus(trade.id, event.target.value as TradeRow["status"])} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black dark:border-white/10 dark:bg-slate-900">
                   <option value="draft">Draft</option>
                   <option value="pending">Pending</option>
                   <option value="completed">Completed</option>
                   <option value="cancelled">Cancelled</option>
                 </select>
-                <button type="button" disabled={busyId === trade.id} onClick={() => void remove(trade.id)} className="min-h-10 rounded-xl border border-rose-200 bg-rose-50 px-3 text-xs font-black text-rose-600 disabled:opacity-50 dark:border-rose-400/20 dark:bg-rose-400/10 dark:text-rose-300">Delete</button>
+                <button type="button" disabled={busyId === trade.id} onClick={() => void remove(trade.id)} className="min-h-11 rounded-xl border border-rose-200 bg-rose-50 px-3 text-xs font-black text-rose-600 disabled:opacity-50 dark:border-rose-400/20 dark:bg-rose-400/10 dark:text-rose-300">Delete</button>
               </div>
             </article>
           ))}
         </div>
       )}
-    </section>
+    </Surface>
   );
 }

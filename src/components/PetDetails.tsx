@@ -67,7 +67,7 @@ export default function PetDetails({ pet, onBack }: Props) {
         </div>
 
         <div className="mt-6 flex flex-wrap gap-2">
-          <Link href={`/inventory?add=${encodeURIComponent(pet.ID)}&source=${source}`} className="inline-flex min-h-11 items-center rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 px-4 text-xs font-black text-slate-950">🎒 Add to Inventory</Link>
+          <Link href={`/inventory?add=${encodeURIComponent(pet.ID)}&source=${source}`} className="inline-flex min-h-11 items-center rounded-2xl csbt-theme-primary px-4 text-xs font-black text-slate-950">🎒 Add to Inventory</Link>
           <Link href={`/calculator?add=${encodeURIComponent(pet.ID)}&source=${source}`} className="inline-flex min-h-11 items-center rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 text-xs font-black text-white">🧮 Add to Calculator</Link>
           <WishlistButton item={pet} />
         </div>

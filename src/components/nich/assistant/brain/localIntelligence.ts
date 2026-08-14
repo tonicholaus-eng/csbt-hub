@@ -838,6 +838,16 @@ function demandIntelligence(input: NichBrainInput): NichResponse | null {
   if (!demandQuestion) return null;
 
   const matches = findPetsInMessage(input.message);
+  // Concept questions such as “what does high demand mean?” do not need
+  // account/profile data. Let the deterministic advice brain answer them
+  // instead of returning a misleading “loading inventory” response.
+  const asksDemandRanking = /\b(?:whats hot|what is hot|most wanted|popular right now|market activity|top demand|highest demand|best demand)\b/.test(message);
+  const asksAboutOwnDemand = /\b(?:my|inventory|inv|owned|i own|ko|akin)\b/.test(message);
+  // With no concrete item, only the “what is hot?” and user-inventory ranking
+  // forms need live profile data. General demand/liquidity questions should be
+  // answered by the zero-cost deterministic advice brain.
+  if (matches.length === 0 && !asksDemandRanking && !asksAboutOwnDemand) return null;
+
   // Leave trade-shaped messages to the normal W/F/L parser so this demand
   // route never swallows a comparison just because only one item was found
   // during fuzzy pre-detection.
@@ -1155,7 +1165,8 @@ export function enhanceTradeResponseLocally(response: NichResponse, input: NichB
   const demand = getTradeDemandAnalysis(comparison, input.localData);
   if (!demand) return { ...response, localConfidence: 0.99, aiEligible: false };
   const message = normalize(input.message);
-  const userAskedDemand = /\b(?:demand|liquid|liquidity|tradeable|tradable|easy to trade|hard to trade|upgrade|downgrade|good trade|should i|worth doing|accept|decline|take it|panalo|lugi|mabenta)\b/.test(message);
+  const userAskedDemand = /\b(?:demand|liquid|liquidity|tradeable|tradable|easy to trade|hard to trade|upgrade|downgrade|mabenta|marketability|marketable)\b/.test(message);
+  if (!userAskedDemand) return { ...response, localConfidence: 0.99, aiEligible: false };
   const shapeLabel = demand.shape === "upgrade" ? "Upgrade" : demand.shape === "downgrade" ? "Downgrade" : "Sidegrade";
   const demandBand = (value: number) => value >= 93 ? "Very High" : value >= 82 ? "High" : value >= 70 ? "Good" : value >= 56 ? "Average" : "Low";
   const shapeLine = `Trade shape: ${shapeLabel}.`;

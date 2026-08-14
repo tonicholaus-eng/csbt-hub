@@ -5,7 +5,7 @@ Create a file named .env.local beside package.json and add:
 NEXT_PUBLIC_SUPABASE_URL=https://dobghbprsggrmihubcfr.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_JPi3hZCVoRftD_r11Q24ww_QUW81pjZ
 SUPABASE_SECRET_KEY=PASTE_YOUR_SUPABASE_SECRET_KEY_HERE
-NICH_AI_STYLE_MODE=all
+NICH_AI_STYLE_MODE=advice
 
 The secret key is intentionally NOT included in this downloadable project.
 The program reads SUPABASE_SECRET_KEY server-side. For compatibility, the value scripts also accept the older SUPABASE_SERVICE_ROLE_KEY variable.
@@ -17,3 +17,23 @@ Then run:
 After the site starts and the Supabase SQL migration has been applied:
   npm run snapshot:values
   npm run alerts:values
+
+
+NICH GEMINI 3.6 FLASH (OPTIONAL, SERVER-SIDE)
+
+Add these only when you are ready to enable Gemini:
+
+GEMINI_API_KEY=PASTE_YOUR_GEMINI_API_KEY_HERE
+NICH_AI_PROVIDER=auto
+NICH_AI_STYLE_MODE=advice
+NICH_GEMINI_MODELS=gemini-3.6-flash,gemini-3.5-flash-lite
+NICH_GEMINI_MAX_TOKENS=600
+NICH_GEMINI_THINKING_LEVEL=minimal
+NICH_GEMINI_VISION_ENABLED=true
+NICH_GEMINI_VISION_MODEL=gemini-3.6-flash
+NICH_GEMINI_VISION_THINKING_LEVEL=minimal
+NICH_GEMINI_VISION_MAX_TOKENS=1400
+NICH_GEMINI_VISION_DAILY_LIMIT=100
+
+Never use NEXT_PUBLIC_ for the Gemini API key.
+For Vercel, add the same server-side variables in Project Settings > Environment Variables.

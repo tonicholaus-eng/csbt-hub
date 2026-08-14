@@ -23,6 +23,7 @@ import type {
   NichBrainInput,
   NichResponse,
 } from "./types";
+import { normalizeLocalChatMessage } from "./language";
 
 function normalizeText(value: string) {
   return value
@@ -371,6 +372,8 @@ function createTradeAdviceResponse(): NichResponse {
     ].join("\n"),
     intent: "tradeAdvice",
     reaction: "calculator",
+    localConfidence: 0.99,
+    aiEligible: false,
     typingDuration: 650,
     suggestions: [
       {
@@ -915,22 +918,28 @@ export function routeNichMessage(
 ): NichResponse {
   const originalMessage =
     input.message.trim();
+  const locallyNormalizedMessage =
+    normalizeLocalChatMessage(originalMessage);
 
   /**
-   * Analyze the user's original wording before context resolution. This lets
-   * the router recognize unresolved follow-ups such as "what about neon?"
+   * Analyze the user's cleaned chat wording before context resolution. This
+   * fixes harmless compact typing (hmfd, wflme, mfrparrot, etc.) locally while
+   * preserving the original message for display/memory.
    */
   const originalAnalysis =
     analyzeNichMessage(
-      originalMessage,
+      locallyNormalizedMessage,
     );
 
   const resolution =
-    resolveContextualMessage(input);
+    resolveContextualMessage({
+      ...input,
+      message: locallyNormalizedMessage,
+    });
 
   const resolvedInput:
     NichBrainInput = {
-      message: resolution.message,
+      message: normalizeLocalChatMessage(resolution.message),
       context: input.context,
       localData: input.localData,
     };
@@ -1006,6 +1015,17 @@ export function routeNichMessage(
     response =
       createHelpResponse();
   } else {
+    // A fully parsed two-sided trade is authoritative and should win before
+    // broader local-profile intents. This prevents casual phrases such as
+    // “bigay ko ... kuha ko ...” from being mistaken for inventory commands.
+    const directTradeResponse =
+      analysis.primaryIntent === "tradeComparison" && analysis.tradeQuery
+        ? createTradeComparisonResponse(resolvedInput, analysis)
+        : null;
+
+    if (directTradeResponse) {
+      response = directTradeResponse;
+    } else {
     const localIntelligenceResponse =
       createLocalIntelligenceResponse(
         resolvedInput,
@@ -1067,6 +1087,7 @@ export function routeNichMessage(
         );
     }
     }
+    }
   }
 
   if (response.tradeComparison) {
@@ -1079,7 +1100,7 @@ export function routeNichMessage(
   return attachConversationMetadata(
     response,
     originalMessage,
-    resolution.message,
+    resolvedInput.message,
   );
 }
 

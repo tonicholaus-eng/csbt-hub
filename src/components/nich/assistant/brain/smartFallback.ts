@@ -185,6 +185,8 @@ function createDemandVsValueResponse(): NichResponse {
     ].join("\n"),
     intent: "tradeAdvice",
     reaction: "calculator",
+    localConfidence: 0.99,
+    aiEligible: false,
     typingDuration: 700,
     suggestions: [
       createSuggestion("advice-compare", "Compare a trade", "WFL me Frost Dragon them Owl"),
@@ -213,6 +215,8 @@ function createUpgradeDowngradeResponse(message: string): NichResponse {
         ].join("\n"),
     intent: "tradeAdvice",
     reaction: "calculator",
+    localConfidence: 0.99,
+    aiEligible: false,
     typingDuration: 550,
     suggestions: [
       createSuggestion("strategy-check", "Check an offer", "Frost Dragon for Owl + Turtle"),
@@ -234,6 +238,8 @@ function createNegotiationResponse(): NichResponse {
     ].join("\n"),
     intent: "tradeAdvice",
     reaction: "calculator",
+    localConfidence: 0.99,
+    aiEligible: false,
     typingDuration: 550,
     suggestions: [
       createSuggestion("negotiation-compare", "Check their offer", "WFL me Frost Dragon them Owl + Turtle"),
@@ -251,6 +257,8 @@ function createSafetyResponse(): NichResponse {
     ].join("\n"),
     intent: "tradeAdvice",
     reaction: "searchEmpty",
+    localConfidence: 0.99,
+    aiEligible: false,
     typingDuration: 500,
     suggestions: [
       createSuggestion("safety-values", "Check values", "What is Frost Dragon worth?"),
@@ -259,7 +267,95 @@ function createSafetyResponse(): NichResponse {
   };
 }
 
+function createHoldOrTradeResponse(message: string): NichResponse {
+  const asksHold = includesAnyWholePhrase(message, ["hold", "keep", "keep it", "keep or trade", "should i keep"]);
+  return {
+    text: [
+      asksHold
+        ? "For a hold-vs-trade decision, check three things locally: value trend, demand/liquidity, and what you can upgrade into right now."
+        : "For a sell/trade decision, compare the current value to recent movement and the quality of the upgrade you can get.",
+      "",
+      "A rising, high-demand item is usually safer to hold unless the offer gives you a clear upgrade or meaningful demand premium. A flat/falling or hard-to-trade item is a stronger candidate to move when a clean offer appears.",
+      "",
+      "Send the item name (or ask ‘is Frost rising?’) and I can use your local CSBT demand/history data instead of guessing.",
+    ].join("\n"),
+    intent: "tradeAdvice",
+    reaction: "calculator",
+    localConfidence: 0.98,
+    aiEligible: false,
+    typingDuration: 520,
+  };
+}
+
+function createProfitFlipResponse(): NichResponse {
+  return {
+    text: [
+      "For flipping, don’t chase raw value alone.",
+      "",
+      "Prefer items with strong demand, short retrade time, and a clear buyer pool. Small reliable gains on liquid items are usually safer than a large paper profit on items nobody wants.",
+      "",
+      "Before taking a flip: check the W/F/L, demand, recent trend, and whether the item helps you move toward a better upgrade target.",
+    ].join("\n"),
+    intent: "tradeAdvice",
+    reaction: "calculator",
+    localConfidence: 0.99,
+    aiEligible: false,
+    typingDuration: 500,
+  };
+}
+
+function createOverpayUnderpayResponse(message: string): NichResponse {
+  const aboutOverpay = includesAnyWholePhrase(message, ["overpay", "over paying", "op"]);
+  return {
+    text: [
+      aboutOverpay
+        ? "An overpay is not automatically bad. It can make sense when you are upgrading into a much stronger or more liquid item."
+        : "An underpay can still be accepted when your side has stronger demand or the other trader wants your specific item badly.",
+      "",
+      "The important part is whether the extra/missing value is justified by demand, liquidity, upgrade quality, and how difficult the bundle is to retrade.",
+      "",
+      "Send the full trade and I’ll calculate the listed gap locally first.",
+    ].join("\n"),
+    intent: "tradeAdvice",
+    reaction: "calculator",
+    localConfidence: 0.99,
+    aiEligible: false,
+    typingDuration: 480,
+  };
+}
+
+function createNoPotionResponse(): NichResponse {
+  return {
+    text: [
+      "No-potion value can behave differently from ordinary listed value, especially on older/high-tier pets.",
+      "",
+      "NICH only applies the potion rules that are explicitly encoded in CSBT data. If a screenshot/text does not show F/R/FR, I won’t invent a potion status. For rare no-potion premiums, treat the listed result as a baseline and verify current collector demand.",
+    ].join("\n"),
+    intent: "tradeAdvice",
+    reaction: "calculator",
+    localConfidence: 0.99,
+    aiEligible: false,
+    typingDuration: 480,
+  };
+}
+
 function createTradeAdviceResponse(normalizedMessage: string): NichResponse | null {
+  if (includesAnyWholePhrase(normalizedMessage, ["no potion", "no pot", "no-potion", "np premium", "potion premium"])) {
+    return createNoPotionResponse();
+  }
+
+  if (includesAnyWholePhrase(normalizedMessage, ["flip", "flipping", "profit", "make profit", "resell", "retrade for profit"])) {
+    return createProfitFlipResponse();
+  }
+
+  if (includesAnyWholePhrase(normalizedMessage, ["hold", "keep or trade", "should i keep", "should i sell", "sell or keep", "trade it or keep"])) {
+    return createHoldOrTradeResponse(normalizedMessage);
+  }
+
+  if (includesAnyWholePhrase(normalizedMessage, ["overpay", "underpay", "over paying", "under paying"])) {
+    return createOverpayUnderpayResponse(normalizedMessage);
+  }
+
   if (
     includesAnyWholePhrase(normalizedMessage, [
       "low demand",

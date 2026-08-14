@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type NichIntroMascotProps = {
   open: boolean;
@@ -25,119 +25,27 @@ type HighlightRect = {
 };
 
 const desktopSteps: TourStep[] = [
-  {
-    eyebrow: "Welcome to CSBT HUB",
-    title: "Let me show you around.",
-    description:
-      "This quick tour works like an in-game tutorial: the screen dims while each important feature is highlighted and explained one by one.",
-  },
-  {
-    eyebrow: "Sidebar",
-    title: "Your main navigation lives here.",
-    description:
-      "On PC, the left sidebar is your control center. It keeps core tools, community features, and your account pages easy to reach.",
-    target: "sidebar-container",
-  },
-  {
-    eyebrow: "Values",
-    title: "Check GCash and Elve Shark values.",
-    description:
-      "Search pets and items, compare both value systems, and open full item pages with value history, alerts, wishlist, and inventory actions.",
-    target: "nav-values",
-  },
-  {
-    eyebrow: "CSBT Exchange",
-    title: "Find trades that actually fit you.",
-    description:
-      "Exchange uses your inventory, wishlist, values, demand, and trading style to rank matches, build offers, negotiate counteroffers, and open locked Trade Rooms.",
-    target: "nav-exchange",
-  },
-  {
-    eyebrow: "Calculator",
-    title: "Compare both sides before you trade.",
-    description:
-      "Add each side of a trade, choose GCash or Elve Shark, and quickly see the totals and value difference before you decide.",
-    target: "nav-calculator",
-  },
-  {
-    eyebrow: "Inventory",
-    title: "Track your whole inventory in one place.",
-    description:
-      "Add quantities and variants, calculate your estimated total value, see your highest-value items, and save the inventory to your profile.",
-    target: "nav-inventory",
-  },
-  {
-    eyebrow: "Community Trade Voting",
-    title: "See what other traders think.",
-    description:
-      "Browse community trades and vote Win, Fair, or Lose. It is a simple way to learn values by seeing how other CSBT members judge offers.",
-    target: "nav-trade-feed",
-  },
-  {
-    eyebrow: "Ask Nich",
-    title: "Need help? Nich is always nearby.",
-    description:
-      "Tap Nich anytime for value lookups, trade questions, nearby-value suggestions, or help finding your way around CSBT HUB.",
-    target: "nich-button",
-  },
+  { eyebrow:"Welcome to CSBT HUB", title:"Your trading hub, all in one place.", description:"CSBT combines values, inventory, trading tools, market information, community features, safer-trading resources, and Nich in one connected hub." },
+  { eyebrow:"Main Navigation", title:"Everything is grouped by what you want to do.", description:"Use the sidebar like a game launcher. Each category can collapse, so the tools you need stay easy to scan without taking over the page.", target:"sidebar-container" },
+  { eyebrow:"Start Here", title:"Begin with the essentials.", description:"Home, Values, and Inventory live here — explore CSBT, check item values, and keep track of what you own.", target:"group-start" },
+  { eyebrow:"Trade", title:"Make, check, and review trades here.", description:"Trade Finder, Trade Calculator, Trade Opinions, and Trade History are grouped together so your trading workflow stays in one place.", target:"group-trade" },
+  { eyebrow:"Market", title:"Follow the market without the noise.", description:"Demand and Wishlist & Alerts help you track market movement and keep an eye on items you care about.", target:"group-market" },
+  { eyebrow:"Lounge", title:"This is where the community lives.", description:"Use CSBT Lounge to interact with traders, then jump to Trading Servers when you want more places to trade.", target:"group-lounge" },
+  { eyebrow:"Help & Safety", title:"Learn safer trading and get support.", description:"Safe Trader Academy, Ask Nich, Feedback, and About are grouped here whenever you need guidance or help.", target:"group-help" },
+  { eyebrow:"My CSBT", title:"Your account and activity live here.", description:"Profile contains your trading identity, while Notifications keeps your offers, alerts, and account activity together.", target:"group-account" },
+  { eyebrow:"Trade Finder", title:"Find your next trade in CSBT Exchange.", description:"Browse live listings, use inventory-aware Smart Match, build offers, negotiate counteroffers, and continue accepted trades in Trade Rooms.", target:"nav-exchange" },
+  { eyebrow:"Nich", title:"Not sure what to do? Ask Nich.", description:"Nich can help with value questions, trade questions, interpreting offers, and navigating CSBT HUB while you browse.", target:"nich-button" },
 ];
-
 const mobileSteps: TourStep[] = [
-  {
-    eyebrow: "Welcome to CSBT HUB",
-    title: "Let me show you around.",
-    description:
-      "This quick mobile tour highlights the main controls one by one so you can learn the site without digging through every page first.",
-  },
-  {
-    eyebrow: "Bottom Navigation",
-    title: "Your main tools stay pinned here.",
-    description:
-      "The most-used features remain at the bottom of the screen, so you can move around CSBT HUB quickly with one thumb.",
-    target: "mobile-dock",
-  },
-  {
-    eyebrow: "Values",
-    title: "Search GCash and Elve Shark values.",
-    description:
-      "Open Values to search pets and items, compare value sources, and view detailed item pages with history and personal actions.",
-    target: "nav-values",
-  },
-  {
-    eyebrow: "CSBT Exchange",
-    title: "Your personalized trading market.",
-    description:
-      "Exchange finds inventory-aware matches, helps build offers, tracks counteroffers, and keeps accepted trades organized in secure Trade Rooms.",
-    target: "nav-exchange",
-  },
-  {
-    eyebrow: "Calculator",
-    title: "Compare offers before you trade.",
-    description:
-      "Build both sides of a trade and see the difference instantly using your selected GCash or Elve Shark value source.",
-    target: "nav-calculator",
-  },
-  {
-    eyebrow: "Inventory",
-    title: "Save and value your inventory.",
-    description:
-      "Track items, quantities, and variants, then let CSBT HUB calculate your estimated total inventory value for you.",
-    target: "nav-inventory",
-  },
-  {
-    eyebrow: "More",
-    title: "More opens the rest of the hub.",
-    description:
-      "Use More for Demand, Profile, Wishlist, Notifications, Trade Voting, Feedback, Safe Trader Academy, Trading Servers, and other tools.",
-    target: "nav-more",
-  },
-  {
-    eyebrow: "Ask Nich",
-    title: "Need help while browsing?",
-    description:
-      "Nich stays available in the corner for quick value questions, trade guidance, and help using the rest of the website.",
-    target: "nich-button",
-  },
+  { eyebrow:"Welcome to CSBT HUB", title:"Your trading hub, built for mobile too.", description:"Values, trading, inventory, market tools, community features, and Nich are organized so the important actions stay easy to reach with one thumb." },
+  { eyebrow:"Bottom Dock", title:"Your most-used tools stay within thumb reach.", description:"The mobile dock keeps your core actions available without copying the entire desktop sidebar onto a small screen.", target:"mobile-dock" },
+  { eyebrow:"Values", title:"Check values quickly.", description:"Search GCash and Elve values and open detailed item pages with the rest of CSBT's value tools.", target:"nav-values" },
+  { eyebrow:"Trade Finder", title:"Open the CSBT Exchange.", description:"Browse live listings, find inventory-aware matches, make offers, counter, and continue trades in Trade Rooms.", target:"nav-exchange" },
+  { eyebrow:"Calculate", title:"Compare a trade before you decide.", description:"Build both sides of an offer and compare them using your selected value source.", target:"nav-calculator" },
+  { eyebrow:"Inventory", title:"Keep track of what you own.", description:"Save items, quantities, and variants so CSBT can power inventory-aware tools around the site.", target:"nav-inventory" },
+  { eyebrow:"More", title:"Everything else is organized inside More.", description:"Everything beyond the dock is organized in one categorized navigation hub. I’ll open it automatically on the next step.", target:"nav-more" },
+  { eyebrow:"CSBT Navigation", title:"The full hub is still only one tap away.", description:"Start Here, Trade, Market, Lounge, Help & Safety, and My CSBT use the same organization as desktop without cramming every link into the bottom dock.", target:"mobile-more-panel" },
+  { eyebrow:"Nich", title:"Need help while you browse? Ask Nich.", description:"Nich stays nearby for value questions, trade questions, and help finding the right tool in CSBT HUB.", target:"nich-button" },
 ];
 
 function getVisibleTarget(selector: string) {
@@ -224,6 +132,7 @@ export default function NichIntroMascot({
     typeof window !== "undefined" ? window.innerWidth >= 1024 : false,
   );
   const [highlightRect, setHighlightRect] = useState<HighlightRect | null>(null);
+  const cardRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const updateViewportMode = () => {
@@ -240,6 +149,30 @@ export default function NichIntroMascot({
     [isDesktop],
   );
   const currentStep = steps[Math.min(stepIndex, steps.length - 1)];
+
+  useEffect(() => {
+    if (!open || isDesktop) return;
+    const shouldOpenMore = currentStep?.target === "mobile-more-panel";
+    window.dispatchEvent(new CustomEvent("csbt-tour-more", { detail: { open: shouldOpenMore } }));
+    return () => { if (shouldOpenMore) window.dispatchEvent(new CustomEvent("csbt-tour-more", { detail: { open: false } })); };
+  }, [currentStep?.target, isDesktop, open]);
+
+  useEffect(() => {
+    if (!open || !isDesktop) {
+      window.dispatchEvent(new CustomEvent("csbt-tour-sidebar-group", { detail: { action: "restore" } }));
+      return;
+    }
+    if (currentStep?.target === "nav-exchange") window.dispatchEvent(new CustomEvent("csbt-tour-sidebar-group", { detail: { action: "open", groupId: "trade" } }));
+    else window.dispatchEvent(new CustomEvent("csbt-tour-sidebar-group", { detail: { action: "restore" } }));
+    return () => { if (currentStep?.target === "nav-exchange") window.dispatchEvent(new CustomEvent("csbt-tour-sidebar-group", { detail: { action: "restore" } })); };
+  }, [currentStep?.target, isDesktop, open]);
+
+
+  useEffect(() => {
+    if (!open) return;
+    const timer = window.setTimeout(() => cardRef.current?.focus({ preventScroll: true }), 0);
+    return () => window.clearTimeout(timer);
+  }, [open, stepIndex, isDesktop]);
 
   useEffect(() => {
     if (!open) {
@@ -294,12 +227,15 @@ export default function NichIntroMascot({
     const handleViewportChange = () => updateRect();
     window.addEventListener("resize", handleViewportChange);
     window.addEventListener("scroll", handleViewportChange, true);
+    const observer = new MutationObserver(() => updateRect());
+    observer.observe(document.body, { childList: true, subtree: true });
 
     return () => {
       window.clearTimeout(timeout);
       window.cancelAnimationFrame(frame);
       window.removeEventListener("resize", handleViewportChange);
       window.removeEventListener("scroll", handleViewportChange, true);
+      observer.disconnect();
     };
   }, [currentStep, open, shouldReduceMotion]);
 
@@ -330,7 +266,7 @@ export default function NichIntroMascot({
   const viewportHeight = window.innerHeight;
   const isLastStep = stepIndex === steps.length - 1;
   const cardWidth = Math.min(isDesktop ? 390 : 340, viewportWidth - 32);
-  const estimatedCardHeight = 330;
+  const estimatedCardHeight = isDesktop ? 330 : 360;
 
   let tooltipStyle: {
     top?: number;
@@ -460,7 +396,7 @@ export default function NichIntroMascot({
               aria-hidden="true"
               layout
               transition={{ duration: shouldReduceMotion ? 0 : 0.32, ease: [0.22, 1, 0.36, 1] }}
-              className="pointer-events-none fixed z-[123] rounded-[24px] border-2 border-amber-300 shadow-[0_0_34px_rgba(251,191,36,.55),inset_0_0_20px_rgba(251,191,36,.10)]"
+              className="pointer-events-none fixed z-[123] rounded-[20px] border border-amber-300/90 shadow-[0_0_28px_rgba(231,180,49,.28),inset_0_0_18px_rgba(231,180,49,.06)]"
               style={{
                 top: highlightRect.top,
                 left: highlightRect.left,
@@ -475,12 +411,12 @@ export default function NichIntroMascot({
                 shouldReduceMotion
                   ? undefined
                   : {
-                      scale: [0.78, 1.08, 0.78],
-                      opacity: [0.25, 0.72, 0.25],
+                      scale: [0.9, 1.02, 0.9],
+                      opacity: [0.16, 0.42, 0.16],
                     }
               }
               transition={{ duration: 1.55, repeat: Infinity, ease: "easeInOut" }}
-              className="pointer-events-none fixed z-[124] rounded-full border-2 border-amber-200/90 bg-amber-300/10 shadow-[0_0_40px_rgba(251,191,36,.45)]"
+              className="csbt-tour-ring pointer-events-none fixed z-[124] rounded-full border"
               style={{
                 width: spotlightSize,
                 height: spotlightSize,
@@ -497,8 +433,8 @@ export default function NichIntroMascot({
                   shouldReduceMotion
                     ? { opacity: 1, scale: 1 }
                     : pointer.motionAxis === "x"
-                      ? { opacity: 1, scale: 1, x: [0, 8, 0] }
-                      : { opacity: 1, scale: 1, y: [0, 8, 0] }
+                      ? { opacity: 1, scale: 1, x: [0, 5, 0] }
+                      : { opacity: 1, scale: 1, y: [0, 5, 0] }
                 }
                 transition={{
                   opacity: { duration: 0.2 },
@@ -506,7 +442,7 @@ export default function NichIntroMascot({
                   x: { duration: 0.85, repeat: Infinity, ease: "easeInOut" },
                   y: { duration: 0.85, repeat: Infinity, ease: "easeInOut" },
                 }}
-                className="pointer-events-none fixed z-[126] flex h-10 w-10 items-center justify-center rounded-full border border-amber-200 bg-amber-400 text-2xl font-black text-slate-950 shadow-[0_10px_30px_rgba(245,158,11,.45)]"
+                className="csbt-tour-pointer pointer-events-none fixed z-[126] flex h-9 w-9 items-center justify-center rounded-full border text-xl font-black"
                 style={pointer.style}
               >
                 {pointer.glyph}
@@ -516,6 +452,8 @@ export default function NichIntroMascot({
         )}
 
         <motion.div
+          ref={cardRef}
+          tabIndex={-1}
           key={`${isDesktop ? "desktop" : "mobile"}-${stepIndex}`}
           initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 14, scale: 0.96 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -523,24 +461,24 @@ export default function NichIntroMascot({
             duration: shouldReduceMotion ? 0 : 0.3,
             ease: [0.22, 1, 0.36, 1],
           }}
-          className="fixed z-[130] overflow-hidden rounded-[28px] border-2 border-amber-300/80 bg-slate-950/96 text-white shadow-[0_30px_90px_rgba(0,0,0,.55)] backdrop-blur-xl"
+          className="csbt-tour-card fixed z-[130] max-h-[calc(100vh-24px)] overflow-y-auto rounded-[22px] border shadow-[var(--shadow-lg)] backdrop-blur-xl"
           style={{ ...tooltipStyle, width: cardWidth }}
         >
-          <div className="relative overflow-hidden border-b border-white/10 bg-gradient-to-r from-amber-400/20 via-orange-500/12 to-rose-500/12 px-5 py-4">
+          <div className="csbt-tour-header relative overflow-hidden border-b px-5 py-4">
             <div className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full border border-amber-300/20" />
             <div className="flex items-center justify-between gap-3">
-              <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-300/12 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-amber-200">
+              <span className="csbt-tour-badge inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em]">
                 <span aria-hidden="true">✦</span>
                 CSBT Guide
               </span>
-              <span className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">
+              <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--foreground-muted)]">
                 {stepIndex + 1}/{steps.length}
               </span>
             </div>
 
-            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--surface-3)]">
               <motion.div
-                className="h-full rounded-full bg-gradient-to-r from-amber-300 via-orange-400 to-rose-400"
+                className="csbt-tour-progress h-full rounded-full"
                 animate={{ width: `${((stepIndex + 1) / steps.length) * 100}%` }}
                 transition={{ duration: shouldReduceMotion ? 0 : 0.3 }}
               />
@@ -548,13 +486,13 @@ export default function NichIntroMascot({
           </div>
 
           <div className="p-5">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-300">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--brand-primary)]">
               {currentStep.eyebrow}
             </p>
-            <h2 className="mt-2 text-2xl font-black leading-tight tracking-tight text-white">
+            <h2 className="mt-2 text-2xl font-black leading-tight tracking-tight text-[var(--foreground)]">
               {currentStep.title}
             </h2>
-            <p className="mt-3 text-sm font-semibold leading-6 text-slate-300">
+            <p className="mt-3 text-sm font-semibold leading-6 text-[var(--foreground-muted)]">
               {currentStep.description}
             </p>
 
@@ -563,7 +501,7 @@ export default function NichIntroMascot({
                 type="button"
                 onClick={() => setStepIndex((current) => Math.max(current - 1, 0))}
                 disabled={stepIndex === 0}
-                className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/15 bg-white/5 px-4 text-sm font-black text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30"
+                className="inline-flex min-h-12 items-center justify-center rounded-[12px] border border-[var(--border-strong)] bg-[var(--surface-3)] px-4 text-sm font-black text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-30"
               >
                 <span aria-hidden="true" className="mr-1.5">◀</span>
                 Back
@@ -572,18 +510,18 @@ export default function NichIntroMascot({
               <button
                 type="button"
                 onClick={goNext}
-                className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-amber-200/60 bg-gradient-to-b from-amber-300 to-orange-500 px-5 text-sm font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,.55),0_8px_0_rgba(154,52,18,.35),0_14px_28px_rgba(249,115,22,.25)] transition hover:-translate-y-0.5 hover:brightness-105 active:translate-y-1 active:shadow-[inset_0_1px_0_rgba(255,255,255,.45),0_3px_0_rgba(154,52,18,.35)]"
+                className="csbt-tour-primary inline-flex min-h-12 items-center justify-center rounded-[12px] border px-5 text-sm font-black shadow-[var(--shadow-gold)] transition hover:-translate-y-0.5 hover:brightness-105 active:scale-[.98]"
               >
                 {isLastStep ? "Start exploring" : stepIndex === 0 ? "Start tour" : "Next"}
                 <span aria-hidden="true" className="ml-2">▶</span>
               </button>
             </div>
 
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-white/10 pt-4">
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-[var(--border)] pt-4">
               <button
                 type="button"
                 onClick={onSkip}
-                className="text-xs font-black text-slate-300 underline decoration-white/20 underline-offset-4 transition hover:text-white"
+                className="text-xs font-black text-[var(--foreground-muted)] underline decoration-[var(--border-strong)] underline-offset-4 transition hover:text-[var(--foreground)]"
               >
                 Skip for now
               </button>
@@ -591,14 +529,14 @@ export default function NichIntroMascot({
               <button
                 type="button"
                 onClick={onDontShowAgain}
-                className="inline-flex items-center gap-1.5 text-xs font-black text-slate-500 transition hover:text-rose-300"
+                className="inline-flex items-center gap-1.5 text-xs font-black text-[var(--foreground-muted)] transition hover:text-[var(--rose)]"
               >
                 <span aria-hidden="true">◉</span>
                 Don’t show again
               </button>
             </div>
 
-            <p className="mt-3 text-center text-[10px] font-bold uppercase tracking-[0.12em] text-white/25">
+            <p className="mt-3 text-center text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--foreground-muted)] opacity-60">
               {isDesktop
                 ? "PC: ← → to navigate · Esc to skip"
                 : "Use Next / Back to move through the guide"}

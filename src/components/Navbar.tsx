@@ -3,70 +3,73 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useUnreadNotifications } from "../hooks/useUnreadNotifications";
+import { useCSBTTheme } from "./ThemeProvider";
+import AppearanceSelector from "./theme/AppearanceSelector";
+import { CSBT_THEMES } from "../lib/theme";
 
-type IconName =
-  | "home" | "values" | "demand" | "calculator" | "community" | "servers"
-  | "seminar" | "nich" | "about" | "profile" | "notifications" | "inventory" | "wishlist" | "tradefeed" | "feedback" | "exchange" | "more";
-
-type NavLink = {
-  label: string;
-  href: string;
-  description: string;
-  icon: IconName;
-};
-
-const primaryLinks: NavLink[] = [
-  { label: "Home", href: "/", description: "Homepage", icon: "home" },
-  { label: "Values", href: "/values", description: "Browse trading values", icon: "values" },
-  { label: "Exchange", href: "/exchange", description: "Smart matches, offers, trade rooms", icon: "exchange" },
-  { label: "Demand", href: "/demand", description: "Recent market movement", icon: "demand" },
-  { label: "Calculator", href: "/calculator", description: "Compare both offers", icon: "calculator" },
-  { label: "Inventory", href: "/inventory", description: "Calculate your whole inventory", icon: "inventory" },
-];
-
-const communityLinks: NavLink[] = [
-  { label: "Community", href: "/community", description: "Live posts and screenshots", icon: "community" },
-  { label: "Trade Voting", href: "/trade-feed", description: "Community Win / Fair / Lose", icon: "tradefeed" },
-  { label: "Trading Servers", href: "/trading-servers", description: "Discord, Facebook, Roblox", icon: "servers" },
-  { label: "Safe Trader Academy", href: "/seminar", description: "Learn safer trading", icon: "seminar" },
-  { label: "Ask Nich", href: "/nich", description: "CSBT trading assistant", icon: "nich" },
-  { label: "Feedback", href: "/feedback", description: "Report values, bugs, or ideas", icon: "feedback" },
-  { label: "About", href: "/about", description: "About CSBT HUB", icon: "about" },
-];
-
-const accountLinks: NavLink[] = [
-  { label: "My Profile", href: "/profile", description: "Account, activity, and profile settings", icon: "profile" },
-  { label: "Notifications", href: "/notifications", description: "Alerts and activity", icon: "notifications" },
-  { label: "Wishlist", href: "/wishlist", description: "Wanted items and value alerts", icon: "wishlist" },
-  { label: "Trade History", href: "/trades", description: "Saved trades and status", icon: "calculator" },
-];
-
-const mobileCore: NavLink[] = [
-  primaryLinks.find((link) => link.href === "/values")!,
-  primaryLinks.find((link) => link.href === "/calculator")!,
-  primaryLinks.find((link) => link.href === "/exchange")!,
-  primaryLinks.find((link) => link.href === "/inventory")!,
-];
-
-const mobileMoreLinks: NavLink[] = [
-  primaryLinks.find((link) => link.href === "/")!,
-  primaryLinks.find((link) => link.href === "/demand")!,
-  ...accountLinks,
-  ...communityLinks,
-];
+import {
+  mobilePrimaryLinks,
+  navGroups,
+  SIDEBAR_GROUP_STORAGE_KEY,
+  type CSBTNavGroup,
+  type CSBTNavLink,
+  type NavBadge,
+  type NavIconName,
+} from "../lib/navigation";
 
 export default function Navbar() {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const { resolvedTheme, setTheme } = useTheme();
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(navGroups.map((group) => [group.id, group.defaultOpen])),
+  );
+  const { theme, mounted } = useCSBTTheme();
   const unread = useUnreadNotifications();
+  const tourGroupSnapshot = useRef<Record<string, boolean> | null>(null);
 
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(SIDEBAR_GROUP_STORAGE_KEY);
+      if (saved) setOpenGroups((current) => ({ ...current, ...JSON.parse(saved) }));
+    } catch {
+      // Sidebar still works when storage is unavailable.
+    }
+  }, []);
   useEffect(() => setMoreOpen(false), [pathname]);
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ open?: boolean }>).detail;
+      setMoreOpen(Boolean(detail?.open));
+    };
+    window.addEventListener("csbt-tour-more", handler as EventListener);
+    return () => window.removeEventListener("csbt-tour-more", handler as EventListener);
+  }, []);
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ groupId?: string; action?: "open" | "restore" }>).detail;
+      if (detail?.action === "restore") {
+        if (tourGroupSnapshot.current) {
+          const snapshot = tourGroupSnapshot.current;
+          tourGroupSnapshot.current = null;
+          setOpenGroups(snapshot);
+        }
+        return;
+      }
+      if (detail?.action === "open" && detail.groupId) {
+        setOpenGroups((current) => {
+          if (!tourGroupSnapshot.current) tourGroupSnapshot.current = { ...current };
+          return { ...current, [detail.groupId!]: true };
+        });
+      }
+    };
+    window.addEventListener("csbt-tour-sidebar-group", handler as EventListener);
+    return () => window.removeEventListener("csbt-tour-sidebar-group", handler as EventListener);
+  }, []);
 
   useEffect(() => {
     if (!moreOpen) return;
@@ -76,174 +79,137 @@ export default function Navbar() {
   }, [moreOpen]);
 
   useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMoreOpen(false);
-    };
+    const handler = (event: KeyboardEvent) => { if (event.key === "Escape") setMoreOpen(false); };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
   const active = (href: string) => href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
-  const toggleTheme = () => setTheme(resolvedTheme === "dark" ? "light" : "dark");
+  const activeGroupId = useMemo(() => navGroups.find((group) => group.links.some((link) => active(link.href)))?.id, [pathname]);
+
+  useEffect(() => {
+    if (!activeGroupId) return;
+    setOpenGroups((current) => current[activeGroupId] ? current : { ...current, [activeGroupId]: true });
+  }, [activeGroupId]);
+
+  function toggleGroup(id: string) {
+    setOpenGroups((current) => {
+      const next = { ...current, [id]: !current[id] };
+      try { window.localStorage.setItem(SIDEBAR_GROUP_STORAGE_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }
 
   return (
     <>
-      <aside data-tour="sidebar-container" className="fixed inset-y-0 left-0 z-50 hidden w-72 p-4 lg:block" aria-label="CSBT HUB sidebar">
-        <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[30px] border border-white/55 bg-white/86 shadow-[0_24px_80px_rgba(15,23,42,.14)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/88 dark:shadow-[0_28px_90px_rgba(0,0,0,.4)]">
-          <Link href="/" className="flex items-center gap-3 border-b border-slate-200/75 px-5 py-5 dark:border-white/10">
+      <aside data-tour="sidebar-container" className="fixed inset-y-0 left-0 z-50 hidden w-[268px] p-3 lg:block" aria-label="CSBT HUB sidebar">
+        <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[22px] border border-[var(--border)] bg-[var(--surface-1)] shadow-[var(--shadow-md)] backdrop-blur-xl">
+          <Link href="/" className="flex items-center gap-3 border-b border-[var(--border)] px-4 py-4">
             <Image src="/logo.png" alt="" width={52} height={52} priority className="h-[52px] w-[52px] rounded-full object-cover shadow-sm" />
-            <div className="min-w-0">
-              <span className="block truncate text-xl font-black tracking-tight text-amber-900 dark:text-amber-300">CSBT HUB</span>
-              <span className="block truncate text-xs font-medium text-slate-500 dark:text-slate-400">Adopt Me trading hub</span>
-            </div>
+            <div className="min-w-0"><span className="block truncate text-[17px] font-black tracking-[-.035em] text-[var(--foreground)]">CSBT HUB</span><span className="block truncate text-[10px] font-bold uppercase tracking-[.12em] text-[var(--gold-dark)] dark:text-[var(--gold-bright)]">Adopt Me trading hub</span></div>
           </Link>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
-            <NavGroup title="Core" links={primaryLinks} active={active} unread={unread} />
-            <NavGroup title="Community & tools" links={communityLinks} active={active} unread={unread} />
-            <NavGroup title="My CSBT" links={accountLinks} active={active} unread={unread} />
+          <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+            {navGroups.map((group) => (
+              <NavGroup
+                key={group.id}
+                group={group}
+                open={Boolean(openGroups[group.id])}
+                onToggle={() => toggleGroup(group.id)}
+                active={active}
+                unread={unread}
+              />
+            ))}
           </div>
 
-          <div className="border-t border-slate-200/75 p-4 dark:border-white/10">
-            <div className="grid grid-cols-[48px_minmax(0,1fr)] gap-2.5">
-              <ThemeButton mounted={mounted} resolvedTheme={resolvedTheme} onClick={toggleTheme} />
-              <a href="https://www.facebook.com/groups/5352107604807631" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 text-sm font-black text-white shadow-sm">Join CSBT →</a>
+          <div className="border-t border-[var(--border)] p-3">
+            <div className="grid gap-2.5">
+              <button type="button" onClick={() => setAppearanceOpen(true)} className="flex min-h-12 items-center justify-between gap-3 rounded-2xl bg-[var(--surface-3)] px-3.5 text-left text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]" aria-label="Choose CSBT appearance">
+                <span className="flex min-w-0 items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-2)] text-base">{mounted ? CSBT_THEMES[theme].icon : "🌙"}</span><span className="min-w-0"><span className="block text-[10px] font-black uppercase tracking-[.13em] text-[var(--foreground-muted)]">Appearance</span><span className="block truncate text-xs font-black">{mounted ? CSBT_THEMES[theme].label : "CSBT Dark"}</span></span></span><span aria-hidden="true" className="text-sm text-[var(--foreground-muted)]">›</span>
+              </button>
+              <a href="https://www.facebook.com/groups/5352107604807631" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-[var(--surface-3)] px-4 text-sm font-black text-[var(--foreground)]">Join CSBT →</a>
             </div>
           </div>
         </div>
       </aside>
 
       <header className="sticky top-0 z-50 px-3 py-2.5 lg:hidden">
-        <div className="mx-auto flex max-w-7xl items-center justify-between rounded-2xl border border-white/60 bg-white/88 px-3 py-2.5 shadow-[0_10px_35px_rgba(15,23,42,.1)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/90">
+        <div className="mx-auto flex max-w-7xl items-center justify-between rounded-[16px] border border-[var(--border)] bg-[var(--surface-1)] px-3 py-2.5 shadow-[0_10px_35px_rgba(15,23,42,.1)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/92">
           <Link href="/" className="flex min-w-0 items-center gap-2.5" aria-label="CSBT HUB home">
             <Image src="/logo.png" alt="" width={40} height={40} priority className="h-10 w-10 shrink-0 rounded-full object-cover" />
-            <div className="min-w-0">
-              <span className="block truncate text-base font-black text-amber-900 dark:text-amber-300">CSBT HUB</span>
-              <span className="block truncate text-[10px] font-bold text-slate-400">Adopt Me trading hub</span>
-            </div>
+            <div className="min-w-0"><span className="block truncate text-base font-black text-amber-900 dark:text-amber-300">CSBT HUB</span><span className="block truncate text-[10px] font-bold text-slate-400">Adopt Me trading hub</span></div>
           </Link>
-
           <div className="flex items-center gap-1.5">
-            <Link href="/notifications" aria-label="Notifications" className="relative flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10">
-              <NavIcon name="notifications" />
-              {unread > 0 && <span className="absolute right-1 top-1 min-w-4 rounded-full bg-rose-500 px-1 text-center text-[9px] font-black leading-4 text-white">{unread > 99 ? "99+" : unread}</span>}
-            </Link>
-            <Link href="/profile" aria-label="My profile" className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10">
-              <NavIcon name="profile" />
-            </Link>
+            <Link href="/notifications" aria-label="Notifications" className="relative flex h-11 w-11 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10"><NavIcon name="notifications" />{unread > 0 && <span className="absolute right-1 top-1 min-w-4 rounded-full bg-rose-500 px-1 text-center text-[9px] font-black leading-4 text-white">{unread > 99 ? "99+" : unread}</span>}</Link>
+            <Link href="/profile" aria-label="My profile" className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10"><NavIcon name="profile" /></Link>
           </div>
         </div>
       </header>
 
-      <nav data-tour="mobile-dock" className="fixed inset-x-0 bottom-0 z-[70] border-t border-slate-200/80 bg-white/94 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_35px_rgba(15,23,42,.1)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/95 lg:hidden" aria-label="Mobile primary navigation">
+      <nav data-tour="mobile-dock" className="fixed inset-x-0 bottom-0 z-[70] border-t border-[var(--border)] bg-[var(--surface-1)] px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_35px_rgba(15,23,42,.1)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/96 lg:hidden" aria-label="Mobile primary navigation">
         <div className="mx-auto grid max-w-xl grid-cols-5 gap-1">
-          {mobileCore.map((link) => <MobileDockLink key={link.href} link={link} active={active(link.href)} />)}
-          <button type="button" onClick={() => setMoreOpen(true)} className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-black ${moreOpen ? "bg-amber-100 text-amber-800 dark:bg-amber-400/10 dark:text-amber-300" : "text-slate-500 dark:text-slate-400"}`} data-tour="nav-more" aria-label="More navigation">
-            <NavIcon name="more" />
-            <span>More</span>
-          </button>
+          {mobilePrimaryLinks.map((link) => <MobileDockLink key={link.href} link={link} active={active(link.href)} />)}
+          <button type="button" data-tour="nav-more" onClick={() => setMoreOpen(true)} className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-black ${moreOpen ? "bg-[var(--nav-active)] text-[var(--nav-active-text)]" : "text-[var(--foreground-muted)]"}`} aria-label="More navigation"><NavIcon name="more" /><span>More</span></button>
         </div>
       </nav>
 
       {moreOpen && (
         <div className="fixed inset-0 z-[85] lg:hidden" role="dialog" aria-modal="true" aria-label="More navigation">
-          <button type="button" aria-label="Close menu" onClick={() => setMoreOpen(false)} className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm" />
-          <div className="absolute inset-x-2 bottom-[76px] max-h-[72vh] overflow-y-auto rounded-[28px] border border-white/50 bg-white p-4 shadow-2xl dark:border-white/10 dark:bg-slate-950 sm:inset-x-4">
-            <div className="flex items-center justify-between px-1 pb-3">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-600 dark:text-amber-300">Navigation</p>
-                <h2 className="text-lg font-black text-slate-950 dark:text-white">More from CSBT HUB</h2>
-              </div>
-              <button type="button" onClick={() => setMoreOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-xl font-black dark:bg-white/5">×</button>
-            </div>
-
-            <div className="grid gap-2 sm:grid-cols-2">
-              {mobileMoreLinks.map((link) => (
-                <Link key={link.href} href={link.href} className={`flex items-center gap-3 rounded-2xl border px-3 py-3 ${active(link.href) ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200" : "border-slate-200 bg-slate-50 text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-200"}`}>
-                  <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm dark:bg-slate-900">
-                    <NavIcon name={link.icon} />
-                    {link.icon === "notifications" && unread > 0 && <span className="absolute -right-1 -top-1 h-4 min-w-4 rounded-full bg-rose-500 px-1 text-center text-[9px] font-black leading-4 text-white">{unread > 99 ? "99+" : unread}</span>}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-black">{link.label}</span>
-                    <span className="block truncate text-[10px] font-medium opacity-60">{link.description}</span>
-                  </span>
-                </Link>
+          <button type="button" aria-label="Close menu" onClick={() => setMoreOpen(false)} className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" />
+          <div data-tour="mobile-more-panel" className="absolute inset-x-2 bottom-[calc(76px+env(safe-area-inset-bottom))] max-h-[min(76vh,680px)] overflow-y-auto rounded-[22px] border border-[var(--border)] bg-[var(--surface-2)] p-4 shadow-[var(--shadow-lg)] sm:inset-x-4">
+            <div className="flex items-center justify-between px-1 pb-3"><div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-600 dark:text-amber-300">Navigation</p><h2 className="text-lg font-black text-slate-950 dark:text-white">Where do you want to go?</h2></div><button type="button" onClick={() => setMoreOpen(false)} className="flex h-11 w-11 items-center justify-center rounded-[12px] bg-[var(--surface-3)] text-xl font-black text-[var(--foreground)]">×</button></div>
+            <div className="space-y-4">
+              {navGroups.map((group) => (
+                <section key={group.id}>
+                  <p className="mb-2 px-1 text-[9px] font-black uppercase tracking-[0.16em] text-[var(--foreground-muted)]">{group.title}</p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {group.links.map((link) => <MobileMenuLink key={link.href} link={link} active={active(link.href)} unread={unread} />)}
+                  </div>
+                </section>
               ))}
             </div>
-
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <button type="button" onClick={toggleTheme} className="min-h-12 rounded-2xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">{mounted && resolvedTheme === "dark" ? "☀️ Light mode" : "🌙 Dark mode"}</button>
-              <a href="https://www.facebook.com/groups/5352107604807631" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-500 px-3 text-xs font-black text-white">Join CSBT</a>
-            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2"><button type="button" onClick={() => { setMoreOpen(false); setAppearanceOpen(true); }} className="min-h-12 rounded-[var(--radius-control)] bg-[var(--surface-3)] px-3 text-xs font-black text-[var(--foreground)]">🎨 Appearance</button><a href="https://www.facebook.com/groups/5352107604807631" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center justify-center rounded-[var(--radius-control)] bg-[var(--primary-button)] px-3 text-xs font-black text-[var(--primary-button-text)]">Join CSBT</a></div>
           </div>
         </div>
       )}
+      <AppearanceSelector open={appearanceOpen} onClose={() => setAppearanceOpen(false)} />
     </>
   );
 }
 
-function NavGroup({ title, links, active, unread }: { title: string; links: NavLink[]; active: (href: string) => boolean; unread: number }) {
-  const getTourTarget = (href: string) => {
-    switch (href) {
-      case "/values": return "nav-values";
-      case "/calculator": return "nav-calculator";
-      case "/exchange": return "nav-exchange";
-      case "/inventory": return "nav-inventory";
-      case "/trade-feed": return "nav-trade-feed";
-      case "/nich": return "nav-nich";
-      default: return undefined;
-    }
-  };
+function NavGroup({ group, open, onToggle, active, unread }: { group: CSBTNavGroup; open: boolean; onToggle: () => void; active: (href: string) => boolean; unread: number }) {
   return (
-    <div className="mb-5 last:mb-0">
-      <p className="px-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">{title}</p>
-      <div className="mt-2 space-y-1">
-        {links.map((link) => {
-          const selected = active(link.href);
-          return (
-            <Link key={link.href} href={link.href} data-tour={getTourTarget(link.href)} aria-current={selected ? "page" : undefined} className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 transition ${selected ? "bg-amber-100 text-amber-900 dark:bg-amber-400/10 dark:text-amber-200" : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/5"}`}>
-              <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/80 shadow-sm dark:bg-white/5">
-                <NavIcon name={link.icon} />
-                {link.icon === "notifications" && unread > 0 && <span className="absolute -right-1 -top-1 h-4 min-w-4 rounded-full bg-rose-500 px-1 text-center text-[9px] font-black leading-4 text-white">{unread > 99 ? "99+" : unread}</span>}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-black">{link.label}</span>
-                <span className="block truncate text-[10px] font-medium opacity-55">{link.description}</span>
-              </span>
-            </Link>
-          );
-        })}
-      </div>
-    </div>
+    <section className="mb-2 last:mb-0">
+      <button type="button" data-tour={group.tour} onClick={onToggle} className="group flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[9px] font-black uppercase tracking-[0.16em] text-[var(--foreground-muted)] transition hover:bg-slate-100/80 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-white/5 dark:hover:text-slate-300" aria-expanded={open}>
+        <span>{group.title}</span><span className={`text-sm transition-transform ${open ? "rotate-180" : ""}`}>⌄</span>
+      </button>
+      {open && <div className="mt-1 space-y-1">{group.links.map((link) => <DesktopCSBTNavLink key={link.href} link={link} selected={active(link.href)} unread={unread} />)}</div>}
+    </section>
   );
 }
 
-function MobileDockLink({ link, active }: { link: NavLink; active: boolean }) {
-  const tourTarget = link.href === "/values"
-    ? "nav-values"
-    : link.href === "/calculator"
-      ? "nav-calculator"
-      : link.href === "/exchange"
-        ? "nav-exchange"
-        : link.href === "/inventory"
-          ? "nav-inventory"
-          : undefined;
-  return (
-    <Link href={link.href} data-tour={tourTarget} aria-current={active ? "page" : undefined} className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-black ${active ? "bg-amber-100 text-amber-800 dark:bg-amber-400/10 dark:text-amber-300" : "text-slate-500 dark:text-slate-400"}`}>
-      <NavIcon name={link.icon} />
-      <span>{link.label}</span>
-    </Link>
-  );
+function DesktopCSBTNavLink({ link, selected, unread }: { link: CSBTNavLink; selected: boolean; unread: number }) {
+  return <Link href={link.href} data-tour={link.tour} aria-current={selected ? "page" : undefined} className={`group relative flex items-center gap-3 rounded-[13px] px-3 py-2.5 transition ${selected ? "bg-[var(--surface-selected)] text-[var(--foreground)] shadow-sm before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-full before:bg-[var(--gold)]" : "text-[var(--foreground-muted)] hover:bg-[var(--surface-3)] hover:text-[var(--foreground)]"}`}>
+    <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[var(--surface-3)] transition group-hover:scale-[1.03]"><NavIcon name={link.icon} />{link.icon === "notifications" && unread > 0 && <span className="absolute -right-1 -top-1 h-4 min-w-4 rounded-full bg-rose-500 px-1 text-center text-[9px] font-black leading-4 text-white">{unread > 99 ? "99+" : unread}</span>}</span>
+    <span className="min-w-0 flex-1"><span className="flex items-center gap-1.5"><span className="truncate text-sm font-black">{link.label}</span>{link.badge && <Badge type={link.badge} />}</span><span className="mt-0.5 block truncate text-[10px] font-semibold opacity-55">{link.description}</span></span>
+  </Link>;
 }
 
-type ThemeButtonProps = { mounted: boolean; resolvedTheme: string | undefined; onClick: () => void };
-function ThemeButton({ mounted, resolvedTheme, onClick }: ThemeButtonProps) {
-  const isDark = mounted && resolvedTheme === "dark";
-  return <button type="button" onClick={onClick} aria-label={isDark ? "Use light mode" : "Use dark mode"} className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200 bg-white text-lg shadow-sm dark:border-white/10 dark:bg-white/5">{isDark ? "☀️" : "🌙"}</button>;
+function Badge({ type }: { type: NavBadge }) {
+  return <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-black tracking-[0.08em] ${type === "SMART" ? "bg-cyan-100 text-cyan-700 dark:bg-cyan-400/15 dark:text-cyan-300" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300"}`}>{type}</span>;
 }
 
-function NavIcon({ name }: { name: IconName }) {
+function MobileMenuLink({ link, active, unread }: { link: CSBTNavLink; active: boolean; unread: number }) {
+  return <Link href={link.href} data-tour={link.tour} className={`flex min-h-14 items-center gap-3 rounded-[14px] px-3 py-3 ${active ? "bg-[var(--surface-selected)] text-[var(--foreground)] ring-1 ring-[var(--border-gold)]" : "bg-[var(--surface-3)] text-[var(--foreground-muted)]"}`}><span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-3)] shadow-sm"><NavIcon name={link.icon} />{link.icon === "notifications" && unread > 0 && <span className="absolute -right-1 -top-1 h-4 min-w-4 rounded-full bg-rose-500 px-1 text-center text-[9px] font-black leading-4 text-white">{unread > 99 ? "99+" : unread}</span>}</span><span className="min-w-0 flex-1"><span className="flex items-center gap-1.5"><span className="truncate text-sm font-black">{link.label}</span>{link.badge && <Badge type={link.badge} />}</span><span className="block truncate text-[10px] font-medium opacity-60">{link.description}</span></span></Link>;
+}
+
+function MobileDockLink({ link, active }: { link: CSBTNavLink; active: boolean }) {
+  const label = link.href === "/exchange" ? "Trade" : link.href === "/calculator" ? "Calculate" : link.label;
+  return <Link href={link.href} data-tour={link.tour} aria-current={active ? "page" : undefined} className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-black ${active ? "bg-[var(--nav-active)] text-[var(--nav-active-text)]" : "text-[var(--foreground-muted)]"}`}><NavIcon name={link.icon} /><span>{label}</span></Link>;
+}
+
+
+function NavIcon({ name }: { name: NavIconName }) {
   const common = "h-5 w-5";
   switch (name) {
     case "home": return <svg viewBox="0 0 24 24" className={common} fill="none" stroke="currentColor" strokeWidth="2"><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>;

@@ -8,6 +8,7 @@ import { useAuthSession } from "../../hooks/useAuthSession";
 import AuthCard from "../account/AuthCard";
 import CreateListingPanel from "./CreateListingPanel";
 import ListingCard from "./ListingCard";
+import { EmptyState, SectionHeader } from "../ui/CSBTUI";
 import OfferComposer from "./OfferComposer";
 import type {
   ExchangeListing,
@@ -20,14 +21,14 @@ import { DEFAULT_MARKETPLACE_PREFERENCES, rankListingMatches } from "../../lib/e
 import { getItemById } from "../../lib/search";
 
 const tabs = [
-  ["for-you", "✨ For You"],
-  ["browse", "🔎 Browse"],
-  ["feed", "🔥 Feed"],
-  ["my-listings", "📦 My Listings"],
-  ["offers", "🤝 Offers"],
-  ["rooms", "🔒 Trade Rooms"],
-  ["market", "📊 Market"],
-  ["settings", "⚙️ Style"],
+  ["for-you", "For You"],
+  ["browse", "Browse"],
+  ["feed", "Live Feed"],
+  ["my-listings", "My Listings"],
+  ["offers", "Offers"],
+  ["rooms", "Trade Rooms"],
+  ["market", "Market"],
+  ["settings", "Trading Style"],
 ] as const;
 type Tab = typeof tabs[number][0];
 
@@ -285,36 +286,34 @@ export default function ExchangeHub() {
     if (prefError) setError(prefError.message);
   }
 
+  const strongMatchCount = matches.filter((match) => match.score >= 80).length;
+  const pendingIncoming = incomingOffers.filter((offer) => offer.status === "PENDING").length;
+  const showContextRail = tab === "for-you" || tab === "browse" || tab === "feed";
+  const displayedMatches = tab === "for-you" ? matches.filter((match) => match.score >= preferences.min_match_score).slice(0, 30) : matches;
+
   if (!supabase) return <SetupMessage />;
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[190px_minmax(0,1fr)_300px]">
-      <aside className="hidden h-fit rounded-[26px] border border-white/70 bg-white/75 p-3 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/65 xl:block">
-        <p className="px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-amber-500">CSBT Exchange</p>
-        <div className="space-y-1">{tabs.map(([key, label]) => <button key={key} onClick={() => setTab(key)} className={`w-full rounded-2xl px-3 py-2.5 text-left text-xs font-black transition ${tab === key ? "bg-amber-100 text-amber-900 dark:bg-amber-400/10 dark:text-amber-200" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5"}`}>{label}</button>)}</div>
-        {user && <button onClick={() => setCreateOpen(true)} className="mt-3 w-full rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 px-3 py-3 text-xs font-black text-white shadow-md">＋ Create Listing</button>}
-        {isMiddleman && <Link href="/exchange/middleman" className="mt-2 inline-flex min-h-11 w-full items-center justify-center rounded-2xl border border-amber-200 bg-amber-50 px-3 text-xs font-black text-amber-700 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200">🛡 Middleman Desk</Link>}
-        {isExchangeStaff && <Link href="/exchange/moderation" className="mt-2 inline-flex min-h-11 w-full items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 px-3 text-xs font-black text-rose-700 dark:border-rose-400/20 dark:bg-rose-400/10 dark:text-rose-200">🚨 Moderation Desk</Link>}
-      </aside>
-
+    <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
       <main className="min-w-0">
-        <div className="mb-4 flex gap-2 overflow-x-auto pb-1 xl:hidden">{tabs.map(([key, label]) => <button key={key} onClick={() => setTab(key)} className={`shrink-0 rounded-full px-3 py-2 text-xs font-black ${tab === key ? "bg-amber-400 text-white" : "bg-white text-slate-500 dark:bg-white/5"}`}>{label}</button>)}</div>
+        <div className="csbt-tabs mb-4" role="tablist" aria-label="Exchange sections">{tabs.map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => setTab(key)} className="csbt-tab">{label}</button>)}</div>
 
-        <section className="rounded-[30px] border border-white/70 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 p-5 text-white shadow-[0_20px_60px_rgba(15,23,42,.22)] sm:p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <section className="relative overflow-hidden rounded-[var(--radius-section)] bg-[#0a1423] p-5 text-white shadow-[var(--shadow-md)] ring-1 ring-white/10 sm:p-6">
+          <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-amber-400/[0.07] blur-3xl" /><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-300">Smarter than a listing board</p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">CSBT Exchange</h1>
-              <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-white/65">Inventory-aware matching, offer building, counteroffers, trust, locked trade rooms, realtime activity, market depth, and Nich-powered decisions.</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-300">CSBT Exchange</p>
+              <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Find your next trade.</h1>
+              <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-white/65">Discover listings, find inventory-aware matches, build offers, negotiate and trade smarter with Nich.</p>
             </div>
-            <div className="flex gap-2">
-              {user ? <button onClick={() => setCreateOpen(true)} className="min-h-12 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500 px-5 text-sm font-black text-white shadow-lg">Create Listing</button> : <Link href="/profile" className="min-h-12 rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950">Sign in to trade</Link>}
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => setTab("browse")} className="min-h-12 rounded-[var(--radius-control)] border border-white/15 bg-white/[0.06] px-4 text-sm font-black text-white transition hover:bg-white/10">Browse Market</button>
+              {user ? <button onClick={() => setCreateOpen(true)} className="min-h-12 rounded-[var(--radius-control)] bg-[var(--gold)] px-5 text-sm font-black text-slate-950 shadow-[var(--shadow-gold)] transition hover:-translate-y-0.5">＋ Create Listing</button> : <Link href="/profile" className="min-h-12 rounded-[var(--radius-control)] bg-white px-5 py-3 text-sm font-black text-slate-950">Sign in to trade</Link>}
             </div>
           </div>
           <div className="mt-5 grid grid-cols-3 gap-2 sm:max-w-xl">
-            <Stat value={String(listings.length)} label="Live listings" />
-            <Stat value={String(matches.filter((match) => match.score >= 80).length)} label="Strong matches" />
-            <Stat value={String(events.filter((event) => event.event_type === "OFFER_ACCEPTED").length)} label="Accepted signals" />
+            <Stat value={String(listings.length)} label="Live Listings" />
+            <Stat value={String(strongMatchCount)} label="Strong Matches" />
+            <Stat value={String(pendingIncoming)} label="Offers Waiting" />
           </div>
         </section>
 
@@ -325,13 +324,13 @@ export default function ExchangeHub() {
           <section className="mt-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-500">{tab === "for-you" ? "Personalized" : "Live Exchange"}</p><h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">{tab === "for-you" ? "Opportunities for you" : "Browse active listings"}</h2></div>
-              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search item or trader…" className="min-h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold outline-none focus:border-amber-400 dark:border-white/10 dark:bg-slate-900" />
+              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search pets, items, listings, or traders..." className="min-h-12 w-full rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--surface-2)] px-4 text-sm font-bold outline-none transition focus:border-[var(--gold)] sm:w-[330px]" />
             </div>
             {!user && tab === "for-you" && <p className="mt-4 rounded-2xl border border-cyan-200 bg-cyan-50 p-4 text-sm font-bold text-cyan-800 dark:border-cyan-400/20 dark:bg-cyan-400/10 dark:text-cyan-200">Sign in and save your inventory + wishlist to unlock personalized match scores and Smart Offer Builder.</p>}
-            <div className="mt-4 grid gap-4 lg:grid-cols-2">
-              {(tab === "for-you" ? matches.filter((match) => match.score >= preferences.min_match_score).slice(0, 30) : matches).map((match) => <ListingCard key={match.listing.id} listing={match.listing} match={user ? match : null} trust={trust.get(match.listing.user_id)} onOffer={user ? (listing) => setOfferListing(listing) : undefined} />)}
+            <div className="mt-4 grid gap-4 2xl:grid-cols-2">
+              {displayedMatches.map((match) => <ListingCard key={match.listing.id} listing={match.listing} match={user ? match : null} trust={trust.get(match.listing.user_id)} onOffer={user ? (listing) => setOfferListing(listing) : undefined} />)}
             </div>
-            {!visibleListings.length && <Empty text="No live listings match this search yet." />}
+            {!displayedMatches.length && <Empty text={tab === "for-you" ? "No smart matches yet." : "No live listings match this search yet."} />}
           </section>
         )}
 
@@ -346,7 +345,7 @@ export default function ExchangeHub() {
         {!loading && tab === "my-listings" && (
           <section className="mt-5">
             <SectionHeading eyebrow="Your activity" title="My Listings" />
-            {!user ? <SignInGate supabase={supabase} /> : <div className="mt-4 grid gap-4 lg:grid-cols-2">{ownedListings.map((listing) => <div key={listing.id} className="rounded-[30px] border border-white/60 bg-white/35 p-2 dark:border-white/5 dark:bg-white/[0.015]"><div className="mb-2 flex items-center justify-between gap-2 px-2"><span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-500 dark:bg-white/5 dark:text-slate-300">{listing.status}</span><span className="text-[10px] font-bold text-slate-400">Created {ago(listing.created_at)}</span></div><ListingCard listing={listing} trust={trust.get(listing.user_id)} /><div className="mt-2 flex gap-2">{listing.status === "OPEN" && <button onClick={() => void setListingStatus(listing, "PAUSE")} className="min-h-10 flex-1 rounded-2xl border border-amber-200 bg-amber-50 px-3 text-xs font-black text-amber-700 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200">Pause</button>}{listing.status === "PAUSED" && <button onClick={() => void setListingStatus(listing, "RESUME")} className="min-h-10 flex-1 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 text-xs font-black text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200">Resume</button>}{(listing.status === "OPEN" || listing.status === "PAUSED") && <button onClick={() => void setListingStatus(listing, "CLOSE")} className="min-h-10 flex-1 rounded-2xl border border-rose-200 bg-rose-50 px-3 text-xs font-black text-rose-600 dark:border-rose-400/20 dark:bg-rose-400/10">Close</button>}</div></div>)}</div>}
+            {!user ? <SignInGate supabase={supabase} /> : <div className="mt-4 grid gap-4 lg:grid-cols-2">{ownedListings.map((listing) => <div key={listing.id} className="rounded-[var(--radius-card)] bg-[var(--surface-1)] p-2 shadow-[var(--shadow-sm)]"><div className="mb-2 flex items-center justify-between gap-2 px-2"><span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-500 dark:bg-white/5 dark:text-slate-300">{listing.status}</span><span className="text-[10px] font-bold text-slate-400">Created {ago(listing.created_at)}</span></div><ListingCard listing={listing} trust={trust.get(listing.user_id)} /><div className="mt-2 flex gap-2">{listing.status === "OPEN" && <button onClick={() => void setListingStatus(listing, "PAUSE")} className="min-h-11 flex-1 rounded-2xl border border-amber-200 bg-amber-50 px-3 text-xs font-black text-amber-700 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200">Pause</button>}{listing.status === "PAUSED" && <button onClick={() => void setListingStatus(listing, "RESUME")} className="min-h-11 flex-1 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 text-xs font-black text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200">Resume</button>}{(listing.status === "OPEN" || listing.status === "PAUSED") && <button onClick={() => void setListingStatus(listing, "CLOSE")} className="min-h-11 flex-1 rounded-2xl border border-rose-200 bg-rose-50 px-3 text-xs font-black text-rose-600 dark:border-rose-400/20 dark:bg-rose-400/10">Close</button>}</div></div>)}</div>}
             {user && !ownedListings.length && <Empty text="You have not created any Exchange listings yet." />}
           </section>
         )}
@@ -370,19 +369,19 @@ export default function ExchangeHub() {
         {!loading && tab === "settings" && (user ? <PreferencesPanel value={preferences} onChange={(next) => void savePreferences(next)} /> : <SignInGate supabase={supabase} />)}
       </main>
 
-      <aside className="hidden h-fit space-y-4 xl:block">
-        <section className="rounded-[26px] border border-cyan-100 bg-cyan-50/80 p-4 dark:border-cyan-400/10 dark:bg-cyan-400/[0.045]">
+      {showContextRail && <aside className="h-fit space-y-4">
+        <section className="rounded-[var(--radius-card)] border border-cyan-400/20 bg-[var(--surface-smart)] p-4">
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-600 dark:text-cyan-300">Smart Match</p>
           <h3 className="mt-1 text-lg font-black text-slate-950 dark:text-white">Best opportunity now</h3>
-          {matches[0] ? <><p className="mt-3 text-3xl font-black text-cyan-700 dark:text-cyan-300">{matches[0].score}%</p><p className="text-xs font-black text-slate-700 dark:text-slate-200">{matches[0].label}</p><p className="mt-2 text-xs font-semibold leading-5 text-slate-500">{matches[0].reasons[0]}</p><Link href={`/exchange/${matches[0].listing.id}`} className="mt-3 inline-flex min-h-10 w-full items-center justify-center rounded-2xl bg-cyan-600 text-xs font-black text-white">View Smart Match</Link></> : <p className="mt-3 text-xs font-semibold text-slate-400">Add inventory and wait for live listings to unlock matches.</p>}
+          {matches[0] ? <><p className="mt-3 text-3xl font-black text-cyan-700 dark:text-cyan-300">{matches[0].score}%</p><p className="text-xs font-black text-slate-700 dark:text-slate-200">{matches[0].label}</p><p className="mt-2 text-xs font-semibold leading-5 text-slate-500">{matches[0].reasons[0]}</p><Link href={`/exchange/${matches[0].listing.id}`} className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-2xl bg-cyan-600 text-xs font-black text-white">View Smart Match</Link></> : <p className="mt-3 text-xs font-semibold text-slate-400">Add inventory and wait for live listings to unlock matches.</p>}
         </section>
-        <section className="rounded-[26px] border border-violet-100 bg-violet-50/80 p-4 dark:border-violet-400/10 dark:bg-violet-400/[0.045]">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-600 dark:text-violet-300">Nich Copilot</p>
+        <section className="rounded-[var(--radius-card)] border border-violet-400/20 bg-[var(--surface-nich)] p-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-600 dark:text-violet-300">Nich Insight</p>
           <h3 className="mt-1 text-lg font-black text-slate-950 dark:text-white">Ask before you offer</h3>
-          <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">Open any listing to get a match explanation, Smart Offer Builder, and a ready-made prompt for Nich.</p>
-          <Link href="/nich" className="mt-3 inline-flex min-h-10 w-full items-center justify-center rounded-2xl bg-violet-600 text-xs font-black text-white">Ask Nich</Link>
+          <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">Open a listing to use the real match explanation, Smart Offer Builder, and Nich handoff already supported by CSBT.</p>
+          <Link href="/nich" className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-2xl bg-violet-600 text-xs font-black text-white">Ask Nich</Link>
         </section>
-      </aside>
+      </aside>}
 
       {createOpen && user && <div className="fixed inset-0 z-[105] overflow-y-auto bg-slate-950/65 p-3 backdrop-blur-sm sm:p-6"><div className="mx-auto max-w-6xl"><CreateListingPanel supabase={supabase} user={user} onCancel={() => setCreateOpen(false)} onCreated={() => { setCreateOpen(false); setTab("my-listings"); void reload(); }} /></div></div>}
       {offerListing && user && <OfferComposer supabase={supabase} user={user} listing={offerListing} inventory={inventory} parentOffer={counterOffer} onClose={() => { setOfferListing(null); setCounterOffer(null); }} onSent={() => { setOfferListing(null); setCounterOffer(null); setTab("offers"); void reload(); }} />}
@@ -391,13 +390,13 @@ export default function ExchangeHub() {
 }
 
 function SetupMessage() { return <div className="rounded-[28px] border border-amber-200 bg-amber-50 p-6 text-amber-900"><h2 className="text-xl font-black">Supabase required</h2><p className="mt-2 text-sm">Configure Supabase, then run <code>src/lib/supabase/exchange.sql</code>.</p></div>; }
-function Empty({ text }: { text: string }) { return <p className="mt-4 rounded-[24px] border border-dashed border-slate-200 p-8 text-center text-sm font-bold text-slate-400 dark:border-white/10">{text}</p>; }
+function Empty({ text }: { text: string }) { return <div className="mt-4"><EmptyState icon="↔" title={text} description="Try browsing the live market, changing your search, or adding items to your inventory to improve matching." /></div>; }
 function Stat({ value, label }: { value: string; label: string }) { return <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-center"><p className="text-xl font-black">{value}</p><p className="mt-1 text-[9px] font-black uppercase tracking-[0.12em] text-white/45">{label}</p></div>; }
-function SectionHeading({ eyebrow, title }: { eyebrow: string; title: string }) { return <div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-500">{eyebrow}</p><h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">{title}</h2></div>; }
+function SectionHeading({ eyebrow, title }: { eyebrow: string; title: string }) { return <SectionHeader eyebrow={eyebrow} title={title} />; }
 function SignInGate({ supabase }: { supabase: SupabaseClient }) { return <div className="mx-auto mt-5 max-w-xl"><AuthCard supabase={supabase} /></div>; }
 
 function OfferSection({ title, offers, currentUserId, onAccept, onDecline, onCounter, onWithdraw }: { title: string; offers: ExchangeOffer[]; currentUserId: string; onAccept?: (offer: ExchangeOffer) => void; onDecline?: (offer: ExchangeOffer) => void; onCounter?: (offer: ExchangeOffer) => void; onWithdraw?: (offer: ExchangeOffer) => void }) {
-  return <div><h3 className="text-sm font-black text-slate-700 dark:text-slate-200">{title} ({offers.length})</h3><div className="mt-2 space-y-3">{offers.map((offer) => <article key={offer.id} className="rounded-[24px] border border-white/70 bg-white/80 p-4 shadow-sm dark:border-white/10 dark:bg-slate-950/65"><div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-sm font-black text-slate-950 dark:text-white">{offer.listing?.title || offer.listing?.items.find((item) => item.side === "HAVE")?.item_name || "Exchange offer"}</p><p className="mt-1 text-[10px] font-bold text-slate-400">{offer.status} • {ago(offer.created_at)} • {offer.compatibility_score ?? "—"}% compatibility</p></div><span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black dark:bg-white/5">{offer.value_source}</span></div><div className="mt-3 grid grid-cols-2 gap-2 text-xs"><div className="rounded-xl bg-emerald-50 p-3 dark:bg-emerald-400/[0.05]"><p className="font-black text-emerald-700">Sender gives</p><p className="mt-1 text-lg font-black">{offer.value_source === "GCASH" ? "₱" : "🦈"}{Number(offer.sender_total).toLocaleString()}</p></div><div className="rounded-xl bg-violet-50 p-3 dark:bg-violet-400/[0.05]"><p className="font-black text-violet-700">Recipient gives</p><p className="mt-1 text-lg font-black">{offer.value_source === "GCASH" ? "₱" : "🦈"}{Number(offer.recipient_total).toLocaleString()}</p></div></div>{offer.note && <p className="mt-3 text-xs font-semibold text-slate-500">“{offer.note}”</p>}<div className="mt-3 flex flex-wrap gap-2">{offer.recipient_id === currentUserId && offer.status === "PENDING" && <><button onClick={() => onAccept?.(offer)} className="rounded-xl bg-emerald-500 px-4 py-2 text-xs font-black text-white">Accept</button>{offer.listing?.allow_counteroffers !== false && <button onClick={() => onCounter?.(offer)} className="rounded-xl bg-amber-400 px-4 py-2 text-xs font-black text-white">Counter</button>}<button onClick={() => onDecline?.(offer)} className="rounded-xl bg-rose-100 px-4 py-2 text-xs font-black text-rose-600">Decline</button></>}{offer.sender_id === currentUserId && offer.status === "PENDING" && <button onClick={() => onWithdraw?.(offer)} className="rounded-xl bg-slate-100 px-4 py-2 text-xs font-black text-slate-600 dark:bg-white/5">Withdraw</button>}</div></article>)}{!offers.length && <Empty text="No offers in this section yet." />}</div></div>;
+  return <div><h3 className="text-sm font-black text-slate-700 dark:text-slate-200">{title} ({offers.length})</h3><div className="mt-2 space-y-3">{offers.map((offer) => <article key={offer.id} className="rounded-[24px] border border-white/70 bg-white/80 p-4 shadow-sm dark:border-white/10 dark:bg-slate-950/65"><div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-sm font-black text-slate-950 dark:text-white">{offer.listing?.title || offer.listing?.items.find((item) => item.side === "HAVE")?.item_name || "Exchange offer"}</p><p className="mt-1 text-[10px] font-bold text-slate-400">{offer.status} • {ago(offer.created_at)} • {offer.compatibility_score ?? "—"}% compatibility</p></div><span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black dark:bg-white/5">{offer.value_source}</span></div><div className="mt-3 grid grid-cols-2 gap-2 text-xs"><div className="rounded-xl bg-emerald-50 p-3 dark:bg-emerald-400/[0.05]"><p className="font-black text-emerald-700">Sender gives</p><p className="mt-1 text-lg font-black">{offer.value_source === "GCASH" ? "₱" : "🦈"}{Number(offer.sender_total).toLocaleString()}</p></div><div className="rounded-xl bg-violet-50 p-3 dark:bg-violet-400/[0.05]"><p className="font-black text-violet-700">Recipient gives</p><p className="mt-1 text-lg font-black">{offer.value_source === "GCASH" ? "₱" : "🦈"}{Number(offer.recipient_total).toLocaleString()}</p></div></div>{offer.note && <p className="mt-3 text-xs font-semibold text-slate-500">“{offer.note}”</p>}<div className="mt-3 flex flex-wrap gap-2">{offer.recipient_id === currentUserId && offer.status === "PENDING" && <><button onClick={() => onAccept?.(offer)} className="min-h-11 rounded-xl bg-emerald-500 px-4 py-2 text-xs font-black text-white">Accept</button>{offer.listing?.allow_counteroffers !== false && <button onClick={() => onCounter?.(offer)} className="min-h-11 rounded-xl bg-amber-400 px-4 py-2 text-xs font-black text-white">Counter</button>}<button onClick={() => onDecline?.(offer)} className="min-h-11 rounded-xl bg-rose-100 px-4 py-2 text-xs font-black text-rose-600">Decline</button></>}{offer.sender_id === currentUserId && offer.status === "PENDING" && <button onClick={() => onWithdraw?.(offer)} className="min-h-11 rounded-xl bg-slate-100 px-4 py-2 text-xs font-black text-slate-600 dark:bg-white/5">Withdraw</button>}</div></article>)}{!offers.length && <Empty text="No offers in this section yet." />}</div></div>;
 }
 
 function PreferencesPanel({ value, onChange }: { value: MarketplacePreferences; onChange: (next: MarketplacePreferences) => void }) {

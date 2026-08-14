@@ -187,6 +187,11 @@ function buildVerdictExplanation(
   ];
 }
 
+function userAskedForTradeAdviceOrDetails(message: string): boolean {
+  const text = message.toLowerCase();
+  return /\b(?:why|explain|details?|advice|advise|should i|should we|accept|decline|take|pass|recommend|recommendation|what do you think|is this good|is this bad|worth it|worth doing|demand|liquid|liquidity|tradeable|tradable|easy to trade|hard to trade|upgrade|downgrade|counteroffer|counter offer|fix this trade|panalo ba|lugi ba|sulit ba|goods ba|dapat ba|tatanggapin|kunin ko|i accept)\b/.test(text);
+}
+
 function createRecentPets(items: NichTradeItem[]) {
   return uniqueBy(items, (item) => `${item.petName}:${item.variant}`).map((item) => ({
     petName: item.petName,
@@ -219,6 +224,8 @@ export function createTradeComparisonResponse(
       ].join("\n"),
       intent: "tradeComparison",
       reaction: "searchEmpty",
+      localConfidence: 0.98,
+      aiEligible: false,
       typingDuration: 500,
       suggestions: [
         {
@@ -240,11 +247,14 @@ export function createTradeComparisonResponse(
   }
 
   const difference = Math.abs(comparison.difference);
-  const explanation = buildVerdictExplanation(
-    comparison.verdict,
-    comparison.difference,
-    comparison.differencePercent,
-  );
+  const wantsDetails = userAskedForTradeAdviceOrDetails(input.message);
+  const explanation = wantsDetails
+    ? buildVerdictExplanation(
+        comparison.verdict,
+        comparison.difference,
+        comparison.differencePercent,
+      )
+    : [];
   const allItems = [...comparison.offeredItems, ...comparison.requestedItems];
   const lastItem = comparison.requestedItems.at(-1)!;
   const yourOfferMessage = formatTradeSideForMessage(comparison.offeredItems);
@@ -285,17 +295,23 @@ export function createTradeComparisonResponse(
         comparison.requestedItems,
         comparison.requestedValue,
       ),
-      "",
-      ...explanation,
-      ...createNoPotionWarning(
-        comparison.offeredItems,
-        comparison.requestedItems,
-        source,
-      ),
-      "",
-      `Source: ${VALUE_SOURCE_LABELS[source]}. Verify demand before completing the trade.`,
+      ...(wantsDetails
+        ? [
+            "",
+            ...explanation,
+            ...createNoPotionWarning(
+              comparison.offeredItems,
+              comparison.requestedItems,
+              source,
+            ),
+            "",
+            `Source: ${VALUE_SOURCE_LABELS[source]}.`,
+          ]
+        : []),
     ].join("\n"),
     intent: "tradeComparison",
+    localConfidence: 0.99,
+    aiEligible: false,
     reaction:
       comparison.verdict === "win"
         ? "celebrate"
@@ -313,7 +329,7 @@ export function createTradeComparisonResponse(
       recentPets: createRecentPets(allItems),
       lastValueSource: source,
     },
-    suggestions: suggestions.slice(0, 3),
+    suggestions: wantsDetails ? suggestions.slice(0, 3) : [],
   };
 }
 

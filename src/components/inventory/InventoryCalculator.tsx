@@ -368,7 +368,7 @@ export default function InventoryCalculator() {
               type="button"
               disabled={saving || (!dirty && !migrationMissing)}
               onClick={() => void saveInventory()}
-              className="min-h-11 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 px-5 text-sm font-black text-slate-950 disabled:opacity-40"
+              className="min-h-11 rounded-2xl csbt-theme-primary px-5 text-sm font-black text-slate-950 disabled:opacity-40"
             >
               {saving ? "Saving…" : dirty ? "Save inventory" : "✓ Saved"}
             </button>

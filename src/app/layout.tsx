@@ -5,6 +5,7 @@ import { GoogleAnalytics } from "@next/third-parties/google";
 import GlobalNichAssistant from "../components/nich/GlobalNichAssistant";
 import PerformanceProvider from "../components/PerformanceProvider";
 import ThemeProvider from "../components/ThemeProvider";
+import ThemeDecorations from "../components/theme/ThemeDecorations";
 
 import "./globals.css";
 
@@ -93,6 +94,24 @@ export const metadata: Metadata = {
   },
 };
 
+
+const themeInitScript = `
+(function () {
+  try {
+    var saved = localStorage.getItem("csbt-theme");
+    var theme = saved === "halloween" || saved === "light" || saved === "dark" ? saved : "dark";
+    var root = document.documentElement;
+    root.dataset.theme = theme;
+    root.classList.toggle("dark", theme === "dark" || theme === "halloween");
+    root.style.colorScheme = theme === "light" ? "light" : "dark";
+  } catch (_) {
+    document.documentElement.dataset.theme = "dark";
+    document.documentElement.classList.add("dark");
+    document.documentElement.style.colorScheme = "dark";
+  }
+})();
+`;
+
 type RootLayoutProps = Readonly<{
   children: React.ReactNode;
 }>;
@@ -106,9 +125,13 @@ export default function RootLayout({
       suppressHydrationWarning
       className={plusJakartaSans.variable}
     >
-      <body className="min-h-screen overflow-x-hidden bg-[#fff8e9] font-sans text-slate-800 antialiased transition-colors duration-300 dark:bg-[#07111f] dark:text-slate-100">
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
+      <body className="min-h-screen overflow-x-hidden bg-background font-sans text-foreground antialiased">
         <ThemeProvider>
           <PerformanceProvider>
+            <ThemeDecorations />
             {children}
             <GlobalNichAssistant />
           </PerformanceProvider>

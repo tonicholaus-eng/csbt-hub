@@ -136,6 +136,14 @@ const LOOKUP_TERMS = [
   "magkano iyon",
   "what does it cost",
   "how much does it cost",
+  "how much for",
+  "go for",
+  "goes for",
+  "what does it go for",
+  "what is it going for",
+  "selling for",
+  "trade value",
+  "current trade value",
 ] as const;
 
 const EXPLICIT_COMPARISON_TERMS = [
@@ -179,6 +187,25 @@ const EXPLICIT_COMPARISON_TERMS = [
   "goods ba",
   "sulit ba",
   "lamang ba",
+  "is this a w",
+  "is this a win",
+  "is this an l",
+  "is this a lose",
+  "do i win",
+  "do i lose",
+  "am i overpaying",
+  "am i underpaying",
+  "big w",
+  "small w",
+  "big l",
+  "small l",
+  "take this",
+  "would you take",
+  "should i do it",
+  "pass ba",
+  "talo ba",
+  "tabla ba",
+  "sakto ba",
 ] as const;
 
 const TRADE_SIDE_TERMS = [
@@ -335,6 +362,19 @@ const ADVICE_TERMS = [
   "ikeep ko ba",
   "panalo",
   "lugi",
+  "talo",
+  "tabla",
+  "sakto",
+  "demand wise",
+  "demand-wise",
+  "htt",
+  "hard to move",
+  "easy to move",
+  "quick to trade",
+  "slow to trade",
+  "should i take",
+  "would you accept",
+  "pass or take",
 ] as const;
 
 const FOLLOW_UP_PREFIXES = [

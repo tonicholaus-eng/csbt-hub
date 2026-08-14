@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import AuthCard from "./AuthCard";
 import { useAuthSession } from "../../hooks/useAuthSession";
 import type { NotificationRow } from "../../lib/accountTypes";
+import { EmptyState, Surface } from "../ui/CSBTUI";
 
 type Preferences = {
   value_changes: boolean;
@@ -109,24 +110,20 @@ export default function NotificationCenter() {
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <section className="overflow-hidden rounded-[30px] border border-white/65 bg-white/75 shadow-[0_24px_70px_rgba(15,23,42,.1)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/65">
+      <Surface as="section" className="overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/70 p-5 dark:border-white/10 sm:p-6">
           <div>
             <h2 className="text-xl font-black text-slate-950 dark:text-white">Inbox</h2>
             <p className="mt-1 text-xs font-bold text-slate-400">{unread} unread · {items.length} total</p>
           </div>
-          <button onClick={markAllRead} disabled={busy || unread === 0} className="min-h-10 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-600 disabled:opacity-40 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">Mark all read</button>
+          <button onClick={markAllRead} disabled={busy || unread === 0} className="min-h-11 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-600 disabled:opacity-40 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">Mark all read</button>
         </div>
 
         {schemaMissing && <p className="m-5 rounded-2xl bg-amber-50 p-4 text-sm font-bold text-amber-800 dark:bg-amber-400/10 dark:text-amber-200">Run <code>src/lib/supabase/foundation.sql</code> in Supabase to activate notifications.</p>}
         {error && !schemaMissing && <p className="m-5 rounded-2xl bg-rose-50 p-4 text-sm font-bold text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
 
         {!schemaMissing && items.length === 0 ? (
-          <div className="px-6 py-16 text-center">
-            <div className="text-4xl">🔔</div>
-            <h3 className="mt-4 text-lg font-black text-slate-900 dark:text-white">No notifications yet</h3>
-            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500 dark:text-slate-400">The inbox is ready for future value alerts, trade activity, community notices, and CSBT updates.</p>
-          </div>
+          <div className="p-5 sm:p-6"><EmptyState icon="◌" title="No notifications yet" description="Value alerts, trade activity, community notices, and important CSBT updates will appear here." /></div>
         ) : (
           <div className="divide-y divide-slate-200/70 dark:divide-white/10">
             {items.map((item) => {
@@ -151,9 +148,9 @@ export default function NotificationCenter() {
             })}
           </div>
         )}
-      </section>
+      </Surface>
 
-      <aside className="h-fit rounded-[30px] border border-white/65 bg-white/75 p-5 shadow-[0_24px_70px_rgba(15,23,42,.1)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/65 sm:p-6">
+      <Surface as="aside" className="h-fit p-5 sm:p-6">
         <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-600 dark:text-amber-300">Preferences</p>
         <h2 className="mt-2 text-xl font-black text-slate-950 dark:text-white">What should CSBT tell you?</h2>
         <div className="mt-5 space-y-3">
@@ -173,7 +170,7 @@ export default function NotificationCenter() {
           ))}
         </div>
         <Link href="/profile" className="mt-5 inline-flex text-xs font-black text-amber-700 dark:text-amber-300">Manage profile →</Link>
-      </aside>
+      </Surface>
     </div>
   );
 }

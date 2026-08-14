@@ -7,12 +7,14 @@ import type { ValueSource } from "../../../trade/types";
 
 import {
   findPetInMessage,
+  findPetSpansInSection,
   findPetsInMessage,
   formatPetValue,
   getRawPetVariantValue,
   isPetWearRecord,
   normalizeText,
   parseTradeValueNumber,
+  resolvePetSearch,
   type PetRecord,
   type PetVariant,
 } from "./petSearch";
@@ -144,9 +146,52 @@ function detectTradeCode(
     "r",
   ];
 
-  return codes.find((code) =>
+  const explicit = codes.find((code) =>
     containsWholePhrase(text, code),
   );
+
+  if (explicit) return explicit;
+
+  // Traders often attach multi-letter potion/variant codes to the pet name:
+  // "frbatdrag", "nfrkanga", "mfrparrot", or "batdragfr".
+  // Only multi-letter codes are auto-split here because single F/R/N/M
+  // prefixes are too easy to confuse with normal item names.
+  const compactTokens = text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  const attachedCodes = ["mfr", "nfr", "np", "fr", "mf", "mr", "nf", "nr"] as const;
+  for (const rawToken of compactTokens) {
+    const token = rawToken.replace(/^x?\d{1,2}x?/, "");
+    for (const code of attachedCodes) {
+      if (token.length >= code.length + 2 && token.startsWith(code)) {
+        const remainder = token.slice(code.length);
+        const resolution = resolvePetSearch(remainder);
+        if (
+          resolution.status === "matched" &&
+          (resolution.match.matchKind === "exact" || resolution.match.matchKind === "alias")
+        ) {
+          return code;
+        }
+      }
+
+      if (token.length >= code.length + 2 && token.endsWith(code)) {
+        const base = token.slice(0, -code.length);
+        const resolution = resolvePetSearch(base);
+        if (
+          resolution.status === "matched" &&
+          (resolution.match.matchKind === "exact" || resolution.match.matchKind === "alias")
+        ) {
+          return code;
+        }
+      }
+    }
+  }
+
+  return undefined;
 }
 
 function containsNoPotion(
@@ -483,10 +528,53 @@ function getPotionAdjustment(
   }
 }
 
+function expandAttachedTradeCodes(value: string) {
+  const codes = ["mfr", "nfr", "fr", "mf", "mr", "nf", "nr", "np"] as const;
+
+  return value
+    .split(/(\s+|[,+;|])/g)
+    .map((part) => {
+      if (!part || /^(?:\s+|[,+;|])$/.test(part)) return part;
+
+      const quantityPrefix = part.match(/^(x?\d{1,2}x?)(.+)$/i);
+      const prefix = quantityPrefix?.[1] ?? "";
+      const token = quantityPrefix?.[2] ?? part;
+      const lower = token.toLowerCase();
+
+      for (const code of codes) {
+        if (lower.startsWith(code) && token.length >= code.length + 2) {
+          const remainder = token.slice(code.length);
+          const resolution = resolvePetSearch(remainder);
+          if (
+            resolution.status === "matched" &&
+            (resolution.match.matchKind === "exact" || resolution.match.matchKind === "alias")
+          ) {
+            return `${prefix}${code} ${remainder}`;
+          }
+        }
+
+        if (lower.endsWith(code) && token.length >= code.length + 2) {
+          const base = token.slice(0, -code.length);
+          const resolution = resolvePetSearch(base);
+          if (
+            resolution.status === "matched" &&
+            (resolution.match.matchKind === "exact" || resolution.match.matchKind === "alias")
+          ) {
+            return `${prefix}${base} ${code}`;
+          }
+        }
+      }
+
+      return part;
+    })
+    .join("");
+}
+
 function normalizeTradeSeparators(
   value: string,
 ) {
-  return value
+  return expandAttachedTradeCodes(
+    value
     .replace(
       /\bfly\s+and\s+ride\b/gi,
       "fly ride",
@@ -499,11 +587,14 @@ function normalizeTradeSeparators(
       /\bplus\b/gi,
       "+",
     )
+    .replace(/\s*&\s*/g, " + ")
+    .replace(/(\d{1,2})x(?=[a-z])/gi, "$1x ")
     .replace(
       /\bwith adds?\b/gi,
       "+",
     )
-    .replace(/[×]/g, "x");
+    .replace(/[×]/g, "x"),
+  );
 }
 
 function extractQuantity(
@@ -514,7 +605,7 @@ function extractQuantity(
 
   const leadingNumeric =
     itemText.match(
-      /^(?:x\s*)?(\d+)\s*(?:x\s*)?\s+(.+)$/i,
+      /^(?:x\s*)?(\d+)\s*(?:x)?\s+(.+)$/i,
     );
 
   if (leadingNumeric) {
@@ -588,7 +679,7 @@ function splitStrongTradeSeparators(
 ) {
   return value
     .split(
-      /\r?\n|,|;|\+|\s+\/\s+/gi,
+      /\r?\n|,|;|\+|\||\s+\/\s+/gi,
     )
     .map((item) =>
       item.trim(),
@@ -643,6 +734,35 @@ function splitConjunctionChunk(
     : [chunk];
 }
 
+function splitDenseTradeChunk(chunk: string) {
+  const expandedChunk = expandAttachedTradeCodes(chunk);
+  // Dense-side splitting must be conservative. Low-confidence token-prefix
+  // matches can mistake quantity/variant text such as “2x fr” for unrelated
+  // items (for example an item name beginning with the same letters).
+  const spans = findPetSpansInSection(expandedChunk).filter(
+    (span) => span.matchKind !== "token-prefix" && (span.confidence ?? 0) >= 0.94,
+  );
+  if (spans.length <= 1) return [expandedChunk];
+
+  const normalized = normalizeText(expandedChunk);
+  const pieces: string[] = [];
+  let cursor = 0;
+
+  for (const span of spans) {
+    const end = Math.min(normalized.length, span.end);
+    const piece = normalized.slice(cursor, end).trim();
+    if (piece) pieces.push(piece);
+    cursor = end;
+  }
+
+  const trailing = normalized.slice(cursor).trim();
+  if (trailing && pieces.length > 0) {
+    pieces[pieces.length - 1] = `${pieces[pieces.length - 1]} ${trailing}`.trim();
+  }
+
+  return pieces.length === spans.length ? pieces : [chunk];
+}
+
 function splitTradeSideIntoItems(
   value: string,
 ) {
@@ -656,6 +776,9 @@ function splitTradeSideIntoItems(
   )
     .flatMap(
       splitConjunctionChunk,
+    )
+    .flatMap(
+      splitDenseTradeChunk,
     )
     .map((item) =>
       item.trim(),
@@ -976,6 +1099,9 @@ const tradeSeparators = [
   /\s+vs\.?\s+/i,
   /\s*<->\s*/i,
   /\s*<=>\s*/i,
+  /\s*<>\s*/i,
+  /\s*↔\s*/i,
+  /\s*=\s*/i,
   /\s*=>\s*/i,
   /\s*->\s*/i,
   /\s*⇄\s*/i,
@@ -984,6 +1110,10 @@ const tradeSeparators = [
 const YOUR_OWNER_PATTERN = [
   "my offer",
   "my side",
+  "my pets",
+  "my items",
+  "what i give",
+  "what im giving",
   "ako",
   "akin",
   "sakin",
@@ -1006,6 +1136,11 @@ const YOUR_OWNER_PATTERN = [
 const THEIR_OWNER_PATTERN = [
   "their offer",
   "their side",
+  "their pets",
+  "their items",
+  "what they give",
+  "what hes giving",
+  "what shes giving",
   "kanya",
   "kanila",
   "sa kanya",
@@ -1014,6 +1149,17 @@ const THEIR_OWNER_PATTERN = [
   "sila",
   "his offer",
   "her offer",
+  "his",
+  "hers",
+  "him",
+  "her",
+  "theirs",
+  "he",
+  "she",
+  "trader",
+  "other trader",
+  "other guy",
+  "other person",
   "they are giving",
   "theyre giving",
   "they give",
@@ -1049,7 +1195,7 @@ function cleanTradeSide(
       "",
     )
     .replace(
-      /^(?:is|are|compare|check|trade|trading|have|has|giving|give|gives|offering|offer|offers|receiving|receive|receives|get|gets|getting)\s+/i,
+      /^(?:is|are|compare|check|trade|trading|have|has|giving|give|gives|offering|offer|offers|receiving|receive|receives|get|gets|getting|got|gets me|gives me|i got|he got|she got|they got)\s+/i,
       "",
     )
     .replace(
@@ -1061,7 +1207,7 @@ function cleanTradeSide(
       "",
     )
     .replace(
-      /\s+(?:fair|good|bad|a win|a lose|win|lose|worth it|worth|better|wfl|op|up|overpay|underpay|panalo|lugi)\??$/i,
+      /\s+(?:fair|good|bad|a win|a lose|win|lose|worth it|worth|better|wfl|w|f|l|big w|small w|big l|small l|op|up|overpay|underpay|panalo|lugi|talo|tabla|sakto)\??$/i,
       "",
     )
     .replace(
@@ -1082,15 +1228,49 @@ function stripWflPrefix(
     .trim();
 }
 
+function splitGiveReceiveTradeMessage(
+  message: string,
+) {
+  const withoutWfl = stripWflPrefix(message);
+
+  const giveReceivePatterns = [
+    /^(?:i\s+give|im\s+giving|i\s+am\s+giving|giving|i\s+offer|im\s+offering)\s+(.+?)\s+(?:(?:and|then|while)\s+)?(?:i\s+)?(?:get|receive|am\s+getting|am\s+receiving|getting|receiving)\s+(.+)$/i,
+    /^(?:bigay\s+ko|bibigay\s+ko|offer\s+ko|ipapalit\s+ko)\s+(.+?)\s+(?:(?:tapos|tas|kapalit|and)\s+)?(?:kuha\s+ko|makukuha\s+ko|receive\s+ko)\s+(.+)$/i,
+  ];
+
+  for (const pattern of giveReceivePatterns) {
+    const match = withoutWfl.match(pattern);
+    if (!match) continue;
+    const offerText = cleanTradeSide(match[1]);
+    const requestText = cleanTradeSide(match[2]);
+    if (offerText && requestText) return { offerText, requestText };
+  }
+
+  // Reverse wording: "I get Owl for my Frost" / "they give Owl for my Frost".
+  const receiveForMine = withoutWfl.match(
+    /^(?:i\s+(?:get|receive|am\s+getting|am\s+receiving)|im\s+(?:getting|receiving)|i\s+(?:was|got)\s+offered|got\s+offered|someone\s+offered\s+me|they\s+(?:give|offer|gave|offered)(?:\s+me)?|theyre\s+(?:giving|offering)|he\s+(?:gives|offers|gave|offered)(?:\s+me)?|she\s+(?:gives|offers|gave|offered)(?:\s+me)?|trader\s+(?:gives|offers|gave|offered)(?:\s+me)?|other\s+(?:trader|guy|person)\s+(?:gives|offers|gave|offered)(?:\s+me)?)\s+(.+?)\s+for\s+(?:my\s+|mine\s+|my\s+offer\s+)?(.+)$/i,
+  );
+
+  if (receiveForMine) {
+    const requestText = cleanTradeSide(receiveForMine[1]);
+    const offerText = cleanTradeSide(receiveForMine[2]);
+    if (offerText && requestText) return { offerText, requestText };
+  }
+
+  return null;
+}
+
 function splitOwnershipTradeMessage(
   message: string,
 ) {
   const withoutWfl =
-    stripWflPrefix(message);
+    stripWflPrefix(message)
+      .replace(/^(me|mine|my|ako)(?=(?:mfr|nfr|fr|nf|nr|mf|mr|np)[a-z])/i, "$1 ")
+      .replace(/\b(them|him|her|their)(?=(?:mfr|nfr|fr|nf|nr|mf|mr|np)[a-z])/gi, "$1 ");
 
   const ownershipExpression =
     new RegExp(
-      `^(?:${YOUR_OWNER_PATTERN})\\s*[:\\-]?\\s+(.+?)\\s+(?:and\\s+|while\\s+)?(?:${THEIR_OWNER_PATTERN})\\s*[:\\-]?\\s+(.+)$`,
+      `^(?:${YOUR_OWNER_PATTERN})\\s*[:=\\-]?\\s*(.+?)\\s+(?:and\\s+|while\\s+)?(?:${THEIR_OWNER_PATTERN})\\s*[:=\\-]?\\s*(.+)$`,
       "i",
     );
 
@@ -1174,6 +1354,13 @@ function splitTradeMessage(
 
   if (labelledTrade) {
     return labelledTrade;
+  }
+
+  const giveReceiveTrade =
+    splitGiveReceiveTradeMessage(message);
+
+  if (giveReceiveTrade) {
+    return giveReceiveTrade;
   }
 
   const ownershipTrade =

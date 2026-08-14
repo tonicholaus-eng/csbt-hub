@@ -367,7 +367,7 @@ export default function ProfileDashboard() {
           {notice && <p className="mt-4 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">{notice}</p>}
 
           <div className="mt-6 flex flex-wrap gap-3">
-            <button type="submit" disabled={saving} className="min-h-12 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 px-6 text-sm font-black text-slate-950 shadow-sm disabled:opacity-60">{saving ? "Saving…" : "Save profile"}</button>
+            <button type="submit" disabled={saving} className="min-h-12 rounded-2xl csbt-theme-primary px-6 text-sm font-black text-slate-950 shadow-sm disabled:opacity-60">{saving ? "Saving…" : "Save profile"}</button>
             <button type="button" onClick={() => void supabase.auth.signOut()} className="min-h-12 rounded-2xl border border-slate-200 bg-white px-6 text-sm font-black text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">Sign out</button>
           </div>
         </form>

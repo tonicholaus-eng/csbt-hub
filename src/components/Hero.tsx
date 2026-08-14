@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useCSBTTheme } from "./ThemeProvider";
 import {
   motion,
   useMotionValue,
@@ -36,6 +37,7 @@ function formatRefreshDate(value: string) {
 }
 
 export default function Hero({ totalItems, categoryCount, generatedAt }: HeroProps) {
+  const { theme } = useCSBTTheme();
   const shouldReduceMotion = useReducedMotion();
 
   const pointerX = useMotionValue(0);
@@ -108,17 +110,31 @@ export default function Hero({ totalItems, categoryCount, generatedAt }: HeroPro
 
   const refreshedLabel = formatRefreshDate(generatedAt);
 
+  // Dark intentionally keeps the literal original Hero gradient from the old CSBT build.
+  // Only the two alternate appearance themes override the background.
+  const alternateThemeBackground =
+    theme === "halloween"
+      ? "linear-gradient(135deg, #120916 0%, #35113f 55%, #ff7a00 100%)"
+      : theme === "light"
+        ? "linear-gradient(135deg, #79c8ff 0%, #4aa8ff 52%, #2e8bff 100%)"
+        : undefined;
+
   return (
     <motion.section
       onPointerMove={handlePointerMove}
       onPointerLeave={handlePointerLeave}
       style={
         shouldReduceMotion
-          ? undefined
+          ? alternateThemeBackground
+            ? { backgroundImage: alternateThemeBackground }
+            : undefined
           : {
               rotateX,
               rotateY,
               transformPerspective: 1600,
+              ...(alternateThemeBackground
+                ? { backgroundImage: alternateThemeBackground }
+                : {}),
             }
       }
       className="

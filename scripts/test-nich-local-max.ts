@@ -93,6 +93,8 @@ assert(lookup.intent === "petLookup", "Existing shorthand value lookup must stil
 
 const basicTrade = ask("frost dragon vs owl");
 assert(basicTrade.intent === "tradeComparison", "Existing direct WFL comparison must still work");
+assert(/Your Offer/.test(basicTrade.text) && /Their Offer/.test(basicTrade.text), "Plain W/F/L should show both sides");
+assert(!/Potion warning|Source:|Trade shape:|Demand check:|counteroffer|overpay by|gain about/i.test(basicTrade.text), "Plain W/F/L should be concise by default");
 
 const nearby = ask("pets around 500");
 assert(nearby.intent === "nearbyValue", "Existing nearby-value search must still work");

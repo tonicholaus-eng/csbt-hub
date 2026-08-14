@@ -16,7 +16,9 @@
     "snapshot:values": "node scripts/push-value-snapshot.mjs",
     "alerts:values": "node scripts/process-value-alerts.mjs",
     "sync:master": "node scripts/sync-elve-to-master.js",
-    "refresh:deploy": "npm run refresh:values && git add . && git commit -m \"Refresh Elve values and regenerate trading data\" && git push origin main"
+    "refresh:deploy": "npm run refresh:values && git add . && git commit -m \"Refresh Elve values and regenerate trading data\" && git push origin main",
+    "test:nich-vision": "tsx scripts/test-nich-vision.ts",
+    "test:nich-credit-saver": "tsx scripts/test-nich-credit-saver.ts"
   },
   "dependencies": {
     "@next/third-parties": "^16.3.0",

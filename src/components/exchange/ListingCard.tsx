@@ -4,24 +4,46 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ExchangeItem, ExchangeListing, ListingMatch, TrustStats } from "../../lib/exchange/types";
 import { formatTradeValue } from "../../lib/valueSystem";
+import { Badge } from "../ui/CSBTUI";
+
+function itemLabel(item: ExchangeItem) {
+  const variant = item.value_type !== "NORMAL" ? `${item.value_type} ` : "";
+  const qty = item.quantity > 1 ? `${item.quantity}× ` : "";
+  return `${qty}${variant}${item.item_name}`;
+}
 
 function MiniItems({ items, emptyLabel }: { items: ExchangeItem[]; emptyLabel: string }) {
-  if (!items.length) return <p className="text-xs font-bold text-slate-400">{emptyLabel}</p>;
+  if (!items.length) {
+    return <p className="py-3 text-xs font-bold text-[var(--foreground-muted)]">{emptyLabel}</p>;
+  }
   return (
-    <div className="space-y-1.5">
-      {items.slice(0, 3).map((item, index) => (
-        <div key={`${item.item_id}-${index}`} className="flex items-center gap-2">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-100 dark:bg-white/5">
-            {item.image_url ? <Image src={item.image_url} alt="" width={32} height={32} unoptimized className="h-7 w-7 object-contain" /> : "📦"}
+    <div className="grid gap-2">
+      {items.slice(0, 4).map((item, index) => (
+        <div key={`${item.item_id}-${index}`} className="flex min-w-0 items-center gap-2.5 rounded-[12px] bg-[var(--surface-3)] p-2.5">
+          <span className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[12px] bg-[var(--surface-2)] shadow-sm">
+            {item.image_url ? (
+              <Image src={item.image_url} alt={item.item_name} width={44} height={44} unoptimized className="h-10 w-10 object-contain transition-transform duration-200 group-hover:scale-[1.04]" />
+            ) : (
+              <span aria-hidden="true">📦</span>
+            )}
           </span>
-          <span className="min-w-0 flex-1 truncate text-xs font-black text-slate-700 dark:text-slate-200">
-            {item.quantity > 1 ? `${item.quantity}× ` : ""}{item.value_type !== "NORMAL" ? `${item.value_type} ` : ""}{item.item_name}
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-xs font-black text-[var(--foreground)]">{itemLabel(item)}</span>
+            <span className="mt-0.5 flex flex-wrap gap-x-2 text-[9px] font-bold uppercase tracking-[.08em] text-[var(--foreground-muted)]">
+              {item.potion_status && item.potion_status !== "BASE" && <span>{item.potion_status}</span>}
+              {item.demand_tier && <span>Demand {item.demand_tier}</span>}
+              {item.snapshot_value != null && <span>{formatTradeValue(item.snapshot_value)}</span>}
+            </span>
           </span>
         </div>
       ))}
-      {items.length > 3 && <p className="pl-10 text-[10px] font-bold text-slate-400">+{items.length - 3} more</p>}
+      {items.length > 4 && <p className="px-1 text-[10px] font-bold text-[var(--foreground-muted)]">+{items.length - 4} more items</p>}
     </div>
   );
+}
+
+function isFresh(createdAt: string) {
+  return Date.now() - new Date(createdAt).getTime() < 2 * 60 * 60 * 1000;
 }
 
 export default function ListingCard({
@@ -37,51 +59,73 @@ export default function ListingCard({
 }) {
   const have = listing.items.filter((item) => item.side === "HAVE");
   const want = listing.items.filter((item) => item.side === "WANT");
-  const total = have.reduce((sum, item) => sum + (item.snapshot_value ?? 0) * item.quantity, 0);
-  const matchClass = match && match.score >= 90
-    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-300"
-    : match && match.score >= 80
-      ? "bg-cyan-100 text-cyan-800 dark:bg-cyan-400/10 dark:text-cyan-300"
-      : "bg-amber-100 text-amber-800 dark:bg-amber-400/10 dark:text-amber-300";
+  const totalHave = have.reduce((sum, item) => sum + (item.snapshot_value ?? 0) * item.quantity, 0);
+  const totalWant = want.reduce((sum, item) => sum + (item.snapshot_value ?? 0) * item.quantity, 0);
+  const symbol = listing.value_source === "GCASH" ? "₱" : "🦈";
+  const initial = (listing.display_name || "T").trim().slice(0, 1).toUpperCase();
 
   return (
-    <article className="group rounded-[28px] border border-white/70 bg-white/82 p-4 shadow-[0_16px_45px_rgba(15,23,42,.08)] backdrop-blur-xl transition hover:-translate-y-1 hover:shadow-[0_24px_60px_rgba(15,23,42,.13)] dark:border-white/10 dark:bg-slate-950/72 sm:p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-base font-black text-slate-950 dark:text-white">{listing.title || `${have[0]?.item_name ?? "Trade"} listing`}</h3>
-            {match && <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${matchClass}`}>{match.score}% match</span>}
+    <article className="csbt-card-hover group overflow-hidden rounded-[var(--radius-card)] bg-[var(--surface-2)] shadow-[var(--shadow-sm)] ring-1 ring-[var(--border)]">
+      <div className="p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-[var(--surface-selected)] text-sm font-black text-[var(--gold-dark)] ring-1 ring-[var(--border-gold)] dark:text-[var(--gold-bright)]" aria-hidden="true">{initial}</span>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="truncate text-sm font-black text-[var(--foreground)]">{listing.display_name}</p>
+                {isFresh(listing.created_at) && <Badge tone="gold">Fresh</Badge>}
+                {match && match.score >= 80 && <Badge tone="smart">{match.score}% match</Badge>}
+              </div>
+              <p className="mt-1 truncate text-[10px] font-bold uppercase tracking-[.1em] text-[var(--foreground-muted)]">{listing.intent.replaceAll("_", " ")} · {listing.value_source}</p>
+            </div>
           </div>
-          <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
-            {listing.display_name} • {listing.intent.replaceAll("_", " ")} • {listing.value_source}
-          </p>
+          {trust && (
+            <div className="shrink-0 text-right">
+              <p className="text-[10px] font-black text-[var(--foreground)]">Trust {trust.trust_score}/100</p>
+              <p className="mt-0.5 text-[9px] font-bold text-[var(--foreground-muted)]">{trust.completed_trades} completed</p>
+            </div>
+          )}
         </div>
-        <div className="text-right">
-          <p className="text-xs font-black text-slate-700 dark:text-slate-200">{listing.value_source === "GCASH" ? "₱" : "🦈"} {formatTradeValue(total)}</p>
-          {trust && <p className="mt-1 text-[10px] font-bold text-slate-400">Trust {trust.trust_score}/100 • {trust.completed_trades} trades</p>}
+
+        <div className="mt-4 grid min-w-0 gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-start">
+          <div className="min-w-0 flex-1">
+            <p className="mb-2 text-[9px] font-black uppercase tracking-[.16em] text-[var(--green)]">They have</p>
+            <MiniItems items={have} emptyLabel="Open listing" />
+          </div>
+          <span className="mx-auto flex h-8 min-w-8 shrink-0 items-center justify-center rounded-full bg-[var(--surface-selected)] px-2 text-sm font-black text-[var(--gold-dark)] dark:text-[var(--gold-bright)] sm:mt-10" aria-hidden="true">↔</span>
+          <div className="min-w-0 flex-1">
+            <p className="mb-2 text-[9px] font-black uppercase tracking-[.16em] text-[var(--purple)]">They want</p>
+            <MiniItems items={want} emptyLabel={listing.intent === "OPEN_OFFERS" ? "Open to offers" : "Similar-value offers"} />
+          </div>
+        </div>
+
+        {(listing.title || listing.note) && (
+          <div className="mt-4 border-t border-[var(--border)] pt-3">
+            {listing.title && <h3 className="text-sm font-black text-[var(--foreground)]">{listing.title}</h3>}
+            {listing.note && <p className="mt-1 line-clamp-2 text-xs font-medium leading-5 text-[var(--foreground-muted)]">{listing.note}</p>}
+          </div>
+        )}
+
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)] pt-3">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] font-bold text-[var(--foreground-muted)]">
+            <span><b className="text-[var(--foreground)]">Have:</b> {symbol}{formatTradeValue(totalHave)}</span>
+            {totalWant > 0 && <span><b className="text-[var(--foreground)]">Want:</b> {symbol}{formatTradeValue(totalWant)}</span>}
+          </div>
+          {match && match.reasons.length > 0 && <p className="max-w-full text-[10px] font-bold text-[var(--cyan)] sm:max-w-[54%] sm:text-right">✦ {match.reasons.slice(0, 1).join("")}</p>}
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-3 dark:border-emerald-400/10 dark:bg-emerald-400/[0.055]">
-          <p className="mb-2 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-300">They have</p>
-          <MiniItems items={have} emptyLabel="Open listing" />
-        </div>
-        <div className="rounded-2xl border border-violet-100 bg-violet-50/70 p-3 dark:border-violet-400/10 dark:bg-violet-400/[0.055]">
-          <p className="mb-2 text-[10px] font-black uppercase tracking-[0.14em] text-violet-700 dark:text-violet-300">They want</p>
-          <MiniItems items={want} emptyLabel={listing.intent === "OPEN_OFFERS" ? "Open to offers" : "Similar-value offers"} />
-        </div>
-      </div>
-
-      {match && match.reasons.length > 0 && (
-        <div className="mt-3 rounded-2xl bg-slate-50 px-3 py-2.5 text-xs font-semibold text-slate-500 dark:bg-white/[0.035] dark:text-slate-400">
-          ✨ {match.reasons.slice(0, 2).join(" • ")}
-        </div>
-      )}
-
-      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-        <Link href={`/exchange/${listing.id}`} onClick={() => { if (match) void fetch("/api/exchange/event", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ eventType: "MATCH_VIEW", listingId: listing.id, itemId: have[0]?.item_id, valueSource: listing.value_source, value: match.score }) }).catch(() => undefined); }} className="inline-flex min-h-11 flex-1 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:border-amber-300 hover:text-amber-700 dark:border-white/10 dark:bg-white/5 dark:text-white">View Match</Link>
-        {onOffer && <button type="button" onClick={() => onOffer(listing)} className="inline-flex min-h-11 flex-1 items-center justify-center rounded-2xl bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500 px-4 text-sm font-black text-white shadow-md transition hover:-translate-y-0.5 hover:shadow-lg">Make Offer</button>}
+      <div className="flex gap-2 bg-[var(--surface-3)] p-3 sm:px-5">
+        <Link
+          href={`/exchange/${listing.id}`}
+          onClick={() => {
+            if (match) void fetch("/api/exchange/event", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ eventType: "MATCH_VIEW", listingId: listing.id, itemId: have[0]?.item_id, valueSource: listing.value_source, value: match.score }) }).catch(() => undefined);
+          }}
+          className="csbt-btn-secondary min-h-11 flex-1"
+        >
+          View Trade
+        </Link>
+        {onOffer && <button type="button" onClick={() => onOffer(listing)} className="csbt-btn-primary min-h-11 flex-1">Make Offer</button>}
       </div>
     </article>
   );
