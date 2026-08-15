@@ -13,7 +13,7 @@ export default function WatchValueButton({ itemId, itemName, source, valueType }
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!supabase || !user) { setWatchId(null); return; }
+    if (!supabase || !user) { queueMicrotask(() => setWatchId(null)); return; }
     let active = true;
     void supabase.from("value_watchlist").select("id,alert_percent").eq("user_id", user.id).eq("item_id", itemId).eq("source", source).eq("value_type", valueType).maybeSingle().then(({ data }) => {
       if (!active) return;

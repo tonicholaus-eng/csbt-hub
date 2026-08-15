@@ -72,7 +72,7 @@ export default function NotificationCenter() {
     }
   }, [supabase, user]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void queueMicrotask(() => load()); }, [load]);
 
   async function markRead(id: string) {
     if (!supabase || !user) return;

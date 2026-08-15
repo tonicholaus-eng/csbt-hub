@@ -35,6 +35,18 @@ function normalizeText(value: string) {
 }
 
 
+function looksLikeExplicitTwoSidedTrade(message: string) {
+  const normalized = normalizeText(message);
+  if (!normalized) return false;
+
+  if (/^(?:wfl|w f l|win fair lose)\b/.test(normalized)) return true;
+
+  const startsWithYourSide = /^(?:me|mine|my offer|my side|i give|i offer|i am giving|im giving|ako|akin|side ko|bigay ko|offer ko)\b/.test(normalized);
+  const containsTheirSide = /\b(?:them|theirs|their offer|their side|him|his offer|her offer|they give|they offer|kanya|kanila|side nya|side niya|bigay nya|bigay niya|offer nya|offer niya)\b/.test(normalized);
+
+  return startsWithYourSide && containsTheirSide;
+}
+
 function capitalize(value: string) {
   return (
     value.charAt(0).toUpperCase() +
@@ -1019,7 +1031,10 @@ export function routeNichMessage(
     // broader local-profile intents. This prevents casual phrases such as
     // “bigay ko ... kuha ko ...” from being mistaken for inventory commands.
     const directTradeResponse =
-      analysis.primaryIntent === "tradeComparison" && analysis.tradeQuery
+      (
+        analysis.primaryIntent === "tradeComparison" ||
+        (analysis.hasTradeStructure && looksLikeExplicitTwoSidedTrade(resolvedInput.message))
+      )
         ? createTradeComparisonResponse(resolvedInput, analysis)
         : null;
 

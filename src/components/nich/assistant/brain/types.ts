@@ -40,7 +40,7 @@ export type NichNavigationPath =
   | "/trade-feed";
 
 export type NichNavigationAction = {
-  href: NichNavigationPath;
+  href: string;
   label: string;
   delay?: number;
 };

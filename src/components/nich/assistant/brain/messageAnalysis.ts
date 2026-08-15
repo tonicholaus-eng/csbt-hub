@@ -539,7 +539,6 @@ const ITEM_QUERY_REMOVALS = [
   "elve",
   "elvebredd",
   "elve shark",
-  "shark",
   "in game",
   "in-game",
   "pet wear",
@@ -607,7 +606,8 @@ function stripValueSourceLanguage(message: string): string {
       " ",
     )
     .replace(/\b(?:elvebredd|elve)\s+shark\s+values?\b/gi, " ")
-    .replace(/\b(?:gcash|g\s*cash)\s+values?\b/gi, " ")
+    .replace(/\b(?:gcash|g\s*cash)(?:\s+values?)?\b/gi, " ")
+    .replace(/\b(?:elvebredd|elve)(?:\s+shark)?(?:\s+values?)?\b/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -900,6 +900,14 @@ export function analyzeNichMessage(message: string): NichMessageAnalysis {
     requestedVariant,
   );
 
+  // First try the source-cleaned message as a direct catalog name. This avoids
+  // accidentally deleting words that are part of real item names (for example
+  // Shark Puppy, Pet Rock, or other names containing words that can also look
+  // like category/source language). Only an exact/alias result gets this priority.
+  const directNameResolution = isDirectLookup
+    ? resolvePetSearch(normalizedItemMessage, requestedCategory ?? undefined)
+    : null;
+
   const itemQuery = extractItemQuery(
     normalizedItemMessage,
     isDirectLookup || (pets.length === 0 && includesAnyWholePhrase(normalizedMessage, LOOKUP_TERMS)),
@@ -909,9 +917,14 @@ export function analyzeNichMessage(message: string): NichMessageAnalysis {
     isHelpRequest,
     followUpKind,
   );
-  const itemResolution = itemQuery
+  const cleanedResolution = itemQuery
     ? resolvePetSearch(itemQuery, requestedCategory ?? undefined)
     : null;
+  const itemResolution =
+    directNameResolution?.status === "matched" &&
+    (directNameResolution.match.matchKind === "exact" || directNameResolution.match.matchKind === "alias")
+      ? directNameResolution
+      : cleanedResolution;
   const clarificationNeeded = itemResolution?.status === "ambiguous";
   const clarificationCandidates =
     itemResolution?.status === "ambiguous" ? itemResolution.candidates : [];

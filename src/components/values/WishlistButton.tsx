@@ -11,7 +11,7 @@ export default function WishlistButton({ item }: { item: TradeItem }) {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!supabase || !user) { setWishlistId(null); return; }
+    if (!supabase || !user) { queueMicrotask(() => setWishlistId(null)); return; }
     let active = true;
     void supabase.from("wishlist_items").select("id").eq("user_id", user.id).eq("item_id", item.ID).maybeSingle().then(({ data }) => {
       if (active) setWishlistId(typeof data?.id === "string" ? data.id : null);

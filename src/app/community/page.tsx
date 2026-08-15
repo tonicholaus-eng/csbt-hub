@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import CSBTLounge from "../../components/community/CSBTLounge";
-import Footer from "../../components/Footer";
+
 import Navbar from "../../components/Navbar";
 
 export const metadata: Metadata = {
@@ -19,8 +19,8 @@ export default function CommunityPage() {
       <Navbar />
 
       <div className="relative z-10 min-w-0 lg:pl-[268px]">
-        <div className="mx-auto w-full max-w-[1580px] px-3 pb-24 pt-4 sm:px-5 sm:pb-32 sm:pt-6 lg:px-6 lg:pt-7">
-          <header className="mb-4 flex flex-col gap-4 rounded-[22px] bg-[var(--surface-1)] px-5 py-5 ring-1 ring-[var(--border)] sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <div className="mx-auto w-full max-w-[1680px] px-3 pb-24 pt-4 sm:px-5 sm:pb-32 sm:pt-6 lg:px-9 lg:pb-20 lg:pt-10">
+          <header className="csbt-feature-panel csbt-panel-accent-community mb-6 flex flex-col gap-5 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:mb-10 lg:px-9 lg:py-8">
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/15 bg-emerald-400/[0.08] px-2.5 py-1 text-[9px] font-black uppercase tracking-[.15em] text-emerald-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />Live community</span>
@@ -38,7 +38,7 @@ export default function CommunityPage() {
 
           <CSBTLounge />
         </div>
-        <Footer />
+        
       </div>
     </main>
   );

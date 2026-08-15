@@ -46,7 +46,7 @@ function SuggestionImage({
   const [imageFailed, setImageFailed] = useState(false);
 
   useEffect(() => {
-    setImageFailed(false);
+    queueMicrotask(() => setImageFailed(false));
   }, [src]);
 
   return (
@@ -194,7 +194,7 @@ export default function SearchBar({
     isFocused && search.trim().length > 0;
 
   useEffect(() => {
-    setSelectedIndex(-1);
+    queueMicrotask(() => setSelectedIndex(-1));
   }, [search]);
 
   useEffect(() => {

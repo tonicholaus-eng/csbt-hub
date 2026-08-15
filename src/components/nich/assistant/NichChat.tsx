@@ -22,12 +22,8 @@ import useNichLocalData, {
 } from "./useNichLocalData";
 import type {
   NichConversationContext,
-  NichIntent,
   NichResponse,
-  NichSuggestion,
   NichTradeComparison,
-  NichTradeItem,
-  PetVariant,
 } from "./brain/types";
 import {
   initialNichContext,
@@ -35,6 +31,18 @@ import {
   updateNichContext,
 } from "./memory/context";
 import useNich from "./useNich";
+import {
+  clearSavedChat,
+  createMessageId,
+  getVisionFileHash,
+  initialMessages,
+  initialSuggestions,
+  readSavedChat,
+  readVisionSessionCache,
+  saveChat,
+  writeVisionSessionCache,
+  type ChatMessage,
+} from "./NichChatPersistence";
 import type { NichVisionApiResponse } from "../../../lib/nich/vision";
 import { useBirthdayEventActive } from "../../../hooks/useBirthdayEventActive";
 import { birthdayEvent, openBirthdayEvent } from "../../../config/birthdayEvent";
@@ -46,735 +54,6 @@ type NichChatProps = {
   variant?: "floating" | "embedded";
   initialPrompt?: string;
 };
-
-type ChatMessage = {
-  id: string;
-  sender: "user" | "nich";
-  text: string;
-  createdAt: number;
-  suggestions?: NichSuggestion[];
-  intent?: NichIntent;
-  tradeComparison?: NichTradeComparison;
-};
-
-type PersistedNichChat = {
-  version: 1;
-  savedAt: number;
-  messages: ChatMessage[];
-  context: NichConversationContext;
-};
-
-const NICH_CHAT_STORAGE_KEY =
-  "csbt-hub:nich-chat:v1";
-
-const NICH_CHAT_STORAGE_VERSION = 1;
-const NICH_CHAT_EXPIRY_MS =
-  30 * 60 * 1000;
-const MAX_SAVED_MESSAGES = 60;
-const NICH_VISION_SESSION_CACHE_PREFIX = "csbt-hub:nich-vision:v1:";
-const NICH_VISION_SESSION_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-
-type CachedNichVisionPayload = {
-  savedAt: number;
-  payload: NichVisionApiResponse;
-};
-
-async function getVisionFileHash(file: File) {
-  if (!globalThis.crypto?.subtle) return null;
-  try {
-    const digest = await globalThis.crypto.subtle.digest("SHA-256", await file.arrayBuffer());
-    return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
-  } catch {
-    return null;
-  }
-}
-
-function readVisionSessionCache(hash: string | null): NichVisionApiResponse | null {
-  if (!hash || typeof window === "undefined") return null;
-  try {
-    const raw = window.sessionStorage.getItem(`${NICH_VISION_SESSION_CACHE_PREFIX}${hash}`);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as CachedNichVisionPayload;
-    if (!parsed || typeof parsed.savedAt !== "number" || !parsed.payload || Date.now() - parsed.savedAt > NICH_VISION_SESSION_CACHE_TTL_MS) {
-      window.sessionStorage.removeItem(`${NICH_VISION_SESSION_CACHE_PREFIX}${hash}`);
-      return null;
-    }
-    return parsed.payload;
-  } catch {
-    return null;
-  }
-}
-
-function writeVisionSessionCache(hash: string | null, payload: NichVisionApiResponse) {
-  if (!hash || typeof window === "undefined" || !payload.ok) return;
-  try {
-    const entry: CachedNichVisionPayload = { savedAt: Date.now(), payload };
-    window.sessionStorage.setItem(`${NICH_VISION_SESSION_CACHE_PREFIX}${hash}`, JSON.stringify(entry));
-  } catch {
-    // Storage may be unavailable/private; vision still works normally.
-  }
-}
-
-const validVariants =
-  new Set<PetVariant>([
-    "normal",
-    "neon",
-    "mega",
-  ]);
-
-const validIntents =
-  new Set<NichIntent>([
-    "greeting",
-    "goodbye",
-    "thanks",
-    "help",
-    "petLookup",
-    "nearbyValue",
-    "calculatorHelp",
-    "tradeAdvice",
-    "tradeComparison",
-    "inventory",
-    "offerBuilder",
-    "wishlist",
-    "exchange",
-    "valueHistory",
-    "counterOffer",
-    "tradingProfile",
-    "navigation",
-    "fallback",
-  ]);
-
-const validPotionStatuses = new Set([
-  "flyRide",
-  "flyOnly",
-  "rideOnly",
-  "unspecified",
-]);
-
-const validVerdicts = new Set([
-  "win",
-  "fair",
-  "lose",
-]);
-
-function isRecord(
-  value: unknown,
-): value is Record<string, unknown> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value)
-  );
-}
-
-function isFiniteNumber(
-  value: unknown,
-): value is number {
-  return (
-    typeof value === "number" &&
-    Number.isFinite(value)
-  );
-}
-
-function isSuggestion(
-  value: unknown,
-): value is NichSuggestion {
-  if (!isRecord(value)) {
-    return false;
-  }
-
-  return (
-    typeof value.id === "string" &&
-    typeof value.label === "string" &&
-    typeof value.message === "string"
-  );
-}
-
-function isChatMessage(
-  value: unknown,
-): value is ChatMessage {
-  if (!isRecord(value)) {
-    return false;
-  }
-
-  const hasValidSuggestions =
-    value.suggestions === undefined ||
-    (
-      Array.isArray(value.suggestions) &&
-      value.suggestions.every(
-        isSuggestion,
-      )
-    );
-
-  const hasValidIntent =
-    value.intent === undefined ||
-    validIntents.has(
-      value.intent as NichIntent,
-    );
-
-  const hasValidTradeComparison =
-    value.tradeComparison === undefined ||
-    sanitizeTradeComparison(
-      value.tradeComparison,
-    ) !== undefined;
-
-  return (
-    typeof value.id === "string" &&
-    value.id.length > 0 &&
-    value.id.length <= 200 &&
-    (
-      value.sender === "user" ||
-      value.sender === "nich"
-    ) &&
-    typeof value.text === "string" &&
-    value.text.length > 0 &&
-    value.text.length <= 20_000 &&
-    (
-      value.createdAt === undefined ||
-      isFiniteNumber(value.createdAt)
-    ) &&
-    hasValidSuggestions &&
-    hasValidIntent &&
-    hasValidTradeComparison
-  );
-}
-
-function isTradeItem(
-  value: unknown,
-): value is NichTradeItem {
-  if (!isRecord(value)) {
-    return false;
-  }
-
-  return (
-    typeof value.petName === "string" &&
-    validVariants.has(
-      value.variant as PetVariant,
-    ) &&
-    typeof value.petCode === "string" &&
-    validPotionStatuses.has(
-      String(value.potionStatus),
-    ) &&
-    isFiniteNumber(value.baseValue) &&
-    typeof value.baseDisplayValue ===
-      "string" &&
-    isFiniteNumber(
-      value.potionAdjustment,
-    ) &&
-    isFiniteNumber(value.value) &&
-    typeof value.displayValue ===
-      "string" &&
-    typeof value.hasNoPotionWarning ===
-      "boolean"
-  );
-}
-
-function sanitizeTradeComparison(
-  value: unknown,
-): NichTradeComparison | undefined {
-  if (!isRecord(value)) {
-    return undefined;
-  }
-
-  const storedOfferedItems =
-    Array.isArray(value.offeredItems)
-      ? value.offeredItems.filter(
-          isTradeItem,
-        )
-      : [];
-
-  const storedRequestedItems =
-    Array.isArray(value.requestedItems)
-      ? value.requestedItems.filter(
-          isTradeItem,
-        )
-      : [];
-
-  const offered =
-    isTradeItem(value.offered)
-      ? value.offered
-      : storedOfferedItems[0];
-
-  const requested =
-    isTradeItem(value.requested)
-      ? value.requested
-      : storedRequestedItems[0];
-
-  const offeredItems =
-    storedOfferedItems.length > 0
-      ? storedOfferedItems
-      : offered
-        ? [offered]
-        : [];
-
-  const requestedItems =
-    storedRequestedItems.length > 0
-      ? storedRequestedItems
-      : requested
-        ? [requested]
-        : [];
-
-  if (
-    !offered ||
-    !requested ||
-    offeredItems.length === 0 ||
-    requestedItems.length === 0 ||
-    !isFiniteNumber(
-      value.offeredValue,
-    ) ||
-    !isFiniteNumber(
-      value.requestedValue,
-    ) ||
-    !isFiniteNumber(value.difference) ||
-    !isFiniteNumber(
-      value.differencePercent,
-    ) ||
-    !validVerdicts.has(
-      String(value.verdict),
-    )
-  ) {
-    return undefined;
-  }
-
-  return {
-    offeredItems,
-    requestedItems,
-    offered,
-    requested,
-    offeredValue: value.offeredValue,
-    requestedValue:
-      value.requestedValue,
-    difference: value.difference,
-    differencePercent:
-      value.differencePercent,
-    verdict:
-      value.verdict as
-        | "win"
-        | "fair"
-        | "lose",
-    ...(value.valueSource === "GCASH" ||
-    value.valueSource === "ELVE"
-      ? { valueSource: value.valueSource }
-      : {}),
-  };
-}
-
-function sanitizeContextPet(
-  value: unknown,
-) {
-  if (
-    !isRecord(value) ||
-    typeof value.petName !== "string" ||
-    !value.petName.trim()
-  ) {
-    return null;
-  }
-
-  const variant =
-    validVariants.has(
-      value.variant as PetVariant,
-    )
-      ? (value.variant as PetVariant)
-      : undefined;
-
-  return {
-    petName: value.petName,
-    ...(variant
-      ? {
-          variant,
-        }
-      : {}),
-    ...(isFiniteNumber(value.value)
-      ? {
-          value: value.value,
-        }
-      : {}),
-    ...(typeof value.displayValue ===
-    "string"
-      ? {
-          displayValue:
-            value.displayValue,
-        }
-      : {}),
-  };
-}
-
-function sanitizeConversationContext(
-  value: unknown,
-): NichConversationContext {
-  if (!isRecord(value)) {
-    return resetNichContext();
-  }
-
-  const recentPets =
-    Array.isArray(value.recentPets)
-      ? value.recentPets
-          .map(sanitizeContextPet)
-          .filter(
-            (
-              pet,
-            ): pet is NonNullable<
-              ReturnType<
-                typeof sanitizeContextPet
-              >
-            > => pet !== null,
-          )
-          .slice(0, 8)
-      : [];
-
-  const lastTradeComparison =
-    sanitizeTradeComparison(
-      value.lastTradeComparison,
-    );
-
-  const context:
-    NichConversationContext = {
-      recentPets,
-      turnCount:
-        isFiniteNumber(value.turnCount) &&
-        value.turnCount >= 0
-          ? Math.floor(
-              value.turnCount,
-            )
-          : 0,
-  };
-
-  if (
-    typeof value.lastPetName ===
-      "string"
-  ) {
-    context.lastPetName =
-      value.lastPetName;
-  }
-
-  if (
-    validVariants.has(
-      value.lastVariant as PetVariant,
-    )
-  ) {
-    context.lastVariant =
-      value.lastVariant as PetVariant;
-  }
-
-  if (
-    isFiniteNumber(
-      value.lastNumericValue,
-    )
-  ) {
-    context.lastNumericValue =
-      value.lastNumericValue;
-  }
-
-  if (
-    value.lastValueSource === "GCASH" ||
-    value.lastValueSource === "ELVE"
-  ) {
-    context.lastValueSource =
-      value.lastValueSource;
-  }
-
-  if (isRecord(value.tradingGoal)) {
-    const goal = value.tradingGoal;
-    const validObjectives = new Set([
-      "FAIR",
-      "LOWBALL",
-      "COMPETITIVE",
-      "HIGH_DEMAND",
-      "UPGRADE",
-      "DOWNGRADE",
-    ]);
-
-    context.tradingGoal = {
-      ...(typeof goal.targetItemId === "string"
-        ? { targetItemId: goal.targetItemId }
-        : {}),
-      ...(typeof goal.targetItemName === "string"
-        ? { targetItemName: goal.targetItemName }
-        : {}),
-      ...(goal.valueSource === "GCASH" ||
-      goal.valueSource === "ELVE"
-        ? { valueSource: goal.valueSource }
-        : {}),
-      ...(typeof goal.objective === "string" &&
-      validObjectives.has(goal.objective)
-        ? {
-            objective:
-              goal.objective as NonNullable<
-                NichConversationContext["tradingGoal"]
-              >["objective"],
-          }
-        : {}),
-      ...(Array.isArray(goal.excludedItemIds)
-        ? {
-            excludedItemIds:
-              goal.excludedItemIds
-                .filter(
-                  (id): id is string =>
-                    typeof id === "string",
-                )
-                .slice(0, 30),
-          }
-        : {}),
-      ...(Array.isArray(goal.preferredItemIds)
-        ? {
-            preferredItemIds:
-              goal.preferredItemIds
-                .filter(
-                  (id): id is string =>
-                    typeof id === "string",
-                )
-                .slice(0, 30),
-          }
-        : {}),
-      ...(Array.isArray(goal.allowedCategories)
-        ? { allowedCategories: goal.allowedCategories.filter((value): value is string => typeof value === "string").slice(0, 12) }
-        : {}),
-      ...(Array.isArray(goal.excludedCategories)
-        ? { excludedCategories: goal.excludedCategories.filter((value): value is string => typeof value === "string").slice(0, 12) }
-        : {}),
-      ...(Array.isArray(goal.allowedValueTypes)
-        ? {
-            allowedValueTypes: goal.allowedValueTypes.filter(
-              (value): value is "NORMAL" | "NEON" | "MEGA" => value === "NORMAL" || value === "NEON" || value === "MEGA",
-            ),
-          }
-        : {}),
-      ...(isFiniteNumber(goal.minUnitValue) ? { minUnitValue: Math.max(0, goal.minUnitValue) } : {}),
-      ...(isFiniteNumber(goal.maxUnitValue) ? { maxUnitValue: Math.max(0, goal.maxUnitValue) } : {}),
-      ...(isFiniteNumber(goal.maxCopiesPerItem) ? { maxCopiesPerItem: Math.max(1, Math.min(20, Math.round(goal.maxCopiesPerItem))) } : {}),
-      ...(typeof goal.preferFewItems === "boolean" ? { preferFewItems: goal.preferFewItems } : {}),
-      ...(typeof goal.preferManyItems === "boolean" ? { preferManyItems: goal.preferManyItems } : {}),
-      ...(typeof goal.minimumDemandTier === "string" && ["S", "A", "B", "C", "D"].includes(goal.minimumDemandTier)
-        ? { minimumDemandTier: goal.minimumDemandTier as "S" | "A" | "B" | "C" | "D" }
-        : {}),
-      ...(isFiniteNumber(goal.maxItems)
-        ? {
-            maxItems: Math.max(
-              1,
-              Math.min(
-                18,
-                Math.round(goal.maxItems),
-              ),
-            ),
-          }
-        : {}),
-      ...(typeof goal.highDemandOnly === "boolean"
-        ? {
-            highDemandOnly:
-              goal.highDemandOnly,
-          }
-        : {}),
-      ...(typeof goal.avoidOverpay === "boolean"
-        ? {
-            avoidOverpay:
-              goal.avoidOverpay,
-          }
-        : {}),
-    };
-  }
-
-  if (lastTradeComparison) {
-    context.lastTradeComparison =
-      lastTradeComparison;
-  }
-
-  if (
-    validIntents.has(
-      value.lastIntent as NichIntent,
-    )
-  ) {
-    context.lastIntent =
-      value.lastIntent as NichIntent;
-  }
-
-  if (
-    typeof value.lastUserMessage ===
-      "string"
-  ) {
-    context.lastUserMessage =
-      value.lastUserMessage;
-  }
-
-  if (
-    typeof value.lastResolvedMessage ===
-      "string"
-  ) {
-    context.lastResolvedMessage =
-      value.lastResolvedMessage;
-  }
-
-  if (
-    isFiniteNumber(
-      value.lastUpdatedAt,
-    )
-  ) {
-    context.lastUpdatedAt =
-      value.lastUpdatedAt;
-  }
-
-  return context;
-}
-
-function readSavedChat():
-  | {
-      messages: ChatMessage[];
-      context: NichConversationContext;
-    }
-  | null {
-  try {
-    const savedValue =
-      window.localStorage.getItem(
-        NICH_CHAT_STORAGE_KEY,
-      );
-
-    if (!savedValue) {
-      return null;
-    }
-
-    const parsed: unknown =
-      JSON.parse(savedValue);
-
-    if (
-      !isRecord(parsed) ||
-      parsed.version !==
-        NICH_CHAT_STORAGE_VERSION ||
-      !isFiniteNumber(parsed.savedAt) ||
-      !Array.isArray(parsed.messages)
-    ) {
-      window.localStorage.removeItem(
-        NICH_CHAT_STORAGE_KEY,
-      );
-
-      return null;
-    }
-
-    const savedAt = parsed.savedAt;
-    const now = Date.now();
-
-    const isExpired =
-      now - savedAt >
-      NICH_CHAT_EXPIRY_MS;
-
-    const isFromFuture =
-      savedAt >
-      now + 5 * 60 * 1000;
-
-    if (isExpired || isFromFuture) {
-      window.localStorage.removeItem(
-        NICH_CHAT_STORAGE_KEY,
-      );
-
-      return null;
-    }
-
-    const messages =
-      parsed.messages
-        .filter(isChatMessage)
-        .map((message, index) => ({
-          ...message,
-          createdAt:
-            isFiniteNumber(
-              message.createdAt,
-            )
-              ? message.createdAt
-              : savedAt + index,
-          tradeComparison:
-            sanitizeTradeComparison(
-              message.tradeComparison,
-            ),
-        }))
-        .slice(-MAX_SAVED_MESSAGES);
-
-    if (messages.length === 0) {
-      window.localStorage.removeItem(
-        NICH_CHAT_STORAGE_KEY,
-      );
-
-      return null;
-    }
-
-    return {
-      messages,
-      context:
-        sanitizeConversationContext(
-          parsed.context,
-        ),
-    };
-  } catch {
-    window.localStorage.removeItem(
-      NICH_CHAT_STORAGE_KEY,
-    );
-
-    return null;
-  }
-}
-
-function saveChat(
-  messages: ChatMessage[],
-  context: NichConversationContext,
-) {
-  const savedChat: PersistedNichChat = {
-    version:
-      NICH_CHAT_STORAGE_VERSION,
-    savedAt: Date.now(),
-    messages:
-      messages.slice(
-        -MAX_SAVED_MESSAGES,
-      ),
-    context,
-  };
-
-  try {
-    window.localStorage.setItem(
-      NICH_CHAT_STORAGE_KEY,
-      JSON.stringify(savedChat),
-    );
-  } catch {
-    /*
-     * Storage can fail in private browsing
-     * or when the browser quota is full.
-     * Nich should continue working normally.
-     */
-  }
-}
-
-const initialSuggestions: NichSuggestion[] = [
-  {
-    id: "initial-frost-dragon",
-    label: "Frost Dragon value",
-    message: "What is Frost Dragon worth?",
-  },
-  {
-    id: "initial-calculator",
-    label: "Trade calculator",
-    message: "How do I use the calculator?",
-  },
-  {
-    id: "initial-nearby-values",
-    label: "Pets around 500",
-    message: "Find pets around 500 value",
-  },
-];
-
-const initialMessages: ChatMessage[] = [
-  {
-    id: "nich-welcome",
-    sender: "nich",
-    text: [
-      "Hey! I’m Nich 👋",
-      "",
-      "Ask me about Adopt Me pet values, trades, or how to use CSBT HUB.",
-    ].join("\n"),
-    createdAt: Date.now(),
-    suggestions: initialSuggestions,
-  },
-];
-
-function createMessageId() {
-  return `${Date.now()}-${Math.random()
-    .toString(36)
-    .slice(2)}`;
-}
 
 function formatMessageTime(
   timestamp: number,
@@ -923,10 +202,13 @@ async function optimizeNichScreenshot(file: File): Promise<File> {
 
   try {
     const bitmap = await createImageBitmap(file);
-    const maxDimension = 1536;
+    // Keep more icon detail for Adopt Me trade grids. Small pet thumbnails lose
+    // distinguishing markings quickly when a full screenshot is downscaled too
+    // aggressively, which can turn visually similar pets into wrong matches.
+    const maxDimension = 2048;
     const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
 
-    if (scale === 1 && file.size <= 2_500_000 && safeOriginal.has(file.type)) {
+    if (scale === 1 && file.size <= 5_500_000 && safeOriginal.has(file.type)) {
       bitmap.close();
       return file;
     }
@@ -947,7 +229,7 @@ async function optimizeNichScreenshot(file: File): Promise<File> {
     bitmap.close();
 
     const blob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob(resolve, "image/jpeg", 0.9);
+      canvas.toBlob(resolve, "image/jpeg", 0.94);
     });
 
     if (!blob) return file;
@@ -1008,8 +290,8 @@ export default function NichChat({
 
   useEffect(() => {
     if (!initialPrompt || initialPromptApplied) return;
-    setInput(initialPrompt.slice(0, 1800));
-    setInitialPromptApplied(true);
+    queueMicrotask(() => setInput(initialPrompt.slice(0, 1800)));
+    queueMicrotask(() => setInitialPromptApplied(true));
     window.setTimeout(() => inputRef.current?.focus(), 80);
   }, [initialPrompt, initialPromptApplied]);
 
@@ -1055,13 +337,7 @@ export default function NichChat({
     setCopiedMessageId(null);
     setShowClearConfirmation(false);
 
-    try {
-      window.localStorage.removeItem(
-        NICH_CHAT_STORAGE_KEY,
-      );
-    } catch {
-      // Nich still resets even when storage is unavailable.
-    }
+    clearSavedChat();
 
     react("welcome");
 
@@ -1194,13 +470,13 @@ export default function NichChat({
     const savedChat = readSavedChat();
 
     if (savedChat) {
-      setMessages(savedChat.messages);
-      setConversationContext(
+      queueMicrotask(() => setMessages(savedChat.messages));
+      queueMicrotask(() => setConversationContext(
         savedChat.context,
-      );
+      ));
     }
 
-    setIsStorageReady(true);
+    queueMicrotask(() => setIsStorageReady(true));
   }, []);
 
   useEffect(() => {
@@ -1633,26 +909,27 @@ export default function NichChat({
 
   const chatClasses = isEmbedded
     ? `
+        nich-theme-shell
+        nich-smart-shell
+        nich-smart-embedded
         relative
         flex
-        h-[680px]
-        max-h-[78dvh]
+        h-[690px]
+        max-h-[80dvh]
         w-full
         flex-col
         overflow-hidden
-        rounded-[30px]
+        rounded-[28px]
         border
-        border-white/70
-        bg-white/95
-        shadow-[0_30px_90px_rgba(15,23,42,.18)]
         backdrop-blur-2xl
-        dark:border-white/10
-        dark:bg-black/95
-        dark:shadow-[0_30px_90px_rgba(0,0,0,.6)]
-        sm:h-[720px]
-        lg:rounded-[30px]
+        sm:h-[735px]
+        lg:h-[790px]
+        lg:max-h-[calc(100dvh-4rem)]
       `
     : `
+        nich-theme-shell
+        nich-smart-shell
+        nich-smart-floating
         fixed
         inset-0
         z-[89]
@@ -1663,23 +940,16 @@ export default function NichChat({
         overflow-hidden
         rounded-none
         border-0
-        bg-white/95
-        shadow-[0_30px_90px_rgba(15,23,42,.3)]
         backdrop-blur-2xl
-        dark:bg-black/95
-        dark:shadow-[0_30px_90px_rgba(0,0,0,.7)]
         lg:left-auto
         lg:top-auto
         lg:bottom-6
         lg:right-6
-        lg:h-[700px]
+        lg:h-[710px]
         lg:max-h-[calc(100dvh-3rem)]
-        lg:w-[470px]
-        lg:rounded-[30px]
-        lg:border
-        lg:border-white/70
-        lg:dark:border-white/10
         lg:w-[490px]
+        lg:rounded-[28px]
+        lg:border
       `;
 
   return (
@@ -1717,39 +987,24 @@ export default function NichChat({
           className={chatClasses}
         >
           <style jsx global>{`
-            .nich-gold-scrollbar {
+            .nich-smart-scrollbar {
               scrollbar-width: thin;
-              scrollbar-color: #d6a719 #050505;
+              scrollbar-color: color-mix(in srgb, var(--purple) 65%, var(--foreground-muted)) transparent;
             }
 
-            .nich-gold-scrollbar::-webkit-scrollbar {
-              width: 7px;
-              height: 7px;
+            .nich-smart-scrollbar::-webkit-scrollbar {
+              width: 6px;
+              height: 6px;
             }
 
-            .nich-gold-scrollbar::-webkit-scrollbar-track {
-              background: #050505;
+            .nich-smart-scrollbar::-webkit-scrollbar-track {
+              background: transparent;
             }
 
-            .nich-gold-scrollbar::-webkit-scrollbar-thumb {
-              border: 1px solid rgba(255, 221, 103, 0.35);
+            .nich-smart-scrollbar::-webkit-scrollbar-thumb {
+              border: 1px solid color-mix(in srgb, var(--purple) 28%, transparent);
               border-radius: 999px;
-              background: linear-gradient(
-                180deg,
-                #ffe17a,
-                #c58a08
-              );
-              box-shadow:
-                0 0 8px rgba(245, 180, 25, 0.75),
-                inset 0 0 4px rgba(255, 255, 255, 0.35);
-            }
-
-            .nich-gold-scrollbar::-webkit-scrollbar-thumb:hover {
-              background: linear-gradient(
-                180deg,
-                #fff0a8,
-                #e2a91e
-              );
+              background: linear-gradient(180deg, color-mix(in srgb, var(--purple) 82%, white), var(--purple));
             }
           `}</style>
 
@@ -1777,13 +1032,13 @@ export default function NichChat({
                     y: 12,
                     scale: 0.96,
                   }}
-                  className="w-full max-w-sm rounded-3xl border border-amber-300/20 bg-[#0a0a0a] p-5 text-white shadow-[0_28px_80px_rgba(0,0,0,.7),0_0_34px_rgba(245,180,25,.12)]"
+                  className="nich-smart-confirm w-full max-w-sm rounded-[22px] border p-5 shadow-[var(--shadow-lg)]"
                 >
-                  <h3 className="text-lg font-black text-amber-100">
+                  <h3 className="text-lg font-black text-[var(--foreground)]">
                     Start a new chat?
                   </h3>
 
-                  <p className="mt-2 text-sm leading-6 text-white/60">
+                  <p className="mt-2 text-sm leading-6 text-[var(--foreground-muted)]">
                     This clears the current messages and Nich’s remembered pets and trades.
                   </p>
 
@@ -1793,7 +1048,7 @@ export default function NichChat({
                       onClick={() => {
                         setShowClearConfirmation(false);
                       }}
-                      className="rounded-xl border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-bold text-white/75 transition hover:bg-white/10"
+                      className="rounded-xl border border-[var(--border)] bg-[var(--surface-3)] px-4 py-2 text-sm font-bold text-[var(--foreground-muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
                     >
                       Cancel
                     </button>
@@ -1817,13 +1072,13 @@ export default function NichChat({
                 ? undefined
                 : "max(0.75rem, env(safe-area-inset-top))",
             }}
-            className={`relative shrink-0 overflow-hidden border-b border-violet-400/15 bg-[linear-gradient(135deg,rgba(124,92,228,.16),rgba(124,92,228,.07))] transition-all duration-300 dark:border-violet-400/15 dark:bg-[linear-gradient(135deg,#15102b,#0b1322)] ${
+            className={`nich-smart-header relative shrink-0 overflow-hidden border-b transition-all duration-300 ${
               isHeaderCompact
-                ? "px-4 py-2.5 sm:px-5"
-                : "px-4 py-4 sm:px-5"
+                ? "px-4 py-3 sm:px-5 lg:px-6"
+                : "px-4 py-4 sm:px-5 lg:px-6 lg:py-5"
             }`}
           >
-            <div className="pointer-events-none absolute -right-8 -top-12 h-32 w-32 rounded-full bg-violet-300/10 blur-2xl dark:bg-violet-300/5" />
+            <div className="pointer-events-none absolute -right-8 -top-12 h-32 w-32 rounded-full bg-[color-mix(in_srgb,var(--purple)_14%,transparent)] blur-2xl" />
 
             <div className="relative flex items-center gap-3">
               <motion.div
@@ -1858,13 +1113,13 @@ export default function NichChat({
                         duration: 0.25,
                       }
                 }
-                className={`relative shrink-0 rounded-full bg-violet-500/70 p-[2px] transition-all duration-300 ${
+                className={`nich-smart-avatar relative shrink-0 rounded-full p-[2px] transition-all duration-300 ${
                   isHeaderCompact
                     ? "h-10 w-10"
                     : "h-12 w-12"
                 }`}
               >
-                <div className="relative h-full w-full overflow-hidden rounded-full border border-violet-400/20 bg-violet-50 dark:bg-[#0b1322]">
+                <div className="relative h-full w-full overflow-hidden rounded-full bg-[var(--surface-2)]">
                   <Image
                   src="/nich/nich-face.png"
                   alt="Nich"
@@ -1889,13 +1144,14 @@ export default function NichChat({
                     Nich
                   </h2>
 
-                  <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-violet-700 ring-1 ring-violet-400/15 dark:text-violet-200">
+                  <span className="nich-smart-badge rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[.11em]">
                     CSBT Assistant
                   </span>
                 </div>
 
-                <p className="mt-0.5 text-xs font-semibold text-[var(--foreground-muted)]">
-                  {isTyping ? "Nich is thinking..." : "Ready for your next question"}
+                <p className="mt-1 flex items-center gap-2 text-xs font-semibold text-[var(--foreground-muted)]">
+                  <span className={`h-1.5 w-1.5 rounded-full ${isTyping ? "bg-[var(--purple)]" : "bg-[var(--green)]"}`} aria-hidden="true" />
+                  {isTyping ? "Analyzing with CSBT data…" : "Local-first · Built around CSBT market data"}
                 </p>
               </div>
 
@@ -1908,9 +1164,9 @@ export default function NichChat({
                   }}
                   aria-label="Start a new Nich chat"
                   title="Start a new chat"
-                  className="flex min-h-11 items-center justify-center rounded-xl bg-[var(--surface-2)] px-3 text-[11px] font-black text-[var(--foreground)] shadow-sm transition hover:bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60 dark:border dark:border-white/10 dark:bg-white/10 dark:text-white dark:hover:bg-white/[0.16]"
+                  className="nich-smart-new-chat flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-3.5 text-[11px] font-black transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[color-mix(in_srgb,var(--purple)_20%,transparent)]"
                 >
-                  New chat
+                  <span aria-hidden="true">✦</span> New chat
                 </button>
 
                 {!isEmbedded && onClose && (
@@ -1918,7 +1174,7 @@ export default function NichChat({
                     type="button"
                     onClick={onClose}
                     aria-label="Close Ask Nich"
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-2)] text-lg font-black text-[var(--foreground)] shadow-sm transition hover:bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60 dark:border dark:border-white/10 dark:bg-white/10 dark:text-white dark:hover:bg-white/[0.16]"
+                    className="nich-smart-new-chat flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-lg font-black transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[color-mix(in_srgb,var(--purple)_20%,transparent)]"
                   >
                     ✕
                   </button>
@@ -1927,16 +1183,15 @@ export default function NichChat({
             </div>
           </div>
 
-          <div className="relative min-h-0 flex-1 overflow-hidden bg-[var(--surface-2)] dark:bg-[#08111e]">
-            <div className="pointer-events-none absolute inset-0 z-0 opacity-35 dark:opacity-25 bg-[radial-gradient(circle,rgba(124,92,228,.13)_1px,transparent_1px)] bg-[size:24px_24px]" />
-            <div className="pointer-events-none absolute inset-0 z-0 opacity-20 dark:opacity-[0.12] bg-[linear-gradient(rgba(124,92,228,.08)_1px,transparent_1px),linear-gradient(90deg,rgba(124,92,228,.08)_1px,transparent_1px)] bg-[size:72px_72px]" />
+          <div className="nich-theme-stage nich-smart-stage relative min-h-0 flex-1 overflow-hidden">
+            <div className="nich-smart-stage-glow pointer-events-none absolute inset-0 z-0" />
 
             <div
               ref={messagesContainerRef}
               onScroll={handleMessagesScroll}
-              className="nich-gold-scrollbar relative z-10 h-full overflow-y-auto overscroll-contain bg-gradient-to-b from-white/90 via-violet-50/10 to-white/90 px-3 py-5 dark:bg-[radial-gradient(circle_at_top,rgba(124,92,228,0.055),transparent_24%),linear-gradient(to_bottom,rgba(0,0,0,.92),rgba(0,0,0,.98))] sm:px-5 sm:py-6"
+              className="nich-theme-messages nich-smart-messages nich-smart-scrollbar relative z-10 h-full overflow-y-auto overscroll-contain px-4 py-6 sm:px-6 sm:py-7 lg:px-8 lg:py-8"
             >
-              <div className="space-y-5 sm:space-y-6">
+              <div className="space-y-6 sm:space-y-7">
               {messages.map((message) => {
                 const isNich =
                   message.sender === "nich";
@@ -1978,7 +1233,7 @@ export default function NichChat({
                     }`}
                   >
                     {isNich && (
-                      <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border border-violet-400/30 bg-[#0b1322] shadow-[0_0_14px_rgba(124,92,228,.14)]">
+                      <div className="nich-smart-message-avatar relative h-8 w-8 shrink-0 overflow-hidden rounded-full">
                         <Image
                           src="/nich/nich-face.png"
                           alt=""
@@ -2007,17 +1262,18 @@ export default function NichChat({
                         )}
 
                       <div
-                        className={`whitespace-pre-line rounded-[24px] px-5 py-4 text-sm leading-7 shadow-sm ${
+                        className={`whitespace-pre-line rounded-[20px] px-5 py-4 text-sm leading-7 ${
                           isNich
-                            ? "rounded-bl-md border border-gray-100 bg-white font-medium text-gray-700 dark:border-white/10 dark:bg-black/80 dark:text-slate-100 dark:shadow-[0_12px_28px_rgba(0,0,0,.38)]"
-                            : "rounded-br-md bg-[var(--surface-selected)] font-semibold text-[var(--foreground)] ring-1 ring-[var(--border-gold)] dark:border dark:border-amber-400/20 dark:bg-amber-400/[0.07] dark:bg-none dark:text-white dark:shadow-[0_12px_28px_rgba(0,0,0,.42)]"
+                            ? "nich-smart-response rounded-bl-[8px] font-medium text-[var(--foreground)]"
+                            : "nich-smart-user rounded-br-[8px] font-semibold text-[var(--foreground)]"
                         }`}
                       >
+                        {isNich && <span className="nich-smart-response-mark mr-2 inline-flex align-middle" aria-hidden="true">✦</span>}
                         {visibleText}
                       </div>
 
                       <div
-                        className={`mt-1.5 flex flex-wrap items-center gap-2 px-1 text-[10px] text-gray-400 dark:text-white/35 ${
+                        className={`mt-1.5 flex flex-wrap items-center gap-2 px-1 text-[10px] text-[color-mix(in_srgb,var(--foreground-muted)_64%,transparent)] ${
                           isNich
                             ? "justify-start"
                             : "justify-end"
@@ -2038,7 +1294,7 @@ export default function NichChat({
                                 message.text,
                               );
                             }}
-                            className="min-h-8 rounded-md px-1.5 py-0.5 font-bold text-violet-600 transition hover:bg-violet-400/10 hover:text-violet-500 dark:text-violet-300/80 dark:hover:text-violet-200"
+                            className="nich-smart-message-action min-h-8 rounded-md px-1.5 py-0.5 font-bold transition"
                           >
                             {copiedMessageId ===
                             message.id
@@ -2055,7 +1311,7 @@ export default function NichChat({
                                 message.id,
                               );
                             }}
-                            className="min-h-8 rounded-md px-1.5 py-0.5 font-bold text-violet-600 transition hover:bg-violet-400/10 hover:text-violet-500 dark:text-violet-300/80 dark:hover:text-violet-200"
+                            className="nich-smart-message-action min-h-8 rounded-md px-1.5 py-0.5 font-bold transition"
                           >
                             {isExpanded
                               ? "Show less"
@@ -2080,7 +1336,7 @@ export default function NichChat({
                   }}
                   className="flex items-end gap-2"
                 >
-                  <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border border-violet-200 bg-violet-50">
+                  <div className="nich-smart-message-avatar relative h-8 w-8 shrink-0 overflow-hidden rounded-full">
                     <Image
                       src="/nich/nich-face.png"
                       alt=""
@@ -2091,7 +1347,7 @@ export default function NichChat({
                     />
                   </div>
 
-                  <div className="flex items-center gap-1.5 rounded-[20px] rounded-bl-md border border-gray-100 bg-white px-4 py-3 shadow-sm dark:border-white/10 dark:bg-black/80 dark:shadow-[0_10px_24px_rgba(0,0,0,.35)]">
+                  <div className="nich-smart-typing flex items-center gap-1.5 rounded-[20px] rounded-bl-[8px] px-4 py-3">
                     {[0, 1, 2].map((dot) => (
                       <motion.span
                         key={dot}
@@ -2112,7 +1368,7 @@ export default function NichChat({
                           repeat: Infinity,
                           delay: dot * 0.15,
                         }}
-                        className="h-2 w-2 rounded-full bg-violet-400"
+                        className="h-2 w-2 rounded-full bg-[var(--purple)]"
                       />
                     ))}
                   </div>
@@ -2123,8 +1379,8 @@ export default function NichChat({
               </div>
             </div>
 
-            <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-10 bg-gradient-to-b from-white via-white/70 to-transparent dark:from-black dark:via-black/75" />
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-12 bg-gradient-to-t from-white via-white/70 to-transparent dark:from-black dark:via-black/80" />
+            <div className="nich-smart-fade-top pointer-events-none absolute inset-x-0 top-0 z-20 h-10" />
+            <div className="nich-smart-fade-bottom pointer-events-none absolute inset-x-0 bottom-0 z-20 h-12" />
 
             <AnimatePresence>
               {showScrollButton && (
@@ -2149,7 +1405,7 @@ export default function NichChat({
                     scrollToBottom("smooth");
                   }}
                   aria-label="Scroll to the newest message"
-                  className="absolute bottom-5 right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-violet-400/25 bg-[#0b1322]/90 text-lg text-violet-200 shadow-[0_8px_24px_rgba(0,0,0,.24)] transition hover:border-violet-300/45"
+                  className="nich-smart-scroll-button absolute bottom-5 right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full text-lg transition"
                 >
                   ↓
                 </motion.button>
@@ -2158,8 +1414,8 @@ export default function NichChat({
           </div>
 
           {latestSuggestions.length > 0 && (
-            <div className="shrink-0 border-t border-gray-100 bg-white/90 px-3 pt-3 dark:border-white/10 dark:bg-black/95 dark:backdrop-blur-xl sm:px-4">
-              <div className="nich-gold-scrollbar flex gap-2 overflow-x-auto pb-2">
+            <div className="nich-theme-bottom nich-smart-actions shrink-0 border-t px-4 pt-4 backdrop-blur-xl sm:px-5 lg:px-6">
+              <div className="nich-smart-scrollbar flex gap-2.5 overflow-x-auto pb-3">
                 {latestSuggestions.map(
                   (suggestion) => (
                     <button
@@ -2171,7 +1427,7 @@ export default function NichChat({
                         )
                       }
                       disabled={isTyping}
-                      className="shrink-0 rounded-full border border-violet-200 bg-violet-50 px-3 py-2 text-[11px] font-bold text-amber-800 transition hover:border-yellow-300 hover:bg-yellow-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-violet-400/20 dark:bg-violet-400/[0.07] dark:text-violet-200 dark:hover:bg-violet-400/12"
+                      className="nich-smart-chip shrink-0 rounded-full px-3.5 py-2.5 text-[11px] font-black transition disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {suggestion.label}
                     </button>
@@ -2188,9 +1444,9 @@ export default function NichChat({
                 ? undefined
                 : "max(0.75rem, env(safe-area-inset-bottom))",
             }}
-            className="shrink-0 bg-white px-3 pb-3 pt-2 dark:bg-black sm:px-4 sm:pb-4"
+            className="nich-theme-bottom nich-smart-composer-wrap shrink-0 px-4 pb-4 pt-2 sm:px-5 sm:pb-5 lg:px-6"
           >
-            <div className="flex items-end gap-2 rounded-[22px] border border-gray-200 bg-gray-50 p-2 shadow-inner focus-within:border-violet-300 focus-within:ring-4 focus-within:ring-violet-100 dark:border-white/10 dark:bg-white/[0.04] dark:backdrop-blur-md dark:focus-within:ring-violet-400/10">
+            <div className="nich-smart-composer flex items-end gap-2 rounded-[20px] border p-2 transition">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -2209,9 +1465,9 @@ export default function NichChat({
                 disabled={isTyping}
                 aria-label="Upload an Adopt Me screenshot"
                 title="Analyze a trade or inventory screenshot"
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-violet-200 bg-white text-lg shadow-sm transition hover:border-violet-300 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 dark:border-violet-300/15 dark:bg-violet-400/[0.06] dark:hover:bg-violet-400/10"
+                className="nich-smart-upload flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] transition disabled:cursor-not-allowed disabled:opacity-40"
               >
-                📷
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M12 16V5m0 0L8.5 8.5M12 5l3.5 3.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M5 14.5v2.75A1.75 1.75 0 0 0 6.75 19h10.5A1.75 1.75 0 0 0 19 17.25V14.5" strokeLinecap="round"/></svg>
               </button>
 
               <textarea
@@ -2233,25 +1489,25 @@ export default function NichChat({
                 rows={1}
                 maxLength={300}
                 disabled={isTyping}
-                className="max-h-24 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-sm font-medium text-gray-800 outline-none placeholder:text-gray-400 disabled:cursor-not-allowed disabled:opacity-60 dark:text-white dark:placeholder:text-neutral-500"
+                className="max-h-24 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-sm font-semibold text-[var(--foreground)] outline-none placeholder:text-[color-mix(in_srgb,var(--foreground-muted)_72%,transparent)] disabled:cursor-not-allowed disabled:opacity-60"
               />
 
               <button
                 type="submit"
                 disabled={!input.trim() || isTyping}
                 aria-label="Send message"
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-600 text-lg font-black text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 ${
+                className={`nich-smart-send flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white transition disabled:cursor-not-allowed disabled:opacity-40 ${
                   input.trim() && !isTyping
-                    ? "shadow-[0_10px_28px_rgba(124,92,228,.28)]"
-                    : "shadow-md"
+                    ? "is-ready"
+                    : ""
                 }`}
               >
-                ➤
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true"><path d="M12 3.5l1.15 3.35a5.5 5.5 0 0 0 3.5 3.5L20 11.5l-3.35 1.15a5.5 5.5 0 0 0-3.5 3.5L12 19.5l-1.15-3.35a5.5 5.5 0 0 0-3.5-3.5L4 11.5l3.35-1.15a5.5 5.5 0 0 0 3.5-3.5L12 3.5Z" fill="currentColor"/><circle cx="18.5" cy="5.5" r="1.5" fill="currentColor" opacity=".7"/></svg>
               </button>
             </div>
 
-            <p className="mt-2 text-center text-[9px] font-medium text-gray-400 sm:text-[10px]">
-              📷 Screenshot recognition uses Gemini only when you upload an image. Values and W/F/L still come from CSBT.
+            <p className="nich-smart-note mt-3 flex items-center justify-center gap-1.5 text-center text-[9px] font-semibold sm:text-[10px]">
+              <span aria-hidden="true">◇</span> Screenshot recognition uses Gemini only for uploaded images. Values and W/F/L still come from CSBT.
             </p>
           </form>
         </motion.aside>

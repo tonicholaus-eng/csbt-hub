@@ -63,7 +63,7 @@ export default function TradeVotingBoard() {
   }
 
   useEffect(() => {
-    void reload();
+    void queueMicrotask(() => reload());
     if (!supabase) return;
     const channel = supabase
       .channel("trade-voting-feed")
@@ -80,8 +80,8 @@ export default function TradeVotingBoard() {
       const item = getItemById(row.itemId);
       return item ? { ...row, valueType: bestValueType(item, source, row.valueType) } : row;
     });
-    setYour(normalize);
-    setTheir(normalize);
+    queueMicrotask(() => setYour(normalize));
+    queueMicrotask(() => setTheir(normalize));
   }, [source]);
 
   function add(side: "your" | "their", item: TradeItem) {
@@ -139,9 +139,9 @@ export default function TradeVotingBoard() {
   const theirTotal = totalSide(their, source);
 
   return (
-    <div className="space-y-8">
-      <section className="overflow-hidden rounded-[var(--radius-section)] bg-[var(--surface-1)] shadow-[var(--shadow-sm)] ring-1 ring-[var(--border)]">
-        <div className="flex flex-col gap-4 border-b border-[var(--border)] p-4 sm:flex-row sm:items-end sm:justify-between sm:p-6">
+    <div className="space-y-8 lg:space-y-12">
+      <section className="csbt-feature-panel">
+        <div className="relative flex flex-col gap-4 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--surface-2)_72%,transparent)] p-4 sm:flex-row sm:items-end sm:justify-between sm:p-6 lg:px-9 lg:py-8">
           <div>
             <p className="csbt-eyebrow">Check your trade with the community</p>
             <h2 className="mt-1 text-2xl font-black tracking-tight text-[var(--foreground)]">Build both offers, then post for a vote.</h2>
@@ -168,16 +168,16 @@ export default function TradeVotingBoard() {
             </p>
           </div>
         ) : (
-          <div className="p-4 sm:p-6">
-            <div className="relative grid gap-4 lg:grid-cols-[1fr_auto_1fr] lg:items-stretch">
+          <div className="relative p-4 sm:p-6 lg:p-9">
+            <div className="relative grid gap-5 xl:grid-cols-[1fr_auto_1fr] xl:items-stretch xl:gap-8">
               <TradeBuilder title="Your offer" rows={your} source={source} onAdd={(item) => add("your", item)} onPatch={(index, value) => patch("your", index, value)} onRemove={(index) => remove("your", index)} />
-              <div className="flex items-center justify-center py-1 lg:py-0">
+              <div className="flex items-center justify-center py-1 xl:py-0">
                 <span className="flex h-10 min-w-10 items-center justify-center rounded-full bg-[var(--surface-selected)] px-3 text-xs font-black text-[var(--gold-dark)] dark:text-[var(--gold-bright)]">VS</span>
               </div>
               <TradeBuilder title="Their offer" rows={their} source={source} onAdd={(item) => add("their", item)} onPatch={(index, value) => patch("their", index, value)} onRemove={(index) => remove("their", index)} />
             </div>
 
-            <label className="mt-5 block">
+            <label className="mt-5 block lg:mt-8">
               <span className="text-xs font-black text-[var(--foreground)]">Add context <span className="font-bold text-[var(--foreground-muted)]">(optional)</span></span>
               <textarea
                 value={note}
@@ -185,11 +185,11 @@ export default function TradeVotingBoard() {
                 maxLength={300}
                 rows={2}
                 placeholder="Example: Should I accept this?"
-                className="mt-2 min-h-20 w-full rounded-[var(--radius-control)] border border-[var(--border-strong)] bg-[var(--surface-3)] p-3 text-sm outline-none transition focus:border-[var(--gold)]"
+                className="csbt-input-field mt-2 min-h-24 w-full rounded-[var(--radius-control)] p-4 text-sm leading-6 lg:min-h-32"
               />
             </label>
 
-            <div className="mt-5 flex flex-col gap-3 border-t border-[var(--border)] pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="mt-5 flex flex-col gap-3 border-t border-[var(--border)] pt-4 lg:mt-7 lg:pt-6 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap gap-4 text-xs font-bold text-[var(--foreground-muted)]">
                 <span>Your total <strong className="ml-1 text-[var(--foreground)]">{formatTradeValue(yourTotal)}</strong></span>
                 <span>Their total <strong className="ml-1 text-[var(--foreground)]">{formatTradeValue(theirTotal)}</strong></span>
@@ -211,7 +211,7 @@ export default function TradeVotingBoard() {
 
       <section>
         <SectionHeader eyebrow="Community feed" title="Recent W/F/L votes" description="See what other traders are considering and vote using the same value context they posted." />
-        <div className="mt-5 space-y-4">
+        <div className="mt-6 space-y-5 lg:mt-8 lg:space-y-6">
           {trades.length ? trades.map((trade) => (
             <TradeCard key={trade.id} trade={trade} currentUserId={user?.id ?? null} onVote={vote} />
           )) : (
@@ -239,7 +239,7 @@ function TradeBuilder({
   onRemove: (index: number) => void;
 }) {
   return (
-    <div className="min-w-0 rounded-[var(--radius-card)] bg-[var(--surface-3)] p-3 sm:p-4">
+    <div className="csbt-trade-side min-w-0 p-3 sm:p-4 lg:p-6" data-side={title.toLowerCase().startsWith("your") ? "your" : "their"}>
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-xs font-black uppercase tracking-[.14em] text-[var(--foreground)]">{title}</h3>
         <span className="text-[10px] font-bold text-[var(--foreground-muted)]">{rows.length}/18</span>
@@ -254,7 +254,7 @@ function TradeBuilder({
           const safeTypes = valueTypes.length ? valueTypes : ["NORMAL" as ValueType];
           const itemValue = (parseTradeValue(getItemValue(item, source, safeTypes.includes(row.valueType) ? row.valueType : safeTypes[0])) ?? 0) * row.quantity;
           return (
-            <div key={`${row.itemId}-${index}`} className="grid min-w-0 grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-2 rounded-[12px] bg-[var(--surface-2)] p-2 shadow-sm">
+            <div key={`${row.itemId}-${index}`} className="csbt-list-row grid min-w-0 grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-2 rounded-[12px] p-2">
               <span className="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-[11px] bg-[var(--surface-3)]">
                 {item.IMAGE ? <Image src={item.IMAGE} alt={item.NAME} width={42} height={42} unoptimized className="h-10 w-10 object-contain" /> : <span aria-hidden="true">📦</span>}
               </span>
@@ -275,7 +275,7 @@ function TradeBuilder({
             </div>
           );
         })}
-        {!rows.length && <div className="rounded-[12px] border border-dashed border-[var(--border-strong)] px-3 py-6 text-center text-xs font-bold text-[var(--foreground-muted)]">Add items to this side</div>}
+        {!rows.length && <div className="rounded-[12px] border border-dashed border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-2)_42%,transparent)] px-3 py-7 text-center text-xs font-bold text-[var(--foreground-muted)] lg:py-12">Add items to this side</div>}
       </div>
     </div>
   );
@@ -295,7 +295,7 @@ function TradeCard({ trade, currentUserId, onVote }: { trade: FeedTrade; current
   const initial = (trade.display_name || "T").trim().slice(0, 1).toUpperCase();
 
   return (
-    <article className="rounded-[var(--radius-card)] bg-[var(--surface-2)] p-4 shadow-[var(--shadow-sm)] ring-1 ring-[var(--border)] sm:p-5">
+    <article className="csbt-feed-card rounded-[var(--radius-card)] p-4 sm:p-5 lg:p-7">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--surface-selected)] text-sm font-black text-[var(--gold-dark)] dark:text-[var(--gold-bright)]" aria-hidden="true">{initial}</span>
@@ -350,7 +350,7 @@ function TradeCard({ trade, currentUserId, onVote }: { trade: FeedTrade; current
 
 function TradeMiniSide({ title, rows }: { title: string; rows: SideItem[] }) {
   return (
-    <div className="min-w-0 rounded-[12px] bg-[var(--surface-3)] p-3">
+    <div className="csbt-inset-panel min-w-0 p-3 lg:p-4">
       <p className="text-[9px] font-black uppercase tracking-[.14em] text-[var(--foreground-muted)]">{title}</p>
       <div className="mt-2 flex flex-wrap gap-2">
         {rows.map((row, index) => {

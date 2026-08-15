@@ -25,7 +25,7 @@ function ItemImage({ item }: { item: TradeItem }) {
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    setFailed(false);
+    queueMicrotask(() => setFailed(false));
   }, [item.IMAGE]);
 
   if (!item.IMAGE || failed) {

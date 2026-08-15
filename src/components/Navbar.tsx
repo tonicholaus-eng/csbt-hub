@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useUnreadNotifications } from "../hooks/useUnreadNotifications";
 import { useCSBTTheme } from "./ThemeProvider";
 import AppearanceSelector from "./theme/AppearanceSelector";
@@ -37,12 +37,12 @@ export default function Navbar() {
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem(SIDEBAR_GROUP_STORAGE_KEY);
-      if (saved) setOpenGroups((current) => ({ ...current, ...JSON.parse(saved) }));
+      if (saved) queueMicrotask(() => setOpenGroups((current) => ({ ...current, ...JSON.parse(saved) })));
     } catch {
       // Sidebar still works when storage is unavailable.
     }
   }, []);
-  useEffect(() => setMoreOpen(false), [pathname]);
+  useEffect(() => queueMicrotask(() => setMoreOpen(false)), [pathname]);
 
   useEffect(() => {
     const handler = (event: Event) => {
@@ -89,11 +89,11 @@ export default function Navbar() {
   }, []);
 
   const active = (href: string) => href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
-  const activeGroupId = useMemo(() => navGroups.find((group) => group.links.some((link) => active(link.href)))?.id, [pathname]);
+  const activeGroupId = navGroups.find((group) => group.links.some((link) => active(link.href)))?.id;
 
   useEffect(() => {
     if (!activeGroupId) return;
-    setOpenGroups((current) => current[activeGroupId] ? current : { ...current, [activeGroupId]: true });
+    queueMicrotask(() => setOpenGroups((current) => current[activeGroupId] ? current : { ...current, [activeGroupId]: true }));
   }, [activeGroupId]);
 
   function toggleGroup(id: string) {

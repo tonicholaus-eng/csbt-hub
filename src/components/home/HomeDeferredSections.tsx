@@ -1,6 +1,7 @@
 import Stats from "../Stats";
 import MeetNich from "./MeetNich";
 import QuickActions from "./QuickActions";
+import MemberPulse from "./MemberPulse";
 
 export default function HomeDeferredSections({
   totalItems,
@@ -9,6 +10,7 @@ export default function HomeDeferredSections({
 }) {
   return (
     <>
+      <div className="mt-10 sm:mt-14"><MemberPulse /></div>
       <div className="mt-14 sm:mt-20">
         <QuickActions />
       </div>

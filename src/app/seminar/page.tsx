@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Footer from "../../components/Footer";
+
 import Navbar from "../../components/Navbar";
 import SeminarAcademy from "../../components/seminar/SeminarAcademy";
 import { PageHeader } from "../../components/ui/CSBTUI";
@@ -18,7 +18,7 @@ export default function SeminarPage() {
           <PageHeader eyebrow="Help & Safety" title="Safe Trader Academy" description="Complete CSBT trading-safety missions and learn practical habits before making higher-risk trades." />
           <SeminarAcademy />
         </div>
-        <Footer />
+        
       </div>
     </main>
   );

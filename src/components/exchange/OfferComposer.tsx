@@ -1,19 +1,19 @@
 "use client";
 
-import type { SupabaseClient, User } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { useMemo, useState } from "react";
 import ExchangeItemBuilder from "./ExchangeItemBuilder";
 import type { ExchangeItem, ExchangeListing, ExchangeOffer, InventoryExchangeRow, OfferSuggestion } from "../../lib/exchange/types";
 import { buildOfferSuggestions, getCompatibilityExplanation, sumExchangeItems } from "../../lib/exchange/matching";
 
 function stripSide(item: ExchangeItem): ExchangeItem {
-  const { side: _side, ...rest } = item;
+  const { side, ...rest } = item;
+  void side;
   return rest;
 }
 
 export default function OfferComposer({
   supabase,
-  user,
   listing,
   inventory,
   parentOffer,
@@ -21,7 +21,6 @@ export default function OfferComposer({
   onSent,
 }: {
   supabase: SupabaseClient;
-  user: User;
   listing: ExchangeListing;
   inventory: InventoryExchangeRow[];
   parentOffer?: ExchangeOffer | null;
@@ -50,7 +49,7 @@ export default function OfferComposer({
   const compatibilityScore = Math.max(0, Math.min(100, Math.round(valueScore * 0.75 + 20)));
   const explanation = getCompatibilityExplanation(compatibilityScore, differencePercent, false);
 
-  function useSuggestion(suggestion: OfferSuggestion) {
+  function applySuggestion(suggestion: OfferSuggestion) {
     setSenderItems(suggestion.items);
   }
 
@@ -65,7 +64,7 @@ export default function OfferComposer({
     const items = [
       ...senderItems.map((item) => ({ ...item, side: "SENDER" as const })),
       ...recipientItems.map((item) => ({ ...item, side: "RECIPIENT" as const })),
-    ].map(({ id: _id, ...item }) => item);
+    ].map(({ id, ...item }) => { void id; return item; });
 
     const { error: offerError } = await supabase.rpc("marketplace_create_offer", {
       p_listing_id: listing.id,
@@ -115,7 +114,7 @@ export default function OfferComposer({
             </div>
             <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
               {suggestions.map((suggestion) => (
-                <button key={suggestion.id} type="button" onClick={() => useSuggestion(suggestion)} className="rounded-2xl border border-white bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-cyan-300 dark:border-white/10 dark:bg-slate-950/55">
+                <button key={suggestion.id} type="button" onClick={() => applySuggestion(suggestion)} className="rounded-2xl border border-white bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-cyan-300 dark:border-white/10 dark:bg-slate-950/55">
                   <span className="text-sm font-black text-slate-950 dark:text-white">{suggestion.label}</span>
                   <span className="mt-1 block text-[10px] font-semibold leading-4 text-slate-400">{suggestion.description}</span>
                   <span className="mt-2 block text-xs font-black text-cyan-700 dark:text-cyan-300">{listing.value_source === "GCASH" ? "₱" : "🦈"} {suggestion.total.toLocaleString()} • {suggestion.differencePercent >= 0 ? "+" : ""}{suggestion.differencePercent.toFixed(1)}%</span>

@@ -2,83 +2,24 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { useAuthSession } from "../../hooks/useAuthSession";
-import type { ExchangeItem, TrustStats } from "../../lib/exchange/types";
+import type { ExchangeItem } from "../../lib/exchange/types";
+import { useTradeRoomData } from "../../hooks/useTradeRoomData";
 import { formatTradeValue } from "../../lib/valueSystem";
-
-type Room = {
-  id: string; listing_id: string | null; accepted_offer_id: string | null;
-  user_a: string; user_b: string; status: string; lock_snapshot: {
-    value_source?: string; sender_total?: number; recipient_total?: number;
-    sender_items?: ExchangeItem[]; recipient_items?: ExchangeItem[]; locked_at?: string;
-  };
-  completed_by_a: boolean; completed_by_b: boolean; created_at: string; updated_at: string;
-};
-type Profile = { user_id: string; display_name: string; roblox_username: string | null; avatar_path: string | null };
-type Message = { id: string; sender_id: string; message_type: string; body: string; created_at: string };
-type Event = { id: number; actor_id: string | null; event_type: string; body: string | null; created_at: string };
-type MMRequest = { id: string; status: string; assigned_middleman: string | null; note: string | null };
-type Middleman = { user_id: string; display_name: string; status: string; completed_cases: number };
 
 const quickMessages = ["Hi! Is this still good?", "I’m ready to trade.", "Add me on Roblox.", "I’ll join you.", "Join me when ready.", "Give me a minute.", "Please check the locked offer again.", "Sorry, I need to cancel."];
 
 export default function TradeRoomExperience({ roomId }: { roomId: string }) {
   const { supabase, user, loading: authLoading } = useAuthSession();
-  const [room, setRoom] = useState<Room | null>(null);
-  const [profiles, setProfiles] = useState<Map<string, Profile>>(new Map());
-  const [trust, setTrust] = useState<Map<string, TrustStats>>(new Map());
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [events, setEvents] = useState<Event[]>([]);
-  const [middlemen, setMiddlemen] = useState<Middleman[]>([]);
-  const [mmRequest, setMmRequest] = useState<MMRequest | null>(null);
+  const { room, profiles, trust, messages, events, middlemen, mmRequest, staffRole, error, setError, refreshRoom, refreshRequest } = useTradeRoomData({ supabase, user, authLoading, roomId });
   const [text, setText] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [rating, setRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
-  const [staffRole, setStaffRole] = useState<string | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportCategory, setReportCategory] = useState("SWITCH_ATTEMPT");
   const [reportDetails, setReportDetails] = useState("");
-
-  const load = useCallback(async () => {
-    const client = supabase;
-    if (!client || !user) return;
-    const { data: roomData, error: roomError } = await client.from("trade_rooms").select("*").eq("id", roomId).maybeSingle();
-    if (roomError || !roomData) { setError(roomError?.message ?? "Trade room not found."); return; }
-    const nextRoom = roomData as Room;
-    setRoom(nextRoom);
-    const userIds = [nextRoom.user_a, nextRoom.user_b];
-    const [profileResult, trustResult, messageResult, eventResult, rosterResult, requestResult, staffResult] = await Promise.all([
-      client.from("profiles").select("user_id,display_name,roblox_username,avatar_path").in("user_id", userIds),
-      client.from("marketplace_user_stats").select("*").in("user_id", userIds),
-      client.from("trade_messages").select("id,sender_id,message_type,body,created_at").eq("room_id", roomId).order("created_at", { ascending: true }).limit(300),
-      client.from("trade_room_events").select("id,actor_id,event_type,body,created_at").eq("room_id", roomId).order("created_at", { ascending: true }).limit(200),
-      client.from("middleman_roster").select("user_id,display_name,status,completed_cases").neq("status", "OFFLINE").order("completed_cases", { ascending: false }).limit(20),
-      client.from("middleman_requests").select("id,status,assigned_middleman,note").eq("room_id", roomId).maybeSingle(),
-      client.from("exchange_staff").select("role").eq("user_id", user.id).maybeSingle(),
-    ]);
-    setProfiles(new Map(((profileResult.data ?? []) as Profile[]).map((p) => [p.user_id, p])));
-    setTrust(new Map(((trustResult.data ?? []) as TrustStats[]).map((p) => [p.user_id, p])));
-    setMessages((messageResult.data ?? []) as Message[]);
-    setEvents((eventResult.data ?? []) as Event[]);
-    setMiddlemen((rosterResult.data ?? []) as Middleman[]);
-    setMmRequest((requestResult.data as MMRequest | null) ?? null);
-    setStaffRole(typeof staffResult.data?.role === "string" ? staffResult.data.role : null);
-  }, [roomId, supabase, user]);
-
-  useEffect(() => { if (!authLoading) void load(); }, [authLoading, load]);
-  useEffect(() => {
-    const client = supabase;
-    if (!client || !user) return;
-    const channel = client.channel(`trade-room-${roomId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "trade_messages", filter: `room_id=eq.${roomId}` }, () => void load())
-      .on("postgres_changes", { event: "*", schema: "public", table: "trade_rooms", filter: `id=eq.${roomId}` }, () => void load())
-      .subscribe();
-    return () => { void client.removeChannel(channel); };
-  }, [load, roomId, supabase, user]);
-
   const isParticipant = Boolean(room && user && (room.user_a === user.id || room.user_b === user.id));
   const isAssignedMiddleman = Boolean(room && user && mmRequest?.assigned_middleman === user.id && !isParticipant);
   const isStaffViewer = Boolean(room && user && staffRole && !isParticipant && !isAssignedMiddleman);
@@ -99,13 +40,13 @@ export default function TradeRoomExperience({ roomId }: { roomId: string }) {
     const client = supabase;
     if (!client || !user || !body.trim()) return;
     const { error: sendError } = await client.from("trade_messages").insert({ room_id: roomId, sender_id: user.id, message_type: type, body: body.trim().slice(0, 500) });
-    if (sendError) setError(sendError.message); else { setText(""); await load(); }
+    if (sendError) setError(sendError.message); else { setText(""); }
   }
-  async function setStatus(status: string) { const client = supabase; if (!client) return; const { error: rpcError } = await client.rpc("marketplace_set_room_status", { p_room_id: roomId, p_status: status }); if (rpcError) setError(rpcError.message); else await load(); }
-  async function confirmCompletion() { const client = supabase; if (!client) return; const { error: rpcError } = await client.rpc("marketplace_confirm_completion", { p_room_id: roomId }); if (rpcError) setError(rpcError.message); else await load(); }
-  async function requestMiddleman() { const client = supabase; if (!client || !user) return; const { error: requestError } = await client.rpc("marketplace_request_middleman", { p_room_id: roomId, p_note: "Requested through CSBT Exchange trade room." }); if (requestError) setError(requestError.message); else await load(); }
-  async function cancelMiddlemanRequest() { const client = supabase; if (!client || !mmRequest) return; const { error: cancelError } = await client.rpc("marketplace_cancel_middleman_request", { p_request_id: mmRequest.id }); if (cancelError) setError(cancelError.message); else await load(); }
-  async function submitReview() { const client = supabase; if (!client || !user || !otherId) return; const { error: reviewError } = await client.from("trade_reviews").insert({ room_id: roomId, reviewer_id: user.id, reviewee_id: otherId, rating, communication: rating, safety: rating, comment: reviewComment.trim().slice(0, 500) || null }); if (reviewError) setError(reviewError.message); else { setReviewOpen(false); await load(); } }
+  async function setStatus(status: string) { const client = supabase; if (!client) return; const { error: rpcError } = await client.rpc("marketplace_set_room_status", { p_room_id: roomId, p_status: status }); if (rpcError) setError(rpcError.message); else await refreshRoom(); }
+  async function confirmCompletion() { const client = supabase; if (!client) return; const { error: rpcError } = await client.rpc("marketplace_confirm_completion", { p_room_id: roomId }); if (rpcError) setError(rpcError.message); else await refreshRoom(); }
+  async function requestMiddleman() { const client = supabase; if (!client || !user) return; const { error: requestError } = await client.rpc("marketplace_request_middleman", { p_room_id: roomId, p_note: "Requested through CSBT Exchange trade room." }); if (requestError) setError(requestError.message); else await refreshRequest(); }
+  async function cancelMiddlemanRequest() { const client = supabase; if (!client || !mmRequest) return; const { error: cancelError } = await client.rpc("marketplace_cancel_middleman_request", { p_request_id: mmRequest.id }); if (cancelError) setError(cancelError.message); else await refreshRequest(); }
+  async function submitReview() { const client = supabase; if (!client || !user || !otherId) return; const { error: reviewError } = await client.from("trade_reviews").insert({ room_id: roomId, reviewer_id: user.id, reviewee_id: otherId, rating, communication: rating, safety: rating, comment: reviewComment.trim().slice(0, 500) || null }); if (reviewError) setError(reviewError.message); else { setReviewOpen(false); } }
   async function reportProblem() {
     const client = supabase;
     if (!client || !user || !otherId || reportDetails.trim().length < 5) return;
@@ -113,7 +54,7 @@ export default function TradeRoomExperience({ roomId }: { roomId: string }) {
     if (reportError) { setError(reportError.message); return; }
     const { error: statusError } = await client.rpc("marketplace_set_room_status", { p_room_id: roomId, p_status: "DISPUTED" });
     if (statusError) setError(statusError.message);
-    setReportOpen(false); setReportDetails(""); await load();
+    setReportOpen(false); setReportDetails(""); await refreshRoom();
   }
 
   if (authLoading) return <div className="min-h-80 animate-pulse rounded-[30px] bg-white/60 dark:bg-white/5" />;

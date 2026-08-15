@@ -11,6 +11,7 @@ const projectRoot = process.cwd();
 const excelPath = path.join(projectRoot, "source-data", "trading-data.xlsx");
 const elveSnapshotPath = path.join(projectRoot, "source-data", "elve-shark-values.json");
 const outputPath = path.join(projectRoot, "src", "data", "tradingItems.json");
+const clientIndexPath = path.join(projectRoot, "src", "data", "tradingItemsIndex.json");
 const sourceMetadataPath = path.join(projectRoot, "src", "data", "valueSources.json");
 const tradingMetaPath = path.join(projectRoot, "src", "data", "tradingMeta.json");
 const validationReportPath = path.join(projectRoot, "source-data", "trading-data-validation.json");
@@ -534,6 +535,17 @@ function generateTradingItems() {
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, `${JSON.stringify(tradingItems, null, 2)}\n`, "utf8");
 
+  // Compact runtime index used by client-side search, calculator, inventory,
+  // wishlist, Exchange and Nich. Keep this tuple order in sync with
+  // src/lib/clientItemIndex.ts. The full JSON remains available for server/data jobs.
+  const clientIndex = tradingItems.map((item) => [
+    item.ID, item.NAME, item.CATEGORY, item.IMAGE ?? "",
+    item.GCASH_NORMAL ?? null, item.GCASH_NEON ?? null, item.GCASH_MEGA ?? null,
+    item.ELVE_NORMAL ?? null, item.ELVE_NEON ?? null, item.ELVE_MEGA ?? null,
+    item.RARITY ?? null, item.DEMAND_TIER ?? null, item.UPDATED_AT ?? null, item.POTION_VALUES ?? null,
+  ]);
+  fs.writeFileSync(clientIndexPath, `${JSON.stringify(clientIndex)}\n`, "utf8");
+
   const sourceMetadata = {
     defaultSource: "GCASH",
     sources: {
@@ -598,6 +610,7 @@ function generateTradingItems() {
   }
   console.log(`Total: ${tradingItems.length}`);
   console.log(`Created: ${outputPath}`);
+  console.log(`Client search index: ${clientIndexPath}`);
   console.log(`Value-source metadata: ${sourceMetadataPath}`);
   console.log(`Homepage metadata: ${tradingMetaPath}`);
   console.log(`Warnings: ${warnings.length}`);

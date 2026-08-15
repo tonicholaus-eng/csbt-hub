@@ -25,10 +25,16 @@ export default function ExchangeDemandPulse() {
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
   const [events, setEvents] = useState<MarketEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (!supabase) {
-      setLoading(false);
+      queueMicrotask(() => setLoading(false));
       return;
     }
 
@@ -51,7 +57,7 @@ export default function ExchangeDemandPulse() {
       }
     }
 
-    void load();
+    void queueMicrotask(() => load());
 
     const channel = client
       .channel("exchange-demand-pulse")
@@ -65,7 +71,6 @@ export default function ExchangeDemandPulse() {
   }, [supabase]);
 
   const rows = useMemo(() => {
-    const now = Date.now();
     const oneDay = 24 * 60 * 60 * 1000;
     const map = new Map<string, DemandRow>();
 
@@ -101,7 +106,7 @@ export default function ExchangeDemandPulse() {
       .filter((row) => row.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, 6);
-  }, [events]);
+  }, [events, now]);
 
   return (
     <section className="mx-auto mt-10 max-w-6xl rounded-[30px] border border-cyan-100 bg-white/75 p-4 shadow-[0_18px_50px_rgba(15,23,42,.08)] backdrop-blur-xl dark:border-cyan-400/10 dark:bg-slate-950/65 sm:p-6">

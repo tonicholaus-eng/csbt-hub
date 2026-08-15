@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Footer from "../../components/Footer";
+
 import Navbar from "../../components/Navbar";
 import TradeVotingBoard from "../../components/community/TradeVotingBoard";
 import { PageHeader } from "../../components/ui/CSBTUI";
@@ -14,7 +14,7 @@ export default function TradeFeedPage() {
     <main className="csbt-page">
       <Navbar />
       <div className="relative z-10 min-w-0 lg:pl-[268px]">
-        <div className="csbt-workspace max-w-[1280px] pb-28 sm:pb-32">
+        <div className="csbt-app-workspace max-w-[1560px]">
           <PageHeader
             eyebrow="Community Trades"
             title="Win / Fair / Lose"
@@ -22,7 +22,7 @@ export default function TradeFeedPage() {
           />
           <TradeVotingBoard />
         </div>
-        <Footer />
+        
       </div>
     </main>
   );

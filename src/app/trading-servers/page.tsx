@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Footer from "../../components/Footer";
+
 import Navbar from "../../components/Navbar";
 import TradingServersDirectory from "../../components/trading-servers/TradingServersDirectory";
 import { PageHeader } from "../../components/ui/CSBTUI";
@@ -18,7 +18,7 @@ export default function TradingServersPage() {
           <PageHeader eyebrow="Lounge" title="Trading Servers" description="Browse community Discord, Facebook, and Roblox destinations from one organized CSBT directory." />
           <TradingServersDirectory />
         </div>
-        <Footer />
+        
       </div>
     </main>
   );

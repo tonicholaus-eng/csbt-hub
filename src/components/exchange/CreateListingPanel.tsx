@@ -1,6 +1,6 @@
 "use client";
 
-import type { SupabaseClient, User } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { useState } from "react";
 import ExchangeItemBuilder from "./ExchangeItemBuilder";
 import type { ExchangeItem, ListingIntent } from "../../lib/exchange/types";
@@ -19,12 +19,10 @@ const intents: Array<{ value: ListingIntent; label: string; text: string }> = [
 
 export default function CreateListingPanel({
   supabase,
-  user,
   onCreated,
   onCancel,
 }: {
   supabase: SupabaseClient;
-  user: User;
   onCreated: () => void;
   onCancel?: () => void;
 }) {
@@ -66,7 +64,7 @@ export default function CreateListingPanel({
     const items = [
       ...have.map((row) => ({ ...row, side: "HAVE" as const })),
       ...want.map((row) => ({ ...row, side: "WANT" as const })),
-    ].map(({ id: _id, ...row }) => row);
+    ].map(({ id, ...row }) => { void id; return row; });
 
     const { error: listingError } = await supabase.rpc("marketplace_create_listing", {
       p_value_source: source,

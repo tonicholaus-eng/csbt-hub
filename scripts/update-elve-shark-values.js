@@ -382,7 +382,7 @@ function snapshotsHaveSameValues(previousSnapshot, nextSnapshot) {
   );
 }
 
-function useLastKnownGoodSnapshot(previousSnapshot, error) {
+function fallbackToLastKnownGoodSnapshot(previousSnapshot, error) {
   if (!previousSnapshot) throw error;
 
   validateSnapshot(previousSnapshot, null);
@@ -399,7 +399,7 @@ async function main() {
   try {
     fetched = await fetchElveData();
   } catch (error) {
-    useLastKnownGoodSnapshot(previousSnapshot, error);
+    fallbackToLastKnownGoodSnapshot(previousSnapshot, error);
     return;
   }
 

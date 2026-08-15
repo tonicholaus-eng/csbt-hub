@@ -30,8 +30,8 @@ export default function ValueHistoryCard({
 
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true);
-    setError(null);
+    queueMicrotask(() => setLoading(true));
+    queueMicrotask(() => setError(null));
 
     void fetch(`/api/value-history?itemId=${encodeURIComponent(itemId)}&source=${source}&type=${valueType}&days=${days}`, { signal: controller.signal })
       .then(async (response) => {

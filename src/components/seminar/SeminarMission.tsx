@@ -75,8 +75,8 @@ export default function SeminarMission({
   }, []);
 
   useEffect(() => {
-    setActivityPassed(false);
-    setQuizPassed(false);
+    queueMicrotask(() => setActivityPassed(false));
+    queueMicrotask(() => setQuizPassed(false));
   }, [mission.id]);
 
   const theme = themeStyles[mission.theme];
@@ -285,9 +285,9 @@ function MultiSelectPanel({
   const [passed, setPassed] = useState(false);
 
   useEffect(() => {
-    setSelectedIds([]);
-    setSubmitted(false);
-    setPassed(false);
+    queueMicrotask(() => setSelectedIds([]));
+    queueMicrotask(() => setSubmitted(false));
+    queueMicrotask(() => setPassed(false));
     onPassed(false);
   }, [activity, onPassed]);
 
@@ -399,9 +399,9 @@ function SequencePanel({
   const [passed, setPassed] = useState(false);
 
   useEffect(() => {
-    setChosenIds([]);
-    setSubmitted(false);
-    setPassed(false);
+    queueMicrotask(() => setChosenIds([]));
+    queueMicrotask(() => setSubmitted(false));
+    queueMicrotask(() => setPassed(false));
     onPassed(false);
   }, [activity, onPassed]);
 
@@ -523,9 +523,9 @@ function ClassifyPanel({
   const [passed, setPassed] = useState(false);
 
   useEffect(() => {
-    setAnswers({});
-    setSubmitted(false);
-    setPassed(false);
+    queueMicrotask(() => setAnswers({}));
+    queueMicrotask(() => setSubmitted(false));
+    queueMicrotask(() => setPassed(false));
     onPassed(false);
   }, [activity, onPassed]);
 

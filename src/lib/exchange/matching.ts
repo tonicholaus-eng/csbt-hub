@@ -95,7 +95,6 @@ export function scoreListingMatch(
     (sum, item) => sum + Math.min(Math.max(1, item.quantity), inventoryQuantity.get(item.item_id) ?? 0),
     0,
   );
-  const wantedMatches = effectiveWant.filter((item) => (inventoryQuantity.get(item.item_id) ?? 0) > 0);
   const inventoryCompatibility = requestedUnits > 0
     ? Math.round((matchedRequestedUnits / requestedUnits) * 100)
     : 72;

@@ -171,16 +171,16 @@ export default function InventoryCalculator() {
     queryHandled.current = true;
     if (!item) return;
     const requestedSource: ValueSource = searchParams.get("source") === "ELVE" ? "ELVE" : "GCASH";
-    setSource(requestedSource);
+    queueMicrotask(() => setSource(requestedSource));
     const valueType: ValueType = hasItemValue(item, requestedSource, "NORMAL") ? "NORMAL" : hasItemValue(item, requestedSource, "NEON") ? "NEON" : hasItemValue(item, requestedSource, "MEGA") ? "MEGA" : "NORMAL";
     const identity = makeKey(item.ID, valueType, "BASE");
-    setEntries((current) => {
+    queueMicrotask(() => setEntries((current) => {
       const existingIndex = current.findIndex((entry) => makeKey(entry.itemId, entry.valueType, entry.potionStatus) === identity);
       if (existingIndex === -1) return [...current, { key: crypto.randomUUID(), itemId: item.ID, valueType, potionStatus: "BASE", quantity: 1 }];
       return current.map((entry, index) => index === existingIndex ? { ...entry, quantity: safeQuantity(entry.quantity + 1) } : entry);
-    });
-    setDirty(true);
-    setNotice(`${item.NAME} added to your inventory.`);
+    }));
+    queueMicrotask(() => setDirty(true));
+    queueMicrotask(() => setNotice(`${item.NAME} added to your inventory.`));
   }, [loaded, searchParams]);
 
   function updateEntry(key: string, patch: Partial<InventoryEntry>) {

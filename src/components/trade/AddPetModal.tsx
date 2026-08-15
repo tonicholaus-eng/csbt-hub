@@ -14,7 +14,7 @@ import {
   useReducedMotion,
 } from "framer-motion";
 
-import tradingItemsData from "../../data/tradingItems.json";
+import { itemList } from "../../lib/search";
 import {
   ItemCategory,
   TradeItem,
@@ -65,8 +65,7 @@ const categoryOptions: { value: CategoryFilter; label: string; icon: string }[] 
   { value: "OTHER", label: "Other", icon: "📦" },
 ];
 
-const tradingItems =
-  tradingItemsData as TradeItem[];
+const tradingItems = itemList;
 
 function ItemImage({
   src,
@@ -77,7 +76,7 @@ function ItemImage({
     useState(false);
 
   useEffect(() => {
-    setImageFailed(false);
+    queueMicrotask(() => setImageFailed(false));
   }, [src]);
 
   if (!src || imageFailed) {
@@ -228,9 +227,9 @@ export default function AddPetModal({
     filteredItems.length;
 
   useEffect(() => {
-    setVisibleCount(
+    queueMicrotask(() => setVisibleCount(
       ITEMS_PER_PAGE,
-    );
+    ));
   }, [
     normalizedSearch,
     selectedCategory,
@@ -239,13 +238,13 @@ export default function AddPetModal({
 
   useEffect(() => {
     if (!open) {
-      setSearch("");
-      setSelectedCategory(
+      queueMicrotask(() => setSearch(""));
+      queueMicrotask(() => setSelectedCategory(
         "ALL",
-      );
-      setVisibleCount(
+      ));
+      queueMicrotask(() => setVisibleCount(
         ITEMS_PER_PAGE,
-      );
+      ));
       return;
     }
 

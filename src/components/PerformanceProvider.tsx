@@ -9,7 +9,7 @@ export default function PerformanceProvider({ children }: { children: ReactNode 
   useEffect(() => {
     const query = window.matchMedia("(max-width: 767px)");
     const update = () => setMobile(query.matches);
-    update();
+    queueMicrotask(update);
     query.addEventListener?.("change", update);
     return () => query.removeEventListener?.("change", update);
   }, []);

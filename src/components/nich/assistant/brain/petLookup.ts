@@ -17,7 +17,6 @@ import {
   findPetByName,
   formatPetValue,
   getAvailablePetVariants,
-  getPetVariantValue,
   getRawPetVariantValue,
   isPetWearRecord,
   normalizeText,
@@ -201,26 +200,48 @@ function applyRememberedVariant(
 }
 
 function getAnalysisMatches(analysis: NichMessageAnalysis): PetMessageMatch[] {
+  // For a direct value lookup, the resolution of the COMPLETE cleaned query is
+  // more authoritative than shorter item names embedded inside it.
+  // Examples:
+  //   "shark puppy gcash" -> Shark Puppy (not generic puppy matches)
+  //   "balloon uni"      -> Balloon Unicorn (not Balloon + Unicorn)
+  //   "gold uni value"   -> Golden Unicorn (not regular Unicorn)
+  if (analysis.itemResolution?.status === "matched") {
+    const match = analysis.itemResolution.match;
+    const isStrongDirectApproximation =
+      analysis.isDirectLookup &&
+      (
+        (match.matchKind === "prefix" && match.confidence >= 0.94) ||
+        (match.matchKind === "token-prefix" && match.confidence >= 0.93) ||
+        (match.matchKind === "token-subset" && match.confidence >= 0.91) ||
+        (match.matchKind === "fuzzy" && match.confidence >= 0.9)
+      );
+
+    if (
+      analysis.pets.length === 0 ||
+      match.matchKind === "exact" ||
+      match.matchKind === "alias" ||
+      isStrongDirectApproximation
+    ) {
+      return [
+        {
+          pet: match.pet,
+          matchedName: match.matchedName,
+          variant: analysis.requestedVariant ?? undefined,
+          lineIndex: 0,
+          quantity: 1,
+          confidence: match.confidence,
+          matchKind: match.matchKind,
+        },
+      ];
+    }
+  }
+
   if (analysis.pets.length > 0) {
     return analysis.pets;
   }
 
-  if (analysis.itemResolution?.status !== "matched") {
-    return [];
-  }
-
-  const match = analysis.itemResolution.match;
-  return [
-    {
-      pet: match.pet,
-      matchedName: match.matchedName,
-      variant: analysis.requestedVariant ?? undefined,
-      lineIndex: 0,
-      quantity: 1,
-      confidence: match.confidence,
-      matchKind: match.matchKind,
-    },
-  ];
+  return [];
 }
 
 function createContextPet(

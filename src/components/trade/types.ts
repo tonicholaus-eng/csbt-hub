@@ -35,7 +35,7 @@ export type TradeItem = {
   ELVE_MEGA?: TradeValue;
 
   /** Backward-compatible GCash aliases. */
-  NORMAL: TradeValue;
+  NORMAL?: TradeValue;
   NEON?: TradeValue;
   MEGA?: TradeValue;
 

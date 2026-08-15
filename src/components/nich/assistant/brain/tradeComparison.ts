@@ -13,7 +13,7 @@ import {
   analyzeNichMessage,
   type NichMessageAnalysis,
 } from "./messageAnalysis";
-import { compareTrade } from "../tools/tradeComparison";
+import { compareTrade, parseTradeMessageLenient, type ParsedTradeItem } from "../tools/tradeComparison";
 import { formatNumber, uniqueBy } from "./language";
 
 const verdictEmoji = {
@@ -201,6 +201,63 @@ function createRecentPets(items: NichTradeItem[]) {
   }));
 }
 
+function formatPartialItem(item: ParsedTradeItem) {
+  return `${item.code === "Normal" ? "" : `${item.code} `}${item.petName}`.trim();
+}
+
+function formatPartialSide(
+  items: ParsedTradeItem[],
+  unresolvedTexts: string[],
+) {
+  return [
+    ...items.map(formatPartialItem),
+    ...unresolvedTexts.map((text) => `[${text}]`),
+  ].join(" + ");
+}
+
+function createIncompleteTradeClarification(
+  input: NichBrainInput,
+  source: NichValueSource,
+): NichResponse | null {
+  const partial = parseTradeMessageLenient(input.message);
+  if (!partial) return null;
+
+  const unresolved = [
+    ...partial.unresolvedOfferTexts,
+    ...partial.unresolvedRequestTexts,
+  ];
+  if (unresolved.length === 0) return null;
+
+  const yourSide = formatPartialSide(
+    partial.offerItems,
+    partial.unresolvedOfferTexts,
+  );
+  const theirSide = formatPartialSide(
+    partial.requestItems,
+    partial.unresolvedRequestTexts,
+  );
+
+  return {
+    text: [
+      "I understood the trade, but I need the missing item name(s) before I can give a reliable W/F/L.",
+      "",
+      ...(yourSide ? [`Your Offer: ${yourSide}`] : []),
+      ...(theirSide ? [`Their Offer: ${theirSide}`] : []),
+      "",
+      `Please replace ${unresolved.map((text) => `“${text}”`).join(", ")} with the actual pet/item name${unresolved.length === 1 ? "" : "s"}.`,
+    ].join("\n"),
+    intent: "tradeComparison",
+    reaction: "searchEmpty",
+    localConfidence: 0.99,
+    aiEligible: false,
+    typingDuration: 450,
+    context: {
+      lastIntent: "tradeComparison",
+      lastValueSource: source,
+    },
+  };
+}
+
 export function createTradeComparisonResponse(
   input: NichBrainInput,
   providedAnalysis?: NichMessageAnalysis,
@@ -212,7 +269,9 @@ export function createTradeComparisonResponse(
   ) as NichValueSource;
   const parsed = analysis.tradeQuery;
 
-  if (!parsed) return null;
+  if (!parsed) {
+    return createIncompleteTradeClarification(input, source);
+  }
 
   const comparison = compareTrade(parsed.offerText, parsed.requestText, source);
   if (!comparison) {

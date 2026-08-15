@@ -9,7 +9,7 @@ export function useUnreadNotifications() {
 
   useEffect(() => {
     if (!supabase || !user) {
-      setCount(0);
+      queueMicrotask(() => setCount(0));
       return;
     }
 
@@ -29,7 +29,7 @@ export function useUnreadNotifications() {
       if (active && typeof nextCount === "number") setCount(nextCount);
     }
 
-    void load();
+    void queueMicrotask(() => load());
 
     const channel = client
       .channel(`csbt-notifications-${currentUser.id}`)

@@ -38,6 +38,11 @@ const tradeCases: Array<[string, RegExp]> = [
   ["i give frost dragon get owl", /^Frost Dragon VS Owl$/],
   ["frost dragon vs owl", /^Frost Dragon VS Owl$/],
   ["nfr kangaroo vs fr cow", /^NFR Kangaroo VS FR Cow$/],
+  ["me frost dragon and them balloon uni + cow", /^Frost Dragon VS Balloon Unicorn \+ Cow$/],
+  ["me frost drag and turtle and them balloon uni and cow", /^Frost Dragon \+ Turtle VS Balloon Unicorn \+ Cow$/],
+  ["i give frost drag and turtle and they give balloon uni and cow", /^Frost Dragon \+ Turtle VS Balloon Unicorn \+ Cow$/],
+  ["i have frost dragon and they have balloon uni", /^Frost Dragon VS Balloon Unicorn$/],
+  ["wfl me nfrballoonuni and cow them frfrostdrag and turtle", /^NFR Balloon Unicorn \+ Cow VS FR Frost Dragon \+ Turtle$/],
 ];
 
 for (const [message, expected] of tradeCases) {
@@ -64,6 +69,12 @@ const lookupCases: Array<[string, string]> = [
   ["monkking", "Monkey King"],
   ["kangroo", "Kangaroo"],
   ["parrrot", "Parrot"],
+  ["balloon uni", "Balloon Unicorn"],
+  ["ball uni", "Balloon Unicorn"],
+  ["diamond uni", "Diamond Unicorn"],
+  ["gold uni", "Golden Unicorn"],
+  ["frost uni", "Frost Unicorn"],
+  ["nfrballoonuni", "Balloon Unicorn"],
 ];
 
 for (const [query, expectedName] of lookupCases) {
@@ -76,6 +87,13 @@ const routingLookupCases: Array<[string, string]> = [
   ["0wl value", "Owl"],
   ["frbatdrag", "Bat Dragon"],
   ["magkano batdrag", "Bat Dragon"],
+  ["shark puppy gcash", "Shark Puppy"],
+  ["shark puppy gcash value", "Shark Puppy"],
+  ["shark puppy elve", "Shark Puppy"],
+  ["balloon uni", "Balloon Unicorn"],
+  ["balloon uni gcash", "Balloon Unicorn"],
+  ["nfr balloon uni value", "Balloon Unicorn"],
+  ["gold uni value", "Golden Unicorn"],
 ];
 
 for (const [message, expectedName] of routingLookupCases) {
@@ -84,6 +102,13 @@ for (const [message, expectedName] of routingLookupCases) {
   assert(routed.aiEligible === false || (routed.localConfidence ?? 0) >= 0.9, `Lookup should not need paid AI: ${message}`);
   assert(routed.text.toLowerCase().includes(expectedName.toLowerCase()), `Lookup response missing ${expectedName}: ${message}`);
 }
+
+const sharkPuppyGcash = ask("shark puppy gcash");
+assert(/Shark Puppy/i.test(sharkPuppyGcash.text), "Shark Puppy GCash lookup must resolve the exact pet, not generic puppy matches.");
+assert(/Normal:\s*180(?:\b|\.)/i.test(sharkPuppyGcash.text), `Expected Shark Puppy GCash normal value 180; got: ${sharkPuppyGcash.text}`);
+const sharkPuppyElve = ask("shark puppy elve");
+assert(/Shark Puppy/i.test(sharkPuppyElve.text), "Shark Puppy Elve lookup must resolve the exact pet.");
+assert(/Normal:\s*12\.5\b/i.test(sharkPuppyElve.text), `Expected Shark Puppy Elve normal value 12.5; got: ${sharkPuppyElve.text}`);
 
 const adviceCases = [
   "what does high demand mean",
@@ -110,6 +135,13 @@ for (const message of compactFallbacks) {
 // Ambiguous/unknown trading text should fail safely and locally rather than require AI.
 const unknownTrade = ask("wfl me mfr parrot them mysterydragon999 and cow");
 assert(unknownTrade.aiEligible === false || (unknownTrade.localConfidence ?? 0) >= 0.9, "Unresolved trade should prefer local clarification over paid AI");
+
+const vagueAddsTrade = ask("me frost dragon and them balloon uni + other pets");
+assert(vagueAddsTrade.intent === "tradeComparison", "Vague adds should still understand the trade structure locally");
+assert(vagueAddsTrade.aiEligible === false, "Vague adds clarification must not spend paid AI");
+assert(/Frost Dragon/i.test(vagueAddsTrade.text), "Vague adds clarification should retain Frost Dragon");
+assert(/Balloon Unicorn/i.test(vagueAddsTrade.text), "Vague adds clarification should resolve Balloon Uni to Balloon Unicorn");
+assert(/other pets/i.test(vagueAddsTrade.text) && /actual pet|missing item/i.test(vagueAddsTrade.text), "Vague adds should request the missing pet names instead of calculating a partial WFL");
 
 console.log("NICH Credit Saver local parsing tests passed.");
 console.log(`Trade scenarios: ${tradeCases.length}`);

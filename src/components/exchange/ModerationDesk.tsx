@@ -79,7 +79,7 @@ export default function ModerationDesk() {
     setLoading(false);
   }, [supabase, user]);
 
-  useEffect(() => { if (!authLoading) void load(); }, [authLoading, load]);
+  useEffect(() => { if (!authLoading) void queueMicrotask(() => load()); }, [authLoading, load]);
   useEffect(() => {
     const client = supabase;
     if (!client || !staff) return;

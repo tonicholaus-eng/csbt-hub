@@ -47,7 +47,7 @@ function ItemImage({
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    setFailed(false);
+    queueMicrotask(() => setFailed(false));
   }, [src]);
 
   if (!src || failed) {

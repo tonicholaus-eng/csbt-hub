@@ -9,6 +9,18 @@ export type NichVisionImageType =
 export type NichVisionSide = "YOU" | "THEM" | "NONE";
 export type NichVisionVariant = "NORMAL" | "NEON" | "MEGA" | "UNKNOWN";
 export type NichVisionPotion = "NONE" | "F" | "R" | "FR" | "UNKNOWN";
+export type NichVisionCategory =
+  | "PET"
+  | "PETWEAR"
+  | "EGG"
+  | "VEHICLE"
+  | "FOOD"
+  | "GIFT"
+  | "STROLLER"
+  | "TOY"
+  | "STICKER"
+  | "OTHER"
+  | "UNKNOWN";
 
 export type NichVisionRawItem = {
   rawName: string;
@@ -17,13 +29,19 @@ export type NichVisionRawItem = {
   potion: NichVisionPotion;
   quantity: number;
   confidence: number;
+  categoryHint?: NichVisionCategory;
+  candidateNames?: string[];
+  visualEvidence?: string;
   visibleText?: string;
+  slot?: number;
 };
 
 export type NichVisionModelResult = {
   imageType: NichVisionImageType;
   layoutConfidence: number;
   items: NichVisionRawItem[];
+  youOccupiedSlots?: number;
+  themOccupiedSlots?: number;
   note?: string;
 };
 
@@ -34,6 +52,7 @@ export type NichVisionVerifiedItem = NichVisionRawItem & {
   databaseConfidence: number;
   verified: boolean;
   alternatives: string[];
+  verificationReason?: string;
 };
 
 export type NichVisionApiResponse = {
@@ -100,9 +119,23 @@ function clampConfidence(value: unknown) {
   return Math.max(0, Math.min(1, number));
 }
 
+function categoryMatches(item: { CATEGORY?: unknown }, hint?: NichVisionCategory) {
+  if (!hint || hint === "UNKNOWN") return true;
+  return String(item.CATEGORY ?? "OTHER") === hint;
+}
+
+function uniqueItems<T extends { ID: string }>(items: T[]): T[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (seen.has(item.ID)) return false;
+    seen.add(item.ID);
+    return true;
+  });
+}
+
 const VISION_EXACT_NAME_COLLISION_GUARDS: Record<string, string[]> = {
-  // These are separate Adopt Me pets. If Gemini collapses a specific pet into
-  // the generic Panda label, refusing the trade is safer than using a wrong value.
+  // Known cases where the shorter label has already caused wrong-value output.
+  // These are intentionally strict for icon-only screenshots.
   panda: [
     "Giant Panda",
     "Red Panda",
@@ -119,13 +152,26 @@ function visibleTextConfirmsExactName(raw: NichVisionRawItem, rawName: string) {
   return visible === target || visible.includes(target);
 }
 
+function exactCandidateItems(raw: NichVisionRawItem) {
+  return (raw.candidateNames ?? [])
+    .map((name) => getItem(name.trim()))
+    .filter((item): item is NonNullable<ReturnType<typeof getItem>> => Boolean(item))
+    .filter((item) => categoryMatches(item, raw.categoryHint));
+}
+
 export function verifyVisionItem(raw: NichVisionRawItem): NichVisionVerifiedItem {
   const rawName = raw.rawName.trim();
-  const exact = rawName ? getItem(rawName) : undefined;
-  const searched = rawName ? searchItems(rawName, 8) : [];
-  const candidates = exact
-    ? [exact, ...searched.filter((item) => item.ID !== exact.ID)]
-    : searched;
+  const rawExact = rawName ? getItem(rawName) : undefined;
+  const exact = rawExact && categoryMatches(rawExact, raw.categoryHint) ? rawExact : undefined;
+  const searched = rawName
+    ? searchItems(rawName, 12).filter((item) => categoryMatches(item, raw.categoryHint))
+    : [];
+  const modelCandidateItems = exactCandidateItems(raw);
+  const candidates = uniqueItems([
+    ...(exact ? [exact] : []),
+    ...modelCandidateItems,
+    ...searched,
+  ]);
   const best = candidates[0];
   const databaseConfidence = best
     ? exact
@@ -133,6 +179,8 @@ export function verifyVisionItem(raw: NichVisionRawItem): NichVisionVerifiedItem
       : similarity(rawName, best.NAME)
     : 0;
   const aiConfidence = clampConfidence(raw.confidence);
+  const textConfirmed = exact ? visibleTextConfirmsExactName(raw, exact.NAME) : false;
+
   const collisionGuardNames = VISION_EXACT_NAME_COLLISION_GUARDS[normalizeName(rawName)] ?? [];
   const specificityAlternatives = best
     ? candidates.filter(
@@ -145,20 +193,52 @@ export function verifyVisionItem(raw: NichVisionRawItem): NichVisionVerifiedItem
   const specificityAmbiguous = Boolean(
     exact &&
       specificityAlternatives.length > 0 &&
-      !visibleTextConfirmsExactName(raw, rawName),
+      !textConfirmed,
   );
 
-  // Exact canonical names can normally be accepted at a slightly lower visual confidence.
-  // Fuzzy matches need both stronger visual confidence and a strong database name match.
-  // Known generic/specific collisions are intentionally NOT auto-accepted from icon-only
-  // screenshots: a wrong value is worse than asking the user to clarify the pet.
-  const verified = Boolean(
-    best &&
-      !specificityAmbiguous &&
-      (exact
-        ? aiConfidence >= 0.68
-        : aiConfidence >= 0.78 && databaseConfidence >= 0.76),
-  );
+  const modelAlternatives = modelCandidateItems.filter((item) => item.ID !== best?.ID);
+  const modelExpressedAmbiguity = modelAlternatives.length > 0;
+  const categoryMismatch = Boolean(rawExact && !exact);
+
+  // Screenshot recognition is deliberately conservative. A wrong exact pet name
+  // is far more damaging than asking for a clearer screenshot, because a wrong
+  // identification immediately produces a wrong CSBT value/WFL. Visible item-name
+  // text can lower the threshold; icon-only recognition must be substantially
+  // more confident. Fuzzy name correction is stricter again.
+  let verified = false;
+  let verificationReason = "unverified";
+
+  if (!best) {
+    verificationReason = "not-in-csbt-catalog";
+  } else if (categoryMismatch) {
+    verificationReason = "category-mismatch";
+  } else if (specificityAmbiguous) {
+    verificationReason = "specificity-ambiguous";
+  } else if (modelExpressedAmbiguity) {
+    // candidateNames is specifically defined as the set of genuinely plausible
+    // visual identities. If Gemini gives more than one, NICH should ask rather
+    // than turn that uncertainty into a real CSBT value.
+    verificationReason = "model-reported-alternatives";
+  } else if (exact) {
+    const threshold = textConfirmed ? 0.64 : 0.84;
+    verified = aiConfidence >= threshold;
+    verificationReason = verified
+      ? textConfirmed
+        ? "exact-visible-text"
+        : "exact-high-confidence"
+      : "exact-low-confidence";
+  } else {
+    verified = aiConfidence >= 0.88 && databaseConfidence >= 0.82;
+    verificationReason = verified ? "fuzzy-high-confidence" : "fuzzy-low-confidence";
+  }
+
+  const alternatives = uniqueItems([
+    ...specificityAlternatives,
+    ...modelAlternatives,
+    ...candidates.filter((item) => item.ID !== best?.ID),
+  ])
+    .slice(0, 4)
+    .map((item) => item.NAME);
 
   return {
     ...raw,
@@ -174,9 +254,8 @@ export function verifyVisionItem(raw: NichVisionRawItem): NichVisionVerifiedItem
       : {}),
     databaseConfidence,
     verified,
-    alternatives: (specificityAmbiguous ? specificityAlternatives : candidates)
-      .slice(0, 3)
-      .map((item) => item.NAME),
+    alternatives,
+    verificationReason,
   };
 }
 

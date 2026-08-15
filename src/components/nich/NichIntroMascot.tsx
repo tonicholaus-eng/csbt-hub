@@ -28,19 +28,19 @@ const desktopSteps: TourStep[] = [
   { eyebrow:"Welcome to CSBT HUB", title:"Your trading hub, all in one place.", description:"CSBT combines values, inventory, trading tools, market information, community features, safer-trading resources, and Nich in one connected hub." },
   { eyebrow:"Main Navigation", title:"Everything is grouped by what you want to do.", description:"Use the sidebar like a game launcher. Each category can collapse, so the tools you need stay easy to scan without taking over the page.", target:"sidebar-container" },
   { eyebrow:"Start Here", title:"Begin with the essentials.", description:"Home, Values, and Inventory live here — explore CSBT, check item values, and keep track of what you own.", target:"group-start" },
-  { eyebrow:"Trade", title:"Make, check, and review trades here.", description:"Trade Finder, Trade Calculator, Trade Opinions, and Trade History are grouped together so your trading workflow stays in one place.", target:"group-trade" },
+  { eyebrow:"Trade", title:"Make, check, and review trades here.", description:"CSBT Exchange, Trade Calculator, Trade Opinions, and Trade History are grouped together so your trading workflow stays in one place.", target:"group-trade" },
   { eyebrow:"Market", title:"Follow the market without the noise.", description:"Demand and Wishlist & Alerts help you track market movement and keep an eye on items you care about.", target:"group-market" },
   { eyebrow:"Lounge", title:"This is where the community lives.", description:"Use CSBT Lounge to interact with traders, then jump to Trading Servers when you want more places to trade.", target:"group-lounge" },
   { eyebrow:"Help & Safety", title:"Learn safer trading and get support.", description:"Safe Trader Academy, Ask Nich, Feedback, and About are grouped here whenever you need guidance or help.", target:"group-help" },
   { eyebrow:"My CSBT", title:"Your account and activity live here.", description:"Profile contains your trading identity, while Notifications keeps your offers, alerts, and account activity together.", target:"group-account" },
-  { eyebrow:"Trade Finder", title:"Find your next trade in CSBT Exchange.", description:"Browse live listings, use inventory-aware Smart Match, build offers, negotiate counteroffers, and continue accepted trades in Trade Rooms.", target:"nav-exchange" },
+  { eyebrow:"CSBT Exchange", title:"Find your next trade in CSBT Exchange.", description:"Browse live listings, use inventory-aware Smart Match, build offers, negotiate counteroffers, and continue accepted trades in Trade Rooms.", target:"nav-exchange" },
   { eyebrow:"Nich", title:"Not sure what to do? Ask Nich.", description:"Nich can help with value questions, trade questions, interpreting offers, and navigating CSBT HUB while you browse.", target:"nich-button" },
 ];
 const mobileSteps: TourStep[] = [
   { eyebrow:"Welcome to CSBT HUB", title:"Your trading hub, built for mobile too.", description:"Values, trading, inventory, market tools, community features, and Nich are organized so the important actions stay easy to reach with one thumb." },
   { eyebrow:"Bottom Dock", title:"Your most-used tools stay within thumb reach.", description:"The mobile dock keeps your core actions available without copying the entire desktop sidebar onto a small screen.", target:"mobile-dock" },
   { eyebrow:"Values", title:"Check values quickly.", description:"Search GCash and Elve values and open detailed item pages with the rest of CSBT's value tools.", target:"nav-values" },
-  { eyebrow:"Trade Finder", title:"Open the CSBT Exchange.", description:"Browse live listings, find inventory-aware matches, make offers, counter, and continue trades in Trade Rooms.", target:"nav-exchange" },
+  { eyebrow:"CSBT Exchange", title:"Open the CSBT Exchange.", description:"Browse live listings, find inventory-aware matches, make offers, counter, and continue trades in Trade Rooms.", target:"nav-exchange" },
   { eyebrow:"Calculate", title:"Compare a trade before you decide.", description:"Build both sides of an offer and compare them using your selected value source.", target:"nav-calculator" },
   { eyebrow:"Inventory", title:"Keep track of what you own.", description:"Save items, quantities, and variants so CSBT can power inventory-aware tools around the site.", target:"nav-inventory" },
   { eyebrow:"More", title:"Everything else is organized inside More.", description:"Everything beyond the dock is organized in one categorized navigation hub. I’ll open it automatically on the next step.", target:"nav-more" },
@@ -139,7 +139,7 @@ export default function NichIntroMascot({
       setIsDesktop(window.innerWidth >= 1024);
     };
 
-    updateViewportMode();
+    queueMicrotask(updateViewportMode);
     window.addEventListener("resize", updateViewportMode);
     return () => window.removeEventListener("resize", updateViewportMode);
   }, []);
@@ -176,17 +176,17 @@ export default function NichIntroMascot({
 
   useEffect(() => {
     if (!open) {
-      setStepIndex(0);
-      setHighlightRect(null);
+      queueMicrotask(() => setStepIndex(0));
+      queueMicrotask(() => setHighlightRect(null));
       return;
     }
 
-    setStepIndex(0);
+    queueMicrotask(() => setStepIndex(0));
   }, [open, isDesktop]);
 
   useEffect(() => {
     if (!open || !currentStep?.target) {
-      setHighlightRect(null);
+      queueMicrotask(() => setHighlightRect(null));
       return;
     }
 

@@ -22,8 +22,8 @@ export default function SeminarQuiz({
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
-    setAnswers({});
-    setSubmitted(false);
+    queueMicrotask(() => setAnswers({}));
+    queueMicrotask(() => setSubmitted(false));
     onPassed(false);
   }, [questions, onPassed]);
 

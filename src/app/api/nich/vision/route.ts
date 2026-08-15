@@ -6,6 +6,7 @@ import {
   summarizeVisionItems,
   verifyVisionItem,
   type NichVisionApiResponse,
+  type NichVisionCategory,
   type NichVisionImageType,
   type NichVisionModelResult,
   type NichVisionPotion,
@@ -13,6 +14,7 @@ import {
   type NichVisionSide,
   type NichVisionVariant,
 } from "@/lib/nich/vision";
+import { itemList } from "@/lib/search";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -34,6 +36,15 @@ const IMAGE_TYPES = new Set<NichVisionImageType>(["TRADE", "INVENTORY", "ITEM", 
 const SIDES = new Set<NichVisionSide>(["YOU", "THEM", "NONE"]);
 const VARIANTS = new Set<NichVisionVariant>(["NORMAL", "NEON", "MEGA", "UNKNOWN"]);
 const POTIONS = new Set<NichVisionPotion>(["NONE", "F", "R", "FR", "UNKNOWN"]);
+const CATEGORY_HINTS = new Set<NichVisionCategory>([
+  "PET", "PETWEAR", "EGG", "VEHICLE", "FOOD", "GIFT", "STROLLER", "TOY", "STICKER", "OTHER", "UNKNOWN",
+]);
+const VISION_PIPELINE_VERSION = "vision-v4-catalog-candidates-20260816";
+const VISION_PET_CATALOG = itemList
+  .filter((item) => String(item.CATEGORY) === "PET")
+  .map((item) => item.NAME)
+  .sort((a, b) => a.localeCompare(b))
+  .join(" | ");
 
 function parseNumberSetting(value: string | undefined, fallback: number, minimum: number, maximum: number) {
   const parsed = Number(value);
@@ -117,6 +128,14 @@ function sanitizeModelResult(value: unknown): NichVisionModelResult | null {
     const item = raw as Record<string, unknown>;
     const rawName = typeof item.rawName === "string" ? item.rawName.trim().slice(0, 160) : "";
     if (!rawName) return [];
+    const candidateNames = Array.isArray(item.candidateNames)
+      ? item.candidateNames
+          .filter((name): name is string => typeof name === "string")
+          .map((name) => name.trim().slice(0, 160))
+          .filter(Boolean)
+          .slice(0, 3)
+      : [];
+    const slotNumber = Number(item.slot);
     return [{
       rawName,
       side: SIDES.has(item.side as NichVisionSide) ? (item.side as NichVisionSide) : "NONE",
@@ -124,14 +143,25 @@ function sanitizeModelResult(value: unknown): NichVisionModelResult | null {
       potion: POTIONS.has(item.potion as NichVisionPotion) ? (item.potion as NichVisionPotion) : "UNKNOWN",
       quantity: Math.max(1, Math.min(18, Math.floor(Number(item.quantity) || 1))),
       confidence: clamp01(item.confidence),
+      categoryHint: CATEGORY_HINTS.has(item.categoryHint as NichVisionCategory)
+        ? (item.categoryHint as NichVisionCategory)
+        : "UNKNOWN",
+      ...(candidateNames.length ? { candidateNames } : {}),
+      ...(typeof item.visualEvidence === "string" ? { visualEvidence: item.visualEvidence.slice(0, 300) } : {}),
       ...(typeof item.visibleText === "string" ? { visibleText: item.visibleText.slice(0, 220) } : {}),
+      ...(Number.isFinite(slotNumber) ? { slot: Math.max(1, Math.min(18, Math.floor(slotNumber))) } : {}),
     } satisfies NichVisionRawItem];
   });
+
+  const youOccupiedSlots = Number(record.youOccupiedSlots);
+  const themOccupiedSlots = Number(record.themOccupiedSlots);
 
   return {
     imageType,
     layoutConfidence: clamp01(record.layoutConfidence),
     items,
+    ...(Number.isFinite(youOccupiedSlots) ? { youOccupiedSlots: Math.max(0, Math.min(18, Math.floor(youOccupiedSlots))) } : {}),
+    ...(Number.isFinite(themOccupiedSlots) ? { themOccupiedSlots: Math.max(0, Math.min(18, Math.floor(themOccupiedSlots))) } : {}),
     ...(typeof record.note === "string" ? { note: record.note.slice(0, 500) } : {}),
   };
 }
@@ -185,27 +215,40 @@ const VISION_SCHEMA = {
           potion: { type: "string", enum: ["NONE", "F", "R", "FR", "UNKNOWN"] },
           quantity: { type: "integer", minimum: 1, maximum: 18 },
           confidence: { type: "number", minimum: 0, maximum: 1 },
+          categoryHint: { type: "string", enum: ["PET", "PETWEAR", "EGG", "VEHICLE", "FOOD", "GIFT", "STROLLER", "TOY", "STICKER", "OTHER", "UNKNOWN"] },
+          candidateNames: { type: "array", maxItems: 3, items: { type: "string" } },
+          visualEvidence: { type: "string" },
           visibleText: { type: "string" },
+          slot: { type: "integer", minimum: 1, maximum: 18 },
         },
-        required: ["rawName", "side", "variant", "potion", "quantity", "confidence"],
+        required: ["rawName", "side", "variant", "potion", "quantity", "confidence", "categoryHint", "candidateNames"],
       },
     },
+    youOccupiedSlots: { type: "integer", minimum: 0, maximum: 18 },
+    themOccupiedSlots: { type: "integer", minimum: 0, maximum: 18 },
     note: { type: "string" },
   },
   required: ["imageType", "layoutConfidence", "items"],
 } as const;
 
 const VISION_PROMPT = [
-  "You are the visual recognition layer for NICH, an Adopt Me trading assistant.",
-  "Inspect this screenshot carefully and extract ONLY items you can actually see.",
+  "You are the visual recognition layer for NICH, an Adopt Me trading assistant. Accuracy is more important than answering quickly.",
+  "Inspect this screenshot carefully and extract ONLY items you can actually see. Never invent a pet just to complete a trade.",
   "Classify the screenshot as TRADE, INVENTORY, ITEM, or OTHER.",
-  "For each Adopt Me item, return its FULL, exact canonical in-game item name when you know it. Never shorten a multi-word pet to a generic species name. Do not include Neon/Mega/Fly/Ride words inside rawName; put those in variant/potion.",
-  "Specificity is critical because similarly named pets have different values. Examples: Panda and Giant Panda are different pets; Bat Dragon, Strawberry Shortcake Bat Dragon, Chocolate Chip Bat Dragon, and Fairy Bat Dragon are different pets; Penguin and King Penguin are different pets; Reindeer and Arctic Reindeer are different pets. Look at the actual icon/body markings before choosing. If you cannot distinguish the exact canonical pet, lower confidence instead of choosing the shorter/generic name.",
-  "For the CSBT/Adopt Me trade layout with two 3x3 grids, the LEFT grid is YOU (the screenshot owner/player) and the RIGHT grid is THEM (the other trader), unless a visible label clearly contradicts this.",
-  "Read badges such as N, M, F, R, FR and quantity/count indicators. If no N or M marker is visible and the pet appears to be its base form, use NORMAL. If the variant truly cannot be determined, use UNKNOWN.",
-  "NONE potion means you are confident the item is explicitly no-potion; UNKNOWN means potion status is not visible or unclear. Do not guess Fly/Ride status from the pet icon alone.",
-  "Do not invent prices, values, demand, W/F/L, or items. CSBT will calculate those separately.",
-  "Confidence is 0 to 1 for the visual identification of that specific item.",
+  "For every detected item, classify categoryHint. For PET items, rawName MUST use one exact canonical name from the current CSBT PET catalog included below.",
+  "Do not shorten multi-word pets to a generic species. Shark Puppy is not Shark; Giant Panda is not Panda; King Penguin is not Penguin; Arctic Reindeer is not Reindeer; Strawberry Shortcake Bat Dragon and Chocolate Chip Bat Dragon are not Bat Dragon.",
+  "For each item, return candidateNames containing up to 3 exact canonical names ordered from most visually plausible to least. If only one is genuinely plausible, return only one. Do not fill candidateNames with random guesses.",
+  "Before choosing rawName, compare visible body shape, colors, face, ears/horns/wings/tail, accessories, and markings against the closest plausible candidates. Put a short description of the decisive visible features in visualEvidence.",
+  "If two pets remain visually plausible, lower confidence below 0.90 and keep both in candidateNames. Do NOT confidently choose the shorter or more famous name.",
+  "For the CSBT/Adopt Me trade layout with two 3x3 grids, the LEFT grid is YOU and the RIGHT grid is THEM unless a visible label clearly contradicts this.",
+  "For TRADE screenshots, report youOccupiedSlots and themOccupiedSlots as the number of visibly occupied trade slots. If multiple identical items occupy separate slots, quantity may summarize them, but its total must match the occupied slots.",
+  "Use slot for the visible slot index when you can determine it. Do not duplicate the same visible slot.",
+  "Read N/M/F/R/FR badges separately. If no N or M marker is visible and the pet is base form, use NORMAL. If variant is unclear, use UNKNOWN.",
+  "NONE potion means you can clearly establish no-potion; UNKNOWN means Fly/Ride status is not visible or unclear. Never infer Fly/Ride from the pet species.",
+  "Do not invent prices, values, demand, W/F/L, or calculations. CSBT handles those locally after verification.",
+  "Confidence is 0 to 1 for the exact visual identity, not merely for recognizing the general species.",
+  "CURRENT CSBT PET CATALOG (PET rawName/candidateNames must use exact spelling from this list):",
+  VISION_PET_CATALOG,
 ].join("\n");
 
 export async function GET() {
@@ -270,6 +313,8 @@ export async function POST(request: NextRequest) {
   try {
     const imageBuffer = Buffer.from(await image.arrayBuffer());
     const imageHash = createHash("sha256")
+      .update(VISION_PIPELINE_VERSION)
+      .update("\0")
       .update(model)
       .update("\0")
       .update(image.type)
@@ -310,7 +355,7 @@ export async function POST(request: NextRequest) {
     const callGemini = async (structured: boolean) => {
       const textPrompt = structured
         ? VISION_PROMPT
-        : `${VISION_PROMPT}\nReturn ONLY one valid JSON object with this exact top-level shape: {"imageType":"TRADE|INVENTORY|ITEM|OTHER","layoutConfidence":0.0,"items":[{"rawName":"string","side":"YOU|THEM|NONE","variant":"NORMAL|NEON|MEGA|UNKNOWN","potion":"NONE|F|R|FR|UNKNOWN","quantity":1,"confidence":0.0,"visibleText":"optional string"}],"note":"optional string"}. No markdown fences or commentary.`;
+        : `${VISION_PROMPT}\nReturn ONLY one valid JSON object with this exact top-level shape: {"imageType":"TRADE|INVENTORY|ITEM|OTHER","layoutConfidence":0.0,"youOccupiedSlots":0,"themOccupiedSlots":0,"items":[{"rawName":"exact canonical item name","side":"YOU|THEM|NONE","variant":"NORMAL|NEON|MEGA|UNKNOWN","potion":"NONE|F|R|FR|UNKNOWN","quantity":1,"confidence":0.0,"categoryHint":"PET|PETWEAR|EGG|VEHICLE|FOOD|GIFT|STROLLER|TOY|STICKER|OTHER|UNKNOWN","candidateNames":["exact candidate name"],"visualEvidence":"short visible description","visibleText":"optional string","slot":1}],"note":"optional string"}. No markdown fences or commentary.`;
 
       return fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
         method: "POST",
@@ -428,11 +473,39 @@ export async function POST(request: NextRequest) {
         : 0;
     const lowLayoutConfidence =
       modelResult.imageType === "TRADE" &&
-      modelResult.layoutConfidence < 0.72;
+      modelResult.layoutConfidence < 0.82;
+
+    const sideSlotTotal = (side: "YOU" | "THEM") =>
+      items
+        .filter((item) => item.side === side)
+        .reduce((total, item) => total + Math.max(1, item.quantity || 1), 0);
+    const youSlotMismatch =
+      modelResult.imageType === "TRADE" &&
+      modelResult.youOccupiedSlots !== undefined &&
+      sideSlotTotal("YOU") !== modelResult.youOccupiedSlots;
+    const themSlotMismatch =
+      modelResult.imageType === "TRADE" &&
+      modelResult.themOccupiedSlots !== undefined &&
+      sideSlotTotal("THEM") !== modelResult.themOccupiedSlots;
+    const duplicateSlots =
+      modelResult.imageType === "TRADE" &&
+      (() => {
+        const seen = new Set<string>();
+        for (const item of items) {
+          if (!item.slot || item.side === "NONE") continue;
+          const key = `${item.side}:${item.slot}`;
+          if (seen.has(key)) return true;
+          seen.add(key);
+        }
+        return false;
+      })();
+    const incompleteTradeGrid = Boolean(youSlotMismatch || themSlotMismatch || duplicateSlots);
+
     const localPrompt =
       uncertainCount === 0 &&
       !ambiguousTradeProperties &&
-      !lowLayoutConfidence
+      !lowLayoutConfidence &&
+      !incompleteTradeGrid
         ? candidateLocalPrompt
         : undefined;
     const sideUnclear =
@@ -444,7 +517,10 @@ export async function POST(request: NextRequest) {
       unknownPotionCount && localPrompt
         ? `\nℹ️ Potion status wasn’t visible for ${unknownPotionCount} pet${unknownPotionCount === 1 ? "" : "s"}. I’ll use NICH’s normal unspecified-potion baseline and flag that in the trade result.`
         : "",
-      uncertainCount || sideUnclear || ambiguousTradeProperties || lowLayoutConfidence
+      incompleteTradeGrid
+        ? "\n⚠️ The number of detected items doesn’t match the occupied trade slots, so I won’t calculate a possibly incomplete trade."
+        : "",
+      uncertainCount || sideUnclear || ambiguousTradeProperties || lowLayoutConfidence || incompleteTradeGrid
         ? "\nI won’t calculate W/F/L from uncertain item/variant/side recognition. Correct the unclear item(s) or upload a clearer screenshot."
         : "",
     ].filter(Boolean).join("\n");

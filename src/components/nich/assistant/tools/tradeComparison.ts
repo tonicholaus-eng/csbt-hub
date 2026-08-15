@@ -46,6 +46,15 @@ export type ParsedTradeQuery = {
   requestCode: string;
 };
 
+export type PartialParsedTradeQuery = {
+  offerText: string;
+  requestText: string;
+  offerItems: ParsedTradeItem[];
+  requestItems: ParsedTradeItem[];
+  unresolvedOfferTexts: string[];
+  unresolvedRequestTexts: string[];
+};
+
 type TradePetDetails = {
   variant: PetVariant;
   potionStatus: NichPotionStatus;
@@ -128,6 +137,27 @@ function containsWholePhrase(
   ).test(normalizedMessage);
 }
 
+function isStrongAttachedPetResolution(
+  resolution: ReturnType<typeof resolvePetSearch>,
+  fragment: string,
+) {
+  if (resolution.status !== "matched") return false;
+
+  const { match } = resolution;
+  if (match.matchKind === "exact" || match.matchKind === "alias") return true;
+
+  // Approximate code splitting is allowed for long compact trader forms such
+  // as nfrballoonuni, but never for ordinary words beginning with FR/NF/etc.
+  // Example: "frost" must not become FR + Ostrich ("ost").
+  const compactFragment = normalizeText(fragment).replace(/\s+/g, "");
+  if (compactFragment.length < 5) return false;
+
+  return (
+    (match.matchKind === "prefix" || match.matchKind === "token-prefix") &&
+    match.confidence >= 0.93
+  );
+}
+
 function detectTradeCode(
   text: string,
 ) {
@@ -170,10 +200,7 @@ function detectTradeCode(
       if (token.length >= code.length + 2 && token.startsWith(code)) {
         const remainder = token.slice(code.length);
         const resolution = resolvePetSearch(remainder);
-        if (
-          resolution.status === "matched" &&
-          (resolution.match.matchKind === "exact" || resolution.match.matchKind === "alias")
-        ) {
+        if (isStrongAttachedPetResolution(resolution, remainder)) {
           return code;
         }
       }
@@ -181,10 +208,7 @@ function detectTradeCode(
       if (token.length >= code.length + 2 && token.endsWith(code)) {
         const base = token.slice(0, -code.length);
         const resolution = resolvePetSearch(base);
-        if (
-          resolution.status === "matched" &&
-          (resolution.match.matchKind === "exact" || resolution.match.matchKind === "alias")
-        ) {
+        if (isStrongAttachedPetResolution(resolution, base)) {
           return code;
         }
       }
@@ -545,10 +569,7 @@ function expandAttachedTradeCodes(value: string) {
         if (lower.startsWith(code) && token.length >= code.length + 2) {
           const remainder = token.slice(code.length);
           const resolution = resolvePetSearch(remainder);
-          if (
-            resolution.status === "matched" &&
-            (resolution.match.matchKind === "exact" || resolution.match.matchKind === "alias")
-          ) {
+          if (isStrongAttachedPetResolution(resolution, remainder)) {
             return `${prefix}${code} ${remainder}`;
           }
         }
@@ -556,10 +577,7 @@ function expandAttachedTradeCodes(value: string) {
         if (lower.endsWith(code) && token.length >= code.length + 2) {
           const base = token.slice(0, -code.length);
           const resolution = resolvePetSearch(base);
-          if (
-            resolution.status === "matched" &&
-            (resolution.match.matchKind === "exact" || resolution.match.matchKind === "alias")
-          ) {
+          if (isStrongAttachedPetResolution(resolution, base)) {
             return `${prefix}${base} ${code}`;
           }
         }
@@ -734,8 +752,38 @@ function splitConjunctionChunk(
     : [chunk];
 }
 
+function resolvesAsOneTradeItem(value: string) {
+  const normalized = normalizeText(value);
+  if (!normalized) return false;
+
+  const codeMatches = normalized.match(/(?:^|\s)(?:mfr|nfr|fr|mf|mr|nf|nr|np)(?=\s|$)/g) ?? [];
+  if (codeMatches.length > 1) return false;
+
+  const resolution = resolvePetSearch(value);
+  if (resolution.status !== "matched") return false;
+
+  const { match } = resolution;
+  if (match.matchKind === "exact" || match.matchKind === "alias") return true;
+  if (match.matchKind === "prefix" || match.matchKind === "token-prefix") {
+    return match.confidence >= 0.94;
+  }
+  if (match.matchKind === "token-subset") {
+    return match.confidence >= 0.92;
+  }
+  return match.matchKind === "fuzzy" && match.confidence >= 0.9;
+}
+
 function splitDenseTradeChunk(chunk: string) {
   const expandedChunk = expandAttachedTradeCodes(chunk);
+
+  // Before splitting a dense-looking phrase, give the COMPLETE phrase a
+  // chance to resolve to one catalog item. This is critical for natural
+  // shorthand such as "balloon uni", where both "Balloon" and "Unicorn"
+  // also exist as independent database items.
+  if (resolvesAsOneTradeItem(expandedChunk)) {
+    return [expandedChunk];
+  }
+
   // Dense-side splitting must be conservative. Low-confidence token-prefix
   // matches can mistake quantity/variant text such as “2x fr” for unrelated
   // items (for example an item name beginning with the same letters).
@@ -1260,6 +1308,28 @@ function splitGiveReceiveTradeMessage(
   return null;
 }
 
+function splitTwoPartyVerbTradeMessage(
+  message: string,
+) {
+  const withoutWfl = stripWflPrefix(message);
+
+  const patterns = [
+    /^(?:i\s+(?:give|offer|have|trade)|im\s+(?:giving|offering|trading)|i\s+am\s+(?:giving|offering|trading))\s+(.+?)\s+(?:and|then|while|but)\s+(?:they|them|he|him|she|her|trader|other\s+(?:trader|guy|person))\s+(?:give|gives|offer|offers|have|has|trade|trades|is\s+giving|are\s+giving|is\s+offering|are\s+offering)\s+(.+)$/i,
+    /^(?:i\s+(?:have|got)|ive\s+got)\s+(.+?)[,;]?\s+(?:and\s+)?(?:they|he|she|trader|other\s+(?:trader|guy|person))\s+(?:have|has|got)\s+(.+)$/i,
+    /^(?:bigay\s+ko|offer\s+ko|akin|side\s+ko)\s+(.+?)\s+(?:(?:and|tapos|tas|habang)\s+)?(?:bigay\s+(?:nya|niya)|offer\s+(?:nya|niya)|kanya|side\s+(?:nya|niya))\s+(.+)$/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = withoutWfl.match(pattern);
+    if (!match) continue;
+    const offerText = cleanTradeSide(match[1]);
+    const requestText = cleanTradeSide(match[2]);
+    if (offerText && requestText) return { offerText, requestText };
+  }
+
+  return null;
+}
+
 function splitOwnershipTradeMessage(
   message: string,
 ) {
@@ -1270,7 +1340,7 @@ function splitOwnershipTradeMessage(
 
   const ownershipExpression =
     new RegExp(
-      `^(?:${YOUR_OWNER_PATTERN})\\s*[:=\\-]?\\s*(.+?)\\s+(?:and\\s+|while\\s+)?(?:${THEIR_OWNER_PATTERN})\\s*[:=\\-]?\\s*(.+)$`,
+      `^(?:${YOUR_OWNER_PATTERN})\\s*[:=\\-]?\\s*(.+?)[,;]?\\s+(?:(?:and|then|while|but)\\s+)?(?:${THEIR_OWNER_PATTERN})\\s*[:=\\-]?\\s*(.+)$`,
       "i",
     );
 
@@ -1363,6 +1433,13 @@ function splitTradeMessage(
     return giveReceiveTrade;
   }
 
+  const twoPartyVerbTrade =
+    splitTwoPartyVerbTradeMessage(message);
+
+  if (twoPartyVerbTrade) {
+    return twoPartyVerbTrade;
+  }
+
   const ownershipTrade =
     splitOwnershipTradeMessage(
       message,
@@ -1423,6 +1500,62 @@ function splitTradeMessage(
   }
 
   return null;
+}
+
+function parseTradeSideLenient(text: string) {
+  const chunks = splitTradeSideIntoItems(text);
+  const items: ParsedTradeItem[] = [];
+  const unresolvedTexts: string[] = [];
+
+  for (const chunk of chunks) {
+    const quantity = extractQuantity(chunk).quantity;
+    const parsedItem = parseTradeItem(chunk);
+
+    if (!parsedItem) {
+      unresolvedTexts.push(chunk);
+      continue;
+    }
+
+    for (let count = 0; count < quantity; count += 1) {
+      if (items.length >= MAX_ITEMS_PER_SIDE) break;
+      items.push({ ...parsedItem });
+    }
+  }
+
+  return { items, unresolvedTexts };
+}
+
+/**
+ * Keeps the side structure and every item NICH can safely resolve even when
+ * one part is vague/unknown. This is used only for clarification — never to
+ * calculate a misleading partial W/F/L.
+ */
+export function parseTradeMessageLenient(
+  message: string,
+): PartialParsedTradeQuery | null {
+  const tradeSides = splitTradeMessage(message);
+  if (!tradeSides) return null;
+
+  const offer = parseTradeSideLenient(tradeSides.offerText);
+  const request = parseTradeSideLenient(tradeSides.requestText);
+
+  if (
+    offer.items.length === 0 &&
+    request.items.length === 0 &&
+    offer.unresolvedTexts.length === 0 &&
+    request.unresolvedTexts.length === 0
+  ) {
+    return null;
+  }
+
+  return {
+    offerText: tradeSides.offerText,
+    requestText: tradeSides.requestText,
+    offerItems: offer.items,
+    requestItems: request.items,
+    unresolvedOfferTexts: offer.unresolvedTexts,
+    unresolvedRequestTexts: request.unresolvedTexts,
+  };
 }
 
 export function parseTradeMessage(

@@ -128,6 +128,7 @@ export default function RootLayout({
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ "@context": "https://schema.org", "@type": "WebSite", name: "CSBT HUB", url: "https://csbthub.com", description: "Adopt Me values, trading tools, demand, inventory, CSBT Exchange, and Nich assistant.", publisher: { "@type": "Organization", name: "CSBT HUB", url: "https://csbthub.com", logo: "https://csbthub.com/logo.png" } }) }} />
       </head>
       <body className="min-h-screen overflow-x-hidden bg-background font-sans text-foreground antialiased">
         <ThemeProvider>

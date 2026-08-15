@@ -33,7 +33,6 @@ const DEMAND_LABEL: Record<string, string> = {
   D: "low",
 };
 
-const HIGH_DEMAND_MIN = 86;
 
 function normalize(value: string) {
   return value
@@ -67,6 +66,29 @@ function potionLabel(status: InventoryExchangeRow["potion_status"]) {
     case "FLY_RIDE": return "FR";
     default: return "";
   }
+}
+
+function contextualToolAction(input: NichBrainInput): NichResponse | null {
+  const message = normalize(input.message);
+  const itemMatch = findPetsInMessage(input.message)[0];
+  const item = itemMatch?.pet;
+  if (!item) return null;
+  const source = detectValueSource(input.message, (input.context.lastValueSource as ValueSource | undefined) ?? "GCASH");
+  const encodedId = encodeURIComponent(item.ID);
+
+  if (/\b(?:add|put|send|place|open).*(?:calculator|calc)\b|\b(?:calculator|calc).*(?:add|put|with)\b/.test(message)) {
+    return { text: `Opening the Trade Calculator with ${item.NAME} ready to add.`, intent: "navigation", reaction: "calculator", localConfidence: 0.99, aiEligible: false, navigation: { href: `/calculator?add=${encodedId}&source=${source}`, label: "Open Calculator", delay: 450 } };
+  }
+  if (/\b(?:add|put|save).*(?:inventory|inv|bag|backpack)\b|\b(?:inventory|inv).*(?:add|put|save)\b/.test(message)) {
+    return { text: `Opening your Inventory with ${item.NAME} ready to add.`, intent: "inventory", reaction: "calculator", localConfidence: 0.99, aiEligible: false, navigation: { href: `/inventory?add=${encodedId}&source=${source}`, label: "Open Inventory", delay: 450 } };
+  }
+  if (/\b(?:add|put|save).*(?:wishlist|wish list|target)\b|\b(?:wishlist|wish list).*(?:add|put|save)\b/.test(message)) {
+    return { text: `Opening your Wishlist and adding ${item.NAME}.`, intent: "wishlist", reaction: "searchFound", localConfidence: 0.99, aiEligible: false, navigation: { href: `/wishlist?add=${encodedId}`, label: "Open Wishlist", delay: 450 } };
+  }
+  if (/\b(?:show|find|open|search).*(?:exchange|listing|listings|trades?).*\b|\b(?:exchange|listing|listings).*(?:for|of|with)\b/.test(message)) {
+    return { text: `Opening CSBT Exchange filtered for ${item.NAME}.`, intent: "exchange", reaction: "searchFound", localConfidence: 0.99, aiEligible: false, navigation: { href: `/exchange?tab=browse&q=${encodeURIComponent(item.NAME)}`, label: "Find listings", delay: 450 } };
+  }
+  return null;
 }
 
 function inventoryRowLabel(row: InventoryExchangeRow) {
@@ -1200,7 +1222,8 @@ export function enhanceTradeResponseLocally(response: NichResponse, input: NichB
 export function createLocalIntelligenceResponse(input: NichBrainInput): NichResponse | null {
   // Priority matters: a command like "build an offer from my inventory" is an
   // offer-builder request, not a generic inventory summary.
-  return counterOffer(input)
+  return contextualToolAction(input)
+    ?? counterOffer(input)
     ?? offerBuilder(input)
     ?? wishlistIntelligence(input)
     ?? exchangeIntelligence(input)

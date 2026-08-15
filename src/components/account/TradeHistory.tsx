@@ -84,7 +84,7 @@ export default function TradeHistory() {
     }
   }, [supabase, user]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void queueMicrotask(() => load()); }, [load]);
 
   const visible = useMemo(() => filter === "all" ? trades : trades.filter((trade) => trade.status === filter), [filter, trades]);
 

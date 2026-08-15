@@ -25,6 +25,7 @@ Open `http://localhost:3000`.
 npm run dev             # Start the local website
 npm run build           # Create a production build
 npm run lint            # Run ESLint
+npm test                # Run core regression tests
 npm run test:nich       # Test the NICH response engine
 npm run generate:data   # Rebuild website value data
 npm run data:validate   # Validate generated trading data
@@ -53,6 +54,7 @@ source-data/                    Master workbook and source snapshots
 src/app/                        Next.js pages and API routes
 src/components/                 Reusable interface components
 src/components/nich/assistant/  Floating NICH assistant and its logic
+src/hooks/                      Feature data/realtime hooks
 src/data/                       Generated website data
 src/lib/                        Shared utilities
 ```
@@ -74,3 +76,14 @@ Push the cleaned source project to GitHub and connect the repository to Vercel. 
 The project now includes **CSBT Exchange**, an inventory-aware trading system with smart matches, offer building, counteroffers, locked Trade Rooms, Trust Score, reviews, safety tools, market intelligence, staff moderation, and middleman workflow.
 
 Existing projects should run `src/lib/supabase/exchange.sql` once. See `EXCHANGE_SETUP.md` and `CSBT_EXCHANGE.md` for details.
+
+## CSBT v2 architecture notes
+
+- Exchange initial loading and realtime updates live in `src/hooks/useExchangeData.ts`; realtime events refresh only affected records instead of reloading the whole marketplace.
+- Trade Room realtime/data orchestration lives in `src/hooks/useTradeRoomData.ts`.
+- Browser-side value search uses `src/data/tradingItemsIndex.json`, a compact generated index. The full `tradingItems.json` remains available for server/data tasks.
+- `npm run generate:data` regenerates both value files so the compact index stays in sync with the master workbook.
+- The Values browser reads paginated results from `/api/items` instead of loading the entire catalog into the page.
+- Public SEO discovery is handled by `src/app/sitemap.ts`, `src/app/robots.ts`, root structured data, and per-item metadata.
+
+See `CSBT_V2_OPTIMIZATION_SUMMARY.md` for the completed 2–12 optimization pass and `PROJECT_CLEANUP.md` before deleting legacy project files.

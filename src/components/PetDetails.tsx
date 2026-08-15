@@ -31,13 +31,18 @@ export default function PetDetails({ pet, onBack }: Props) {
   const hasElve = variants.some((variant) => hasItemValue(pet, "ELVE", variant.key));
   const [source, setSource] = useState<ValueSource>(hasGcash ? "GCASH" : "ELVE");
   const [historyType, setHistoryType] = useState<ValueType>("NORMAL");
+  const [now] = useState(() => Date.now());
 
-  useEffect(() => { setSource(hasGcash ? "GCASH" : "ELVE"); setHistoryType("NORMAL"); }, [pet.ID, hasGcash]);
+  useEffect(() => { queueMicrotask(() => setSource(hasGcash ? "GCASH" : "ELVE")); queueMicrotask(() => setHistoryType("NORMAL")); }, [pet.ID, hasGcash]);
 
   const visibleVariants = useMemo(() => category.regularOnly ? variants.slice(0, 1) : variants, [category.regularOnly]);
   const historyVariants = visibleVariants.filter((variant) => hasItemValue(pet, source, variant.key));
   const elveUpdatedAt = (valueSources as { sources?: { ELVE?: { updatedAt?: string } } }).sources?.ELVE?.updatedAt;
-  const updatedAt = pet.UPDATED_AT ?? (source === "ELVE" ? elveUpdatedAt : null);
+  const updatedAt = source === "ELVE" ? (elveUpdatedAt ?? pet.UPDATED_AT) : pet.UPDATED_AT;
+  const availableValues = visibleVariants.flatMap((variant) => (["GCASH", "ELVE"] as const).map((valueSource) => hasItemValue(pet, valueSource, variant.key))).filter(Boolean).length;
+  const possibleValues = category.regularOnly ? 2 : 6;
+  const refreshAgeDays = updatedAt ? Math.max(0, Math.floor((now - new Date(updatedAt).getTime()) / 86400000)) : null;
+  const freshnessLabel = refreshAgeDays == null ? "Unknown" : refreshAgeDays <= 2 ? "Fresh" : refreshAgeDays <= 7 ? "Recent" : "Needs review";
 
   return (
     <section className="overflow-hidden rounded-[30px] border border-white/65 bg-white/80 shadow-[0_24px_80px_rgba(15,23,42,.12)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/72">
@@ -65,6 +70,17 @@ export default function PetDetails({ pet, onBack }: Props) {
           <SummaryCard label="GCash Regular" value={getItemValue(pet, "GCASH", "NORMAL")} prefix="₱" />
           <SummaryCard label="Elve Shark Regular" value={getItemValue(pet, "ELVE", "NORMAL")} prefix="🦈 " />
         </div>
+
+        <section className="mt-5 rounded-[24px] border border-cyan-100 bg-cyan-50/60 p-4 dark:border-cyan-400/10 dark:bg-cyan-400/[0.04] sm:p-5" aria-labelledby="value-health-title">
+          <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.16em] text-cyan-700 dark:text-cyan-300">Value Health</p><h2 id="value-health-title" className="mt-1 text-lg font-black text-slate-950 dark:text-white">How trustworthy is this snapshot?</h2></div><span className="rounded-full bg-white px-3 py-1.5 text-[10px] font-black text-cyan-700 shadow-sm dark:bg-white/5 dark:text-cyan-200">{freshnessLabel}</span></div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <HealthMetric label="Last verified" value={formatDate(updatedAt)} />
+            <HealthMetric label="Data coverage" value={`${availableValues}/${possibleValues} listed values`} />
+            <HealthMetric label="Demand signal" value={pet.DEMAND_TIER ? `${pet.DEMAND_TIER} tier` : "Not rated yet"} />
+            <HealthMetric label="Source comparison" value="Separate systems" />
+          </div>
+          <p className="mt-4 text-xs font-semibold leading-5 text-slate-500 dark:text-slate-400"><strong className="text-slate-700 dark:text-slate-200">Provenance:</strong> GCash values come from the CSBT-maintained master value sheet. Elve values come from the latest stored Elvebredd Shark snapshot. The two systems are intentionally shown separately and are never auto-converted into each other.</p>
+        </section>
 
         <div className="mt-6 flex flex-wrap gap-2">
           <Link href={`/inventory?add=${encodeURIComponent(pet.ID)}&source=${source}`} className="inline-flex min-h-11 items-center rounded-2xl csbt-theme-primary px-4 text-xs font-black text-slate-950">🎒 Add to Inventory</Link>
@@ -96,6 +112,8 @@ export default function PetDetails({ pet, onBack }: Props) {
     </section>
   );
 }
+
+function HealthMetric({ label, value }: { label: string; value: string }) { return <div className="rounded-2xl border border-white/80 bg-white/75 p-3 dark:border-white/10 dark:bg-white/[0.035]"><p className="text-[9px] font-black uppercase tracking-[.12em] text-slate-400">{label}</p><p className="mt-1 text-sm font-black text-slate-900 dark:text-white">{value}</p></div>; }
 
 function SummaryCard({ label, value, prefix }: { label: string; value: TradeValue; prefix: string }) {
   const formatted = formatTradeValue(value);

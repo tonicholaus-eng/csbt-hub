@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { SectionHeader } from "../ui/CSBTUI";
 const actions=[
-{href:"/exchange",icon:"↔",eyebrow:"Smart Marketplace",title:"Open Trade Finder",description:"Find inventory-aware matches, build offers, negotiate, and continue accepted trades in Trade Rooms.",buttonLabel:"Enter Exchange",tone:"smart"},
+{href:"/exchange",icon:"↔",eyebrow:"CSBT Exchange",title:"Find a Trade",description:"Find inventory-aware matches, build offers, negotiate, and continue accepted trades in Trade Rooms.",buttonLabel:"Enter Exchange",tone:"smart"},
 {href:"/values",icon:"◇",eyebrow:"Values",title:"Check Values",description:"Search the full database and compare GCash and Elve values.",buttonLabel:"Browse Values",tone:"gold"},
 {href:"/calculator",icon:"±",eyebrow:"Trade",title:"Compare a Trade",description:"Put both offers side by side and review the estimated value difference.",buttonLabel:"Open Calculator",tone:"neutral"},
 {href:"/inventory",icon:"▣",eyebrow:"My CSBT",title:"Manage Inventory",description:"Save your items, quantities, and variants so CSBT can power personal trading tools.",buttonLabel:"Open Inventory",tone:"neutral"},

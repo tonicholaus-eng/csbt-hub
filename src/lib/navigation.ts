@@ -11,7 +11,7 @@ export const navLinks = {
   home:{id:"home",label:"Home",href:"/",description:"Overview of CSBT HUB",icon:"home"},
   values:{id:"values",label:"Values",href:"/values",description:"Check GCash & Elve values",icon:"values",tour:"nav-values"},
   inventory:{id:"inventory",label:"Inventory",href:"/inventory",description:"Track and value your items",icon:"inventory",tour:"nav-inventory"},
-  exchange:{id:"exchange",label:"Trade Finder",href:"/exchange",description:"Listings, offers & Smart Matches",icon:"exchange",badge:"SMART",tour:"nav-exchange",mobileLabel:"Trade"},
+  exchange:{id:"exchange",label:"CSBT Exchange",href:"/exchange",description:"Find trades, offers & Smart Matches",icon:"exchange",badge:"SMART",tour:"nav-exchange",mobileLabel:"Trade"},
   calculator:{id:"calculator",label:"Trade Calculator",href:"/calculator",description:"Compare both offers",icon:"calculator",tour:"nav-calculator",mobileLabel:"Calculate"},
   opinions:{id:"opinions",label:"Trade Opinions",href:"/trade-feed",description:"Community Win / Fair / Lose",icon:"tradefeed",tour:"nav-trade-feed"},
   history:{id:"history",label:"Trade History",href:"/trades",description:"Saved & completed trades",icon:"calculator"},

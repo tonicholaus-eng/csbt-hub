@@ -368,11 +368,11 @@ export default function TradeCalculator() {
     initialItemHandled.current = true;
     if (!item) return;
     const requestedSource: ValueSource = searchParams.get("source") === "ELVE" ? "ELVE" : "GCASH";
-    setValueSource(requestedSource);
-    setYourItems((current) => [
+    queueMicrotask(() => setValueSource(requestedSource));
+    queueMicrotask(() => setYourItems((current) => [
       ...current,
       createSelectedItem(item, defaultValueType, requestedSource),
-    ]);
+    ]));
   }, [defaultValueType, searchParams]);
 
   return (

@@ -10,6 +10,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useId,
   useState,
 } from "react";
 
@@ -247,7 +248,8 @@ export default function CSBTLounge() {
   const feedRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const postIdsRef = useRef<string[]>([]);
-  const guestKeyRef = useRef(`guest-${Math.random().toString(36).slice(2)}`);
+  const guestId = useId();
+  const guestKeyRef = useRef(`guest-${guestId.replace(/:/g, "")}`);
 
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -342,7 +344,7 @@ export default function CSBTLounge() {
   }, []);
 
   useEffect(() => {
-    if (!supabase) { setAuthLoading(false); return; }
+    if (!supabase) { queueMicrotask(() => setAuthLoading(false)); return; }
     const client = supabase;
     let mounted = true;
     void client.auth.getSession().then(({ data }) => {
@@ -357,20 +359,20 @@ export default function CSBTLounge() {
     return () => { mounted = false; data.subscription.unsubscribe(); };
   }, [supabase]);
 
-  useEffect(() => { void loadPosts(); }, [loadPosts]);
+  useEffect(() => { void queueMicrotask(() => loadPosts()); }, [loadPosts]);
 
   useEffect(() => {
-    if (!user) { setIsStaff(false); return; }
+    if (!user) { queueMicrotask(() => setIsStaff(false)); return; }
     const client = supabase;
     if (!client) return;
     void client.from("exchange_staff").select("user_id").eq("user_id", user.id).maybeSingle().then(({ data }) => setIsStaff(Boolean(data)));
-    void loadProfiles([user.id]);
+    void queueMicrotask(() => loadProfiles([user.id]));
   }, [loadProfiles, supabase, user]);
 
   useEffect(() => {
-    if (!selectedImage) { setImagePreview(null); return; }
+    if (!selectedImage) { queueMicrotask(() => setImagePreview(null)); return; }
     const url = URL.createObjectURL(selectedImage);
-    setImagePreview(url);
+    queueMicrotask(() => setImagePreview(url));
     return () => URL.revokeObjectURL(url);
   }, [selectedImage]);
 
@@ -534,19 +536,19 @@ export default function CSBTLounge() {
         </div>
       </header>
 
-      <div className="relative grid min-h-[720px] xl:grid-cols-[230px_minmax(0,1fr)] 2xl:grid-cols-[230px_minmax(0,1fr)_260px]">
-        <aside className="hidden min-h-0 border-r border-[var(--border)] bg-[var(--surface-3)] p-3 xl:block">
+      <div className="relative grid min-h-[720px] xl:min-h-[820px] xl:grid-cols-[250px_minmax(0,1fr)] 2xl:grid-cols-[250px_minmax(0,1fr)_290px]">
+        <aside className="csbt-lounge-channel-rail hidden min-h-0 border-r border-[var(--border)] p-3 xl:block xl:p-4">
           <ChannelList activeChannel={activeChannel} counts={channelCounts} members={presenceMembers} onSelect={setActiveChannel} />
         </aside>
 
-        <main className="relative flex min-h-0 min-w-0 flex-col bg-[var(--surface-2)]">
+        <main className="csbt-lounge-feed relative flex min-h-0 min-w-0 flex-col">
           <div className="border-b border-white/[0.06] px-4 py-2 xl:hidden">
             <div className="flex gap-2 overflow-x-auto pb-1">
               {CHANNELS.slice(0, 6).map((channel) => <button key={channel.slug} onClick={() => setActiveChannel(channel.slug)} className={`shrink-0 rounded-full px-3 py-1.5 text-[10px] font-black ${activeChannel === channel.slug ? "bg-white text-slate-950" : "bg-white/[0.05] text-white/50"}`}># {channel.label}</button>)}
             </div>
           </div>
 
-          <div ref={feedRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 py-4 sm:px-4" style={{ scrollbarGutter: "stable" }}>
+          <div ref={feedRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 py-4 sm:px-4 xl:px-6 xl:py-6" style={{ scrollbarGutter: "stable" }}>
             {loading ? (
               <div className="space-y-3 p-3">{[1,2,3,4,5].map((item) => <div key={item} className="flex animate-pulse gap-3 rounded-xl p-3"><div className="h-10 w-10 rounded-full bg-white/10"/><div className="flex-1"><div className="h-3 w-36 rounded bg-white/10"/><div className="mt-3 h-3 w-4/5 rounded bg-white/5"/></div></div>)}</div>
             ) : visiblePosts.length ? (
@@ -571,7 +573,7 @@ export default function CSBTLounge() {
             )}
           </div>
 
-          <div className="border-t border-[var(--border)] bg-[var(--surface-2)] p-3 sm:p-4">
+          <div className="border-t border-[var(--border)] bg-[color-mix(in_srgb,var(--surface-1)_82%,var(--surface-2))] p-3 sm:p-4 xl:p-5">
             {notice && <div className={`mb-2 rounded-xl px-3 py-2 text-[11px] font-bold ${notice.type === "error" ? "bg-rose-500/10 text-rose-300" : notice.type === "success" ? "bg-emerald-400/10 text-emerald-300" : "bg-blue-400/10 text-blue-300"}`}>{notice.text}</div>}
             {authLoading ? <div className="h-20 animate-pulse rounded-2xl bg-white/[0.04]" /> : !user ? (
               <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_300px]"><div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4"><p className="font-black">You’re viewing #{currentChannel.label}</p><p className="mt-1 text-xs leading-5 text-white/45">Sign in to join the live conversation, react to messages and open threads.</p></div><AuthMiniPanel onSession={setSession} /></div>
@@ -579,7 +581,7 @@ export default function CSBTLounge() {
               <div className="flex items-center gap-3 rounded-2xl border border-amber-300/15 bg-amber-400/[0.06] p-4"><span className="text-xl">📢</span><div><p className="text-sm font-black text-amber-200">Announcements are read-only</p><p className="mt-1 text-xs text-white/40">Only approved CSBT staff can publish in this channel.</p></div></div>
             ) : (
               <form onSubmit={createPost} className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-2.5 shadow-inner">
-                {imagePreview && <div className="relative mb-2 w-fit max-w-full overflow-hidden rounded-xl border border-white/10 bg-black/20"><img src={imagePreview} alt="Upload preview" className="max-h-44 max-w-full object-contain"/><button type="button" onClick={() => setSelectedImage(null)} className="absolute right-2 top-2 rounded-full bg-black/70 px-2 py-1 text-[9px] font-black">Remove</button></div>}
+                {imagePreview && <div className="relative mb-2 w-fit max-w-full overflow-hidden rounded-xl border border-white/10 bg-black/20"><Image src={imagePreview} alt="Upload preview" width={720} height={480} unoptimized className="max-h-44 h-auto max-w-full w-auto object-contain"/><button type="button" onClick={() => setSelectedImage(null)} className="absolute right-2 top-2 rounded-full bg-black/70 px-2 py-1 text-[9px] font-black">Remove</button></div>}
                 <div className="flex items-end gap-2">
                   <ProfileAvatar profile={currentProfile} displayName={currentDisplayName} size="sm" />
                   <textarea value={message} onChange={(event) => setMessage(event.target.value)} rows={2} maxLength={MAX_POST_LENGTH} placeholder={`Message #${currentChannel.label}`} className="max-h-36 min-h-[44px] flex-1 resize-none bg-transparent px-2 py-2 text-sm font-medium leading-6 text-white outline-none placeholder:text-white/25" />
@@ -599,7 +601,7 @@ export default function CSBTLounge() {
           </div>
         </main>
 
-        <aside className="hidden min-h-0 border-l border-[var(--border)] bg-[var(--surface-3)] p-4 2xl:block">
+        <aside className="csbt-lounge-activity hidden min-h-0 border-l border-[var(--border)] p-4 2xl:block 2xl:p-5">
           <RightActivityPanel user={user} profile={currentProfile} displayName={currentDisplayName} presence={presenceMembers} activeMembers={activeMembers} trendingChannels={trendingChannels} counts={channelCounts} recentPosts={posts.slice(0, 4)} profiles={profiles} />
         </aside>
       </div>
@@ -618,11 +620,11 @@ function LoungeMessage({ post, profile, currentUserId, reactions, replyCount, no
   const displayName = profile?.display_name?.trim() || post.display_name;
   const own = post.user_id === currentUserId;
   const grouped = REACTIONS.map((emoji) => ({ emoji, count: reactions.filter((reaction) => reaction.emoji === emoji).length, mine: reactions.some((reaction) => reaction.emoji === emoji && reaction.user_id === currentUserId) }));
-  return <motion.article layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="group relative flex gap-3 rounded-xl px-3 py-2.5 transition hover:bg-white/[0.035] sm:px-4">
+  return <motion.article layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="group relative flex gap-3 rounded-xl border border-transparent px-3 py-2.5 transition hover:border-[var(--border)] hover:bg-[color-mix(in_srgb,var(--surface-3)_48%,transparent)] sm:px-4 xl:gap-4 xl:px-5 xl:py-4">
     <div className="relative pt-0.5"><ProfileAvatar profile={profile} displayName={displayName}/><span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#0c1222] bg-emerald-400"/></div>
     <div className="min-w-0 flex-1"><div className="flex flex-wrap items-baseline gap-x-2 gap-y-1"><span className="font-black text-white">{displayName}</span>{own && <span className="rounded bg-violet-400/15 px-1.5 py-0.5 text-[8px] font-black uppercase text-violet-300">you</span>}<span className="text-[10px] font-semibold text-white/25">{formatRelativeTime(post.created_at, now)}</span>{own && <button type="button" onClick={onDelete} className="ml-auto text-[10px] font-black text-white/20 opacity-0 transition hover:text-rose-300 group-hover:opacity-100">Delete</button>}</div>
       {post.content && <p className="mt-1 whitespace-pre-wrap break-words text-[13px] font-medium leading-6 text-white/78 sm:text-sm">{post.content}</p>}
-      {post.image_url && <a href={post.image_url} target="_blank" rel="noopener noreferrer" className="mt-2 block w-fit max-w-full overflow-hidden rounded-2xl border border-white/10 bg-black/20 shadow-lg"><img src={post.image_url} alt={`Shared by ${displayName}`} loading="lazy" className="max-h-[520px] max-w-full object-contain"/></a>}
+      {post.image_url && <a href={post.image_url} target="_blank" rel="noopener noreferrer" className="mt-2 block w-fit max-w-full overflow-hidden rounded-2xl border border-white/10 bg-black/20 shadow-lg"><Image src={post.image_url} alt={`Shared by ${displayName}`} width={1200} height={800} unoptimized className="max-h-[520px] h-auto max-w-full w-auto object-contain"/></a>}
       <div className="mt-2 flex flex-wrap items-center gap-1.5">{grouped.filter((item) => item.count > 0).map((item) => <button key={item.emoji} type="button" onClick={() => onReact(item.emoji)} className={`rounded-lg border px-2 py-1 text-[10px] font-black transition ${item.mine ? "border-violet-400/35 bg-violet-400/12 text-violet-200" : "border-white/[0.08] bg-white/[0.035] text-white/55 hover:bg-white/[0.07]"}`}>{item.emoji} {item.count}</button>)}<ReactionPicker onReact={onReact}/><button type="button" onClick={onThread} className={`rounded-lg px-2 py-1 text-[10px] font-black transition ${replyCount ? "bg-blue-400/10 text-blue-300" : "text-white/30 hover:bg-white/[0.05] hover:text-white/60"}`}>↩ {replyCount ? `${replyCount} ${replyCount === 1 ? "reply" : "replies"}` : "Reply"}</button></div>
     </div>
   </motion.article>;

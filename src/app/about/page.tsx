@@ -7,7 +7,6 @@ import {
   useReducedMotion,
 } from "framer-motion";
 
-import Footer from "../../components/Footer";
 import Navbar from "../../components/Navbar";
 
 const csbtMeaning = [
@@ -37,77 +36,34 @@ const csbtMeaning = [
   },
 ] as const;
 
-
 const platformFeatures = [
-  {
-    icon: "📊",
-    title: "Value Database",
-    description:
-      "Browse pet values across Normal, Neon, and Mega forms using one organized and searchable database.",
-    href: "/values",
-    action: "Browse values",
-  },
-  {
-    icon: "⚖️",
-    title: "Trade Calculator",
-    description:
-      "Compare both sides of a trade, review totals, and make decisions with greater confidence.",
-    href: "/calculator",
-    action: "Calculate a trade",
-  },
-  {
-    icon: "🤖",
-    title: "Nich Assistant",
-    description:
-      "Ask natural questions about pet values, trades, nearby values, and how to use CSBT HUB.",
-    href: "/nich",
-    action: "Ask Nich",
-  },
-  {
-    icon: "📈",
-    title: "Demand Trends",
-    description:
-      "Review market demand alongside raw values so you can judge trades with more context.",
-    href: "/demand",
-    action: "Check demand",
-  },
+  { icon: "📊", title: "Value Database", description: "Browse thousands of Adopt Me items with separate GCash and Elve Shark values, rarity, demand, freshness, and value history.", href: "/values", action: "Browse values" },
+  { icon: "🔁", title: "CSBT Exchange", description: "Find live listings, inventory-aware Smart Matches, send offers and counteroffers, and finish accepted trades in protected Trade Rooms.", href: "/exchange", action: "Find a trade" },
+  { icon: "⚖️", title: "Trade Calculator", description: "Compare both sides of a trade, review totals, and save the result to your trading history.", href: "/calculator", action: "Calculate a trade" },
+  { icon: "🎒", title: "Inventory & Wishlist", description: "Track your collection, estimate its value, save target items, and create value alerts from the same CSBT account.", href: "/inventory", action: "Open inventory" },
+  { icon: "🤖", title: "Nich Assistant", description: "Ask natural questions about values, trades, your inventory, Exchange matches, nearby values, and where to go next in CSBT HUB.", href: "/nich", action: "Ask Nich" },
+  { icon: "📈", title: "Demand & Market Signals", description: "Review demand tiers, value movement, Exchange activity, and CSBT-owned market signals alongside raw values.", href: "/demand", action: "Check demand" },
 ] as const;
 
-const roadmap = [
-  {
-    title: "Expanded pet database",
-    status: "In progress",
-  },
-  {
-    title: "Smarter Nich responses",
-    status: "In progress",
-  },
-  {
-    title: "Value history graphs",
-    status: "Planned",
-  },
-  {
-    title: "Trade history",
-    status: "Planned",
-  },
-  {
-    title: "Wishlists",
-    status: "Planned",
-  },
-  {
-    title: "Recently updated pets",
-    status: "Planned",
-  },
-  {
-    title: "Demand trends",
-    status: "Live",
-  },
-  {
-    title: "Personalized recommendations",
-    status: "Future",
-  },
-] as const;
+type RoadmapStatus = "Live" | "In progress" | "Planned";
 
+type RoadmapItem = {
+  title: string;
+  status: RoadmapStatus;
+};
+
+const roadmap: RoadmapItem[] = [
+  { title: "Expanded multi-category value database", status: "Live" },
+  { title: "Nich local language & trading intelligence", status: "Live" },
+  { title: "Value history graphs & alerts", status: "Live" },
+  { title: "Trade history", status: "Live" },
+  { title: "Wishlist & watchlist", status: "Live" },
+  { title: "Recently updated value sorting", status: "Live" },
+  { title: "Demand trends & Exchange signals", status: "Live" },
+  { title: "Personalized Exchange recommendations", status: "Live" },
+  { title: "Roblox account verification", status: "In progress" },
+  { title: "Deeper CSBT market analytics", status: "In progress" },
+];
 
 export default function AboutPage() {
   const shouldReduceMotion =
@@ -808,7 +764,7 @@ export default function AboutPage() {
           </motion.section>
         </div>
 
-        <Footer />
+        
       </div>
     </main>
   );

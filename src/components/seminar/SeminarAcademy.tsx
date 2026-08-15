@@ -138,25 +138,25 @@ export default function SeminarAcademy() {
           seminarMissions.some((mission) => mission.id === id),
         );
 
-        setCompletedIds(validIds);
-        setAcceptedCommitment(Boolean(parsed.acceptedCommitment));
+        queueMicrotask(() => setCompletedIds(validIds));
+        queueMicrotask(() => setAcceptedCommitment(Boolean(parsed.acceptedCommitment)));
 
         const firstIncomplete = seminarMissions.find(
           (mission) => !validIds.includes(mission.id),
         );
 
-        setActiveMissionId(
+        queueMicrotask(() => setActiveMissionId(
           firstIncomplete?.id ?? seminarMissions[seminarMissions.length - 1].id,
-        );
+        ));
       }
 
       if (savedName) {
-        setDisplayName(savedName);
+        queueMicrotask(() => setDisplayName(savedName));
       }
     } catch {
-      setCompletedIds([]);
+      queueMicrotask(() => setCompletedIds([]));
     } finally {
-      setIsReady(true);
+      queueMicrotask(() => setIsReady(true));
     }
   }, []);
 

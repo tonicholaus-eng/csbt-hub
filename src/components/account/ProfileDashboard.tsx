@@ -53,7 +53,7 @@ export default function ProfileDashboard() {
 
   useEffect(() => {
     if (!supabase || !user) {
-      setProfile(null);
+      queueMicrotask(() => setProfile(null));
       return;
     }
 
@@ -109,8 +109,8 @@ export default function ProfileDashboard() {
 
   useEffect(() => {
     if (!supabase || !user) {
-      setActivityCounts({ inventory: 0, wishlist: 0, watches: 0, completedTrades: 0, unread: 0 });
-      setExchangeTrust(null);
+      queueMicrotask(() => setActivityCounts({ inventory: 0, wishlist: 0, watches: 0, completedTrades: 0, unread: 0 }));
+      queueMicrotask(() => setExchangeTrust(null));
       return;
     }
 
@@ -137,6 +137,14 @@ export default function ProfileDashboard() {
 
     return () => { active = false; };
   }, [supabase, user]);
+
+  const tradingIdentitySteps = useMemo(() => [
+    { done: displayName.trim().length >= 2, label: "Display identity", href: "#profile-details" },
+    { done: Boolean(robloxUsername.trim()), label: "Roblox username", href: "#profile-details" },
+    { done: activityCounts.inventory > 0, label: "Inventory added", href: "/inventory" },
+    { done: activityCounts.wishlist > 0, label: "Wishlist target", href: "/wishlist" },
+  ], [activityCounts.inventory, activityCounts.wishlist, displayName, robloxUsername]);
+  const identityCompletion = Math.round(tradingIdentitySteps.filter((step) => step.done).length / tradingIdentitySteps.length * 100);
 
   const joinedLabel = useMemo(() => {
     const date = profile?.created_at ?? user?.created_at;
@@ -309,6 +317,11 @@ export default function ProfileDashboard() {
       </aside>
 
       <div className="space-y-6">
+        <section className="rounded-[28px] border border-cyan-100 bg-cyan-50/70 p-5 dark:border-cyan-400/10 dark:bg-cyan-400/[0.04]">
+          <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-[10px] font-black uppercase tracking-[.16em] text-cyan-700 dark:text-cyan-300">Trading identity</p><h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">Profile setup · {identityCompletion}%</h2><p className="mt-2 text-xs font-semibold leading-5 text-slate-500">Complete these basics to get more useful Exchange matches and a clearer trader identity.</p></div><span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-cyan-700 shadow-sm dark:bg-white/5 dark:text-cyan-200">{tradingIdentitySteps.filter((step) => step.done).length}/{tradingIdentitySteps.length} ready</span></div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">{tradingIdentitySteps.map((step) => <Link key={step.label} href={step.href} className={`rounded-2xl border p-3 text-xs font-black ${step.done ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/10 dark:bg-emerald-400/[0.05] dark:text-emerald-300" : "border-white bg-white/70 text-slate-600 dark:border-white/10 dark:bg-white/[0.03] dark:text-slate-300"}`}>{step.done ? "✓" : "○"} {step.label}</Link>)}</div>
+        </section>
+
         <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {[
             ["🎒", activityCounts.inventory, "Inventory entries"],
@@ -333,7 +346,7 @@ export default function ProfileDashboard() {
           </div>
         )}
 
-        <form onSubmit={saveProfile} className="rounded-[30px] border border-white/65 bg-white/75 p-5 shadow-[0_24px_70px_rgba(15,23,42,.1)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/65 sm:p-7">
+        <form id="profile-details" onSubmit={saveProfile} className="rounded-[30px] border border-white/65 bg-white/75 p-5 shadow-[0_24px_70px_rgba(15,23,42,.1)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/65 sm:p-7">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-600 dark:text-amber-300">My profile</p>
             <h2 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">Account details</h2>

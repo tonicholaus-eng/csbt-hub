@@ -18,7 +18,8 @@
     "sync:master": "node scripts/sync-elve-to-master.js",
     "refresh:deploy": "npm run refresh:values && git add . && git commit -m \"Refresh Elve values and regenerate trading data\" && git push origin main",
     "test:nich-vision": "tsx scripts/test-nich-vision.ts",
-    "test:nich-credit-saver": "tsx scripts/test-nich-credit-saver.ts"
+    "test:nich-credit-saver": "tsx scripts/test-nich-credit-saver.ts",
+    "test": "tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@next/third-parties": "^16.3.0",
@@ -45,6 +46,6 @@
     "eslint-config-next": "16.2.12",
     "tailwindcss": "^4",
     "tsx": "^4.23.1",
-    "typescript": "^5"
+    "typescript": "5.9.3"
   }
 }

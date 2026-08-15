@@ -75,7 +75,7 @@ export default function MiddlemanDesk() {
   }, [supabase, user]);
 
   useEffect(() => {
-    if (!authLoading) void load();
+    if (!authLoading) void queueMicrotask(() => load());
   }, [authLoading, load]);
 
   useEffect(() => {

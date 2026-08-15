@@ -11,7 +11,7 @@ export function useAuthSession() {
 
   useEffect(() => {
     if (!supabase) {
-      setLoading(false);
+      queueMicrotask(() => setLoading(false));
       return;
     }
 

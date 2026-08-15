@@ -81,8 +81,8 @@ export default function ListingCard({
           </div>
           {trust && (
             <div className="shrink-0 text-right">
-              <p className="text-[10px] font-black text-[var(--foreground)]">Trust {trust.trust_score}/100</p>
-              <p className="mt-0.5 text-[9px] font-bold text-[var(--foreground-muted)]">{trust.completed_trades} completed</p>
+              <p className="text-[10px] font-black text-[var(--foreground)]">Trust {trust.trust_score}/100 {trust.roblox_verified ? "✓" : ""}</p>
+              <p className="mt-0.5 text-[9px] font-bold text-[var(--foreground-muted)]">{trust.completed_trades} completed{trust.avg_rating ? ` · ${trust.avg_rating}★` : ""}</p>
             </div>
           )}
         </div>

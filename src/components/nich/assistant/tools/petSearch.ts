@@ -1,4 +1,4 @@
-import tradingItemsData from "../../../../data/tradingItems.json";
+import { clientItemList } from "../../../../lib/clientItemIndex";
 import type {
   TradeItem,
   TradeValue,
@@ -97,9 +97,7 @@ type ApproximatePetCandidate = {
   >;
 };
 
-const petRecords: PetRecord[] = (
-  tradingItemsData as TradeItem[]
-).map((item) => ({
+const petRecords: PetRecord[] = clientItemList.map((item) => ({
   ...item,
   PETS: item.NAME,
 }));
@@ -1409,6 +1407,16 @@ const AUTO_ALIAS_BLOCKLIST = new Set([
   "us",
   "we",
   "ya",
+  "and",
+  "plus",
+  "gcash",
+  "cash",
+  "php",
+  "peso",
+  "pesos",
+  "elve",
+  "elvebredd",
+  "ingame",
   "fr",
   "rf",
   "nf",
@@ -2746,6 +2754,43 @@ function detectVariantForPosition(
   );
 }
 
+function isStrongWholeFragmentResolution(
+  value: string,
+  resolution: PetSearchResolution,
+) {
+  if (resolution.status !== "matched") return false;
+
+  const normalized = normalizeText(value);
+  if (!normalized || normalized.includes(" and ") || normalized.includes(" vs ")) {
+    return false;
+  }
+
+  const phrase = createSearchPhraseAlternatives(value)[0];
+  const queryWords = phrase ? getWords(phrase) : [];
+  if (queryWords.length === 0 || queryWords.length > 6) return false;
+
+  const { match } = resolution;
+  if (match.matchKind === "exact" || match.matchKind === "alias") {
+    return true;
+  }
+
+  if (match.matchKind === "prefix") {
+    return match.confidence >= 0.94;
+  }
+
+  if (match.matchKind === "token-prefix") {
+    // Shortened multi-word names such as "balloon uni", "gold uni",
+    // "frost drag", etc. are safe only when the full phrase participated.
+    return queryWords.length >= 2 && match.confidence >= 0.93;
+  }
+
+  if (match.matchKind === "token-subset") {
+    return queryWords.length >= 2 && match.confidence >= 0.91;
+  }
+
+  return match.matchKind === "fuzzy" && match.confidence >= 0.9;
+}
+
 export function findPetSpansInSection(
   section: string,
   lineIndex = 0,
@@ -2795,7 +2840,7 @@ function findPetsInSection(
   section: string,
   lineIndex: number,
 ): PetMessageMatch[] {
-  return findPetSpansInSection(section, lineIndex).map(({ start: _start, end: _end, ...match }) => match);
+  return findPetSpansInSection(section, lineIndex).map(({ start, end, ...match }) => { void start; void end; return match; });
 }
 
 function splitMessageIntoSections(
@@ -2836,6 +2881,38 @@ export function findPetsInMessage(
   return matches;
 }
 
+function looksLikeSingleItemFragment(value: string) {
+  const normalized = normalizeText(value);
+  if (!normalized) return false;
+
+  if (/[,;+|]/.test(value) || /\s+\b(?:and|with|vs|versus)\b\s+/i.test(value)) {
+    return false;
+  }
+
+  const phrase = createSearchPhraseAlternatives(value)[0];
+  const queryWords = phrase ? getWords(phrase) : [];
+  if (queryWords.length === 0 || queryWords.length > 5) return false;
+
+  const rawWords = getWords(normalized);
+  let attachedCodeCount = 0;
+  for (const word of rawWords) {
+    if (ATTACHED_TRADE_CODES.includes(word as (typeof ATTACHED_TRADE_CODES)[number])) {
+      attachedCodeCount += 1;
+      continue;
+    }
+
+    if (
+      ATTACHED_TRADE_CODES.some(
+        (code) => word.length >= code.length + 3 && word.startsWith(code),
+      )
+    ) {
+      attachedCodeCount += 1;
+    }
+  }
+
+  return attachedCodeCount <= 1;
+}
+
 export function findPetInMessage(
   message: string,
 ): PetSearchResult | undefined {
@@ -2846,14 +2923,46 @@ export function findPetInMessage(
     return undefined;
   }
 
-  const positionedMatch =
-    findPetsInMessage(message)[0];
+  // First resolve a fragment that LOOKS like one item as a whole. This makes
+  // safe trader shorthand generic across the catalog: "balloon uni",
+  // "gold uni", "frost drag", "nfrballoonuni", etc. It also prevents a
+  // shorter embedded alias such as "uni" from hijacking the full phrase.
+  if (looksLikeSingleItemFragment(message)) {
+    const directResolution = resolvePetSearch(message);
+    if (isStrongWholeFragmentResolution(message, directResolution)) {
+      const match = directResolution.status === "matched" ? directResolution.match : null;
+      if (match) {
+        return { pet: match.pet, matchedName: match.matchedName };
+      }
+    }
+  }
 
-  if (positionedMatch) {
+  const positionedMatches = findPetsInMessage(message);
+
+  if (positionedMatches.length >= 1) {
+    const first = positionedMatches[0];
+
+    // One last whole-fragment attempt is useful when a short exact alias was
+    // found inside a longer phrase. Keep it bounded to short fragments.
+    const phrase = createSearchPhraseAlternatives(message)[0];
+    const queryWords = phrase ? getWords(phrase) : [];
+    const matchedWords = getWords(first.matchedName);
+    if (
+      queryWords.length >= 2 &&
+      queryWords.length <= 5 &&
+      queryWords.length > matchedWords.length &&
+      looksLikeSingleItemFragment(message)
+    ) {
+      const directResolution = resolvePetSearch(message);
+      if (isStrongWholeFragmentResolution(message, directResolution)) {
+        const match = directResolution.status === "matched" ? directResolution.match : null;
+        if (match) return { pet: match.pet, matchedName: match.matchedName };
+      }
+    }
+
     return {
-      pet: positionedMatch.pet,
-      matchedName:
-        positionedMatch.matchedName,
+      pet: first.pet,
+      matchedName: first.matchedName,
     };
   }
 

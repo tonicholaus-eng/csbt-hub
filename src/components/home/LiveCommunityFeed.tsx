@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import {
   motion,
   AnimatePresence,
@@ -498,7 +499,7 @@ async function compressAvatarImage(
           reject,
         ) => {
           const nextImage =
-            new Image();
+            new window.Image();
 
           nextImage.onload = () =>
             resolve(nextImage);
@@ -780,11 +781,13 @@ function ProfileAvatar({
       className={`relative flex shrink-0 items-center justify-center overflow-hidden bg-gradient-to-br font-black text-white shadow-md ring-2 ring-offset-2 ring-offset-white/70 dark:ring-offset-slate-950/70 ${sizeClass} ${accent.avatar} ${accent.ring}`}
     >
       {avatarUrl ? (
-        <img
+        <Image
           src={avatarUrl}
           alt={`${displayName}'s profile picture`}
-          className="h-full w-full object-cover"
-          loading="lazy"
+          fill
+          unoptimized
+          sizes={size === "lg" ? "80px" : size === "sm" ? "40px" : "48px"}
+          className="object-cover"
           referrerPolicy="no-referrer"
         />
       ) : (
@@ -1248,11 +1251,13 @@ function PostCard({
                 rel="noopener noreferrer"
                 className="group/image relative block max-w-3xl overflow-hidden rounded-[20px] border border-white/80 bg-slate-100 shadow-sm transition duration-300 hover:shadow-xl dark:border-white/10 dark:bg-slate-950"
               >
-                <img
+                <Image
                   src={post.image_url}
                   alt={`Image posted by ${displayName}`}
-                  loading="lazy"
-                  className="max-h-[560px] w-full object-contain transition duration-500 group-hover/image:scale-[1.01]"
+                  width={1200}
+                  height={800}
+                  unoptimized
+                  className="max-h-[560px] h-auto w-full object-contain transition duration-500 group-hover/image:scale-[1.01]"
                 />
 
                 <span className="pointer-events-none absolute bottom-3 right-3 translate-y-1 rounded-full bg-slate-950/75 px-3 py-1.5 text-[10px] font-black text-white opacity-0 shadow-lg backdrop-blur transition duration-200 group-hover/image:translate-y-0 group-hover/image:opacity-100">
@@ -1627,7 +1632,7 @@ export default function LiveCommunityFeed() {
 
   useEffect(() => {
     if (!supabase) {
-      setIsAuthLoading(false);
+      queueMicrotask(() => setIsAuthLoading(false));
       return;
     }
 
@@ -1673,8 +1678,8 @@ export default function LiveCommunityFeed() {
 
   useEffect(() => {
     if (!user) {
-      setDisplayName("");
-      setSelectedAvatar(null);
+      queueMicrotask(() => setDisplayName(""));
+      queueMicrotask(() => setSelectedAvatar(null));
       return;
     }
 
@@ -1683,12 +1688,12 @@ export default function LiveCommunityFeed() {
         "csbt-community-display-name",
       );
 
-    setDisplayName(
+    queueMicrotask(() => setDisplayName(
       savedName?.trim() ||
         getDefaultDisplayName(
           user,
         ),
-    );
+    ));
   }, [user]);
 
   useEffect(() => {
@@ -1696,16 +1701,16 @@ export default function LiveCommunityFeed() {
       return;
     }
 
-    void loadProfiles([
+    void queueMicrotask(() => loadProfiles([
       user.id,
-    ]);
+    ]));
   }, [
     loadProfiles,
     user,
   ]);
 
   useEffect(() => {
-    void loadPosts();
+    void queueMicrotask(() => loadPosts());
   }, [loadPosts]);
 
   useEffect(() => {
@@ -1893,7 +1898,7 @@ export default function LiveCommunityFeed() {
 
   useEffect(() => {
     if (!selectedImage) {
-      setImagePreviewUrl(null);
+      queueMicrotask(() => setImagePreviewUrl(null));
       return;
     }
 
@@ -1902,7 +1907,7 @@ export default function LiveCommunityFeed() {
         selectedImage,
       );
 
-    setImagePreviewUrl(objectUrl);
+    queueMicrotask(() => setImagePreviewUrl(objectUrl));
 
     return () =>
       URL.revokeObjectURL(
@@ -1912,7 +1917,7 @@ export default function LiveCommunityFeed() {
 
   useEffect(() => {
     if (!selectedAvatar) {
-      setAvatarPreviewUrl(null);
+      queueMicrotask(() => setAvatarPreviewUrl(null));
       return;
     }
 
@@ -1921,7 +1926,7 @@ export default function LiveCommunityFeed() {
         selectedAvatar,
       );
 
-    setAvatarPreviewUrl(objectUrl);
+    queueMicrotask(() => setAvatarPreviewUrl(objectUrl));
 
     return () =>
       URL.revokeObjectURL(
@@ -2942,12 +2947,13 @@ export default function LiveCommunityFeed() {
 
                   {imagePreviewUrl && (
                     <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 dark:border-white/10 dark:bg-slate-950">
-                      <img
-                        src={
-                          imagePreviewUrl
-                        }
+                      <Image
+                        src={imagePreviewUrl}
                         alt="Selected image preview"
-                        className="max-h-64 w-full object-contain"
+                        width={1200}
+                        height={800}
+                        unoptimized
+                        className="max-h-64 h-auto w-full object-contain"
                       />
 
                       <button

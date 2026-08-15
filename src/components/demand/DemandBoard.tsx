@@ -119,7 +119,7 @@ function PetImage({
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    setFailed(false);
+    queueMicrotask(() => setFailed(false));
   }, [item.image]);
 
   if (!item.image || failed) {
@@ -209,7 +209,7 @@ export default function DemandBoard() {
       }
     }
 
-    loadDemand();
+    queueMicrotask(() => loadDemand());
 
     return () => controller.abort();
   }, []);

@@ -114,4 +114,44 @@ const noPotionPrompt = buildVisionLocalPrompt("TRADE", noPotionNeon) ?? "";
 const noPotionResponse = routeNichMessage({ message: noPotionPrompt, context: initialNichContext });
 expect(noPotionResponse.tradeComparison?.offered.variant === "neon", "Explicit no-potion Neon recognition must preserve the Neon variant.");
 
+
+
+const modelAmbiguousShark = verifyVisionItem({
+  rawName: "Shark Puppy",
+  side: "THEM",
+  variant: "NORMAL",
+  potion: "UNKNOWN",
+  quantity: 1,
+  confidence: 0.89,
+  categoryHint: "PET",
+  candidateNames: ["Shark Puppy", "Shark"],
+  visualEvidence: "small blue shark-like pet",
+});
+expect(!modelAmbiguousShark.verified, "Vision must not calculate from a pet when Gemini itself reports another plausible visual identity.");
+
+const confidentSharkPuppy = verifyVisionItem({
+  rawName: "Shark Puppy",
+  side: "THEM",
+  variant: "NORMAL",
+  potion: "UNKNOWN",
+  quantity: 1,
+  confidence: 0.97,
+  categoryHint: "PET",
+  candidateNames: ["Shark Puppy"],
+  visualEvidence: "small light-blue puppy/shark hybrid with the Shark Puppy proportions",
+});
+expect(confidentSharkPuppy.verified && confidentSharkPuppy.itemName === "Shark Puppy", "High-confidence catalog-constrained Shark Puppy recognition should verify.");
+
+const crossCategoryPuppy = verifyVisionItem({
+  rawName: "Puppy Plush",
+  side: "THEM",
+  variant: "NORMAL",
+  potion: "UNKNOWN",
+  quantity: 1,
+  confidence: 0.99,
+  categoryHint: "PET",
+  candidateNames: ["Puppy Plush", "Shark Puppy"],
+});
+expect(crossCategoryPuppy.itemName !== "Puppy Plush", "A PET category hint must prevent a TOY candidate from becoming authoritative.");
+
 console.log("NICH Gemini Vision local verification tests passed.");
