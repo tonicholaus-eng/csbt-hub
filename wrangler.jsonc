@@ -1,0 +1,45 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "main": ".open-next/worker.js",
+  "name": "csbt-price-checker",
+  "compatibility_date": "2026-08-16",
+
+  "workers_dev": false,
+  "preview_urls": false,
+
+  "compatibility_flags": [
+    "nodejs_compat",
+    "global_fetch_strictly_public"
+  ],
+
+  "routes": [
+    {
+      "pattern": "csbthub.com",
+      "custom_domain": true
+    }
+  ],
+
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "csbt-price-checker"
+    }
+  ],
+
+  "images": {
+    "binding": "IMAGES"
+  },
+
+  "vars": {
+    "NICH_AI_PROVIDER": "auto",
+    "NICH_ALLOW_AI_FALLBACK": "true",
+    "NICH_ALLOW_AI_TRADE_EXPLANATIONS": "true",
+    "NICH_ALLOW_AI_ADVICE": "true",
+    "NICH_GEMINI_VISION_ENABLED": "true"
+  }
+}

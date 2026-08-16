@@ -68,8 +68,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: "/logo.png",
-        width: 512,
-        height: 512,
+        width: 256,
+        height: 256,
         alt: "CSBT HUB Logo",
       },
     ],
@@ -84,9 +84,9 @@ export const metadata: Metadata = {
   },
 
   icons: {
-    icon: "/logo.png",
-    shortcut: "/logo.png",
-    apple: "/logo.png",
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
   },
 
   robots: {

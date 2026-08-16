@@ -20,7 +20,10 @@ export function getRelatedItems(item: TradeItem, source: ValueSource, limit = 6)
       const score = Math.max(0, 1 - valueDistance) + categoryBonus + rarityBonus;
       return { candidate, score, valueDistance };
     })
-    .filter((row): row is { candidate: TradeItem; score: number; valueDistance: number } => Boolean(row) && row.valueDistance <= 0.45)
+    .filter(
+  (row): row is { candidate: TradeItem; score: number; valueDistance: number } =>
+    row !== null && row.valueDistance <= 0.45,
+)
     .sort((a, b) => b.score - a.score || a.candidate.NAME.localeCompare(b.candidate.NAME))
     .slice(0, Math.max(1, limit))
     .map((row) => row.candidate);
