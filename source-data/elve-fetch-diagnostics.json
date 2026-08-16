@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-08-16T09:19:24.517Z",
+  "fetchedAt": "2026-08-16T09:23:48.520Z",
   "sourceVersion": 503,
   "categoryCounts": {
     "EGG": 37,
@@ -13,5 +13,51 @@
     "TOY": 718,
     "VEHICLE": 268
   },
-  "network": []
+  "network": [
+    {
+      "url": "https://www.elvebredd.com/api/user-self",
+      "status": 401,
+      "resourceType": "fetch",
+      "contentType": "application/json; charset=utf-8",
+      "fallbackCategory": "VEHICLE",
+      "parsedAsJson": true,
+      "candidateItems": 0
+    },
+    {
+      "url": "https://www.elvebredd.com/?_rsc=OY4dXFDlHMABqseM",
+      "status": 200,
+      "resourceType": "fetch",
+      "contentType": "text/x-component",
+      "fallbackCategory": "VEHICLE",
+      "parsedAsJson": false,
+      "candidateItems": 0
+    },
+    {
+      "url": "https://www.elvebredd.com/adopt-me-calculator?_rsc=Ti8RETlN8z0rWPcV",
+      "status": 200,
+      "resourceType": "fetch",
+      "contentType": "text/x-component",
+      "fallbackCategory": "VEHICLE",
+      "parsedAsJson": false,
+      "candidateItems": 0
+    },
+    {
+      "url": "https://www.elvebredd.com/trade-center?_rsc=OY4dXFDlHMABqseM",
+      "status": 200,
+      "resourceType": "fetch",
+      "contentType": "text/x-component",
+      "fallbackCategory": "VEHICLE",
+      "parsedAsJson": false,
+      "candidateItems": 0
+    },
+    {
+      "url": "https://www.elvebredd.com/adopt-me-calculator?_rsc=sS-OyFykMUtbCV7z",
+      "status": 200,
+      "resourceType": "fetch",
+      "contentType": "text/x-component",
+      "fallbackCategory": "VEHICLE",
+      "parsedAsJson": false,
+      "candidateItems": 0
+    }
+  ]
 }
