@@ -48,8 +48,8 @@ export default function MemberPulse() {
     <section className="rounded-[var(--radius-section)] border border-[var(--border)] bg-[var(--surface-1)] p-5 shadow-[var(--shadow-sm)] sm:p-6" aria-labelledby="member-pulse-title">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[.16em] text-[var(--brand-primary)]">My CSBT</p>
-          <h2 id="member-pulse-title" className="mt-1 text-xl font-black text-[var(--foreground)]">Pick up where you left off.</h2>
+          <p className="text-[10px] font-black uppercase tracking-[.16em] text-[var(--brand-primary)]">Continue where you left off</p>
+          <h2 id="member-pulse-title" className="mt-1 text-xl font-black text-[var(--foreground)]">Your CSBT activity, ready when you are.</h2>
           <p className="mt-2 text-sm font-semibold text-[var(--foreground-muted)]">{nextAction.text}</p>
         </div>
         <Link href={nextAction.href} className="csbt-btn-primary min-h-11 shrink-0 px-5 py-3 text-sm font-black">{nextAction.label} →</Link>
@@ -65,5 +65,5 @@ export default function MemberPulse() {
 }
 
 function PulseMetric({ value, label }: { value: number; label: string }) {
-  return <div className="rounded-2xl bg-[var(--surface-3)] p-3"><p className="text-xl font-black text-[var(--foreground)]">{value.toLocaleString()}</p><p className="mt-1 text-[9px] font-black uppercase tracking-[.1em] text-[var(--foreground-muted)]">{label}</p></div>;
+  return <div className="rounded-2xl bg-[var(--surface-3)] p-3"><p className="text-xl font-black text-[var(--foreground)]">{value.toLocaleString()}</p><p className="mt-1 text-xs font-black uppercase tracking-[.1em] text-[var(--foreground-muted)]">{label}</p></div>;
 }

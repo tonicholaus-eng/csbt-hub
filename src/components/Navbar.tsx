@@ -144,6 +144,7 @@ export default function Navbar() {
             <div className="min-w-0"><span className="block truncate text-base font-black text-amber-900 dark:text-amber-300">CSBT HUB</span><span className="block truncate text-[10px] font-bold text-slate-400">Adopt Me trading hub</span></div>
           </Link>
           <div className="flex items-center gap-1.5">
+            <button type="button" data-tour="nav-more" onClick={() => setMoreOpen(true)} className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10" aria-label="More navigation"><NavIcon name="more" /></button>
             <Link href="/notifications" aria-label="Notifications" className="relative flex h-11 w-11 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10"><NavIcon name="notifications" />{unread > 0 && <span className="absolute right-1 top-1 min-w-4 rounded-full bg-rose-500 px-1 text-center text-[9px] font-black leading-4 text-white">{unread > 99 ? "99+" : unread}</span>}</Link>
             <Link href="/profile" aria-label="My profile" className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10"><NavIcon name="profile" /></Link>
           </div>
@@ -153,7 +154,6 @@ export default function Navbar() {
       <nav data-tour="mobile-dock" className="fixed inset-x-0 bottom-0 z-[70] border-t border-[var(--border)] bg-[var(--surface-1)] px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_35px_rgba(15,23,42,.1)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/96 lg:hidden" aria-label="Mobile primary navigation">
         <div className="mx-auto grid max-w-xl grid-cols-5 gap-1">
           {mobilePrimaryLinks.map((link) => <MobileDockLink key={link.href} link={link} active={active(link.href)} />)}
-          <button type="button" data-tour="nav-more" onClick={() => setMoreOpen(true)} className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-black ${moreOpen ? "bg-[var(--nav-active)] text-[var(--nav-active-text)]" : "text-[var(--foreground-muted)]"}`} aria-label="More navigation"><NavIcon name="more" /><span>More</span></button>
         </div>
       </nav>
 

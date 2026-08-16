@@ -19,7 +19,8 @@
     "refresh:deploy": "npm run refresh:values && git add . && git commit -m \"Refresh Elve values and regenerate trading data\" && git push origin main",
     "test:nich-vision": "tsx scripts/test-nich-vision.ts",
     "test:nich-credit-saver": "tsx scripts/test-nich-credit-saver.ts",
-    "test": "tsx --test tests/*.test.ts"
+    "test": "tsx --test tests/*.test.ts",
+    "export:safe": "node scripts/create-safe-export.mjs"
   },
   "dependencies": {
     "@next/third-parties": "^16.3.0",

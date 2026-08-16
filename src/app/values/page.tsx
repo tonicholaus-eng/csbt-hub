@@ -11,7 +11,7 @@ import type { DemandTier, ItemCategory, TradeItem } from "../../components/trade
 import { EmptyState, PageHeader } from "../../components/ui/CSBTUI";
 
 type SortMode = "AZ" | "GCASH_HIGH" | "ELVE_HIGH" | "DEMAND" | "RECENT";
-type ItemsResponse = { items: TradeItem[]; total: number; rarities: string[] };
+type ItemsResponse = { items: TradeItem[]; total: number; rarities: string[]; hasDemandData?: boolean };
 const PAGE_SIZE = 60;
 
 function formatDate(value?: string) {
@@ -31,6 +31,7 @@ export default function ValuesPage() {
   const [items, setItems] = useState<TradeItem[]>([]);
   const [total, setTotal] = useState(Number(tradingMeta.totalItems));
   const [rarities, setRarities] = useState<string[]>([]);
+  const [hasDemandData, setHasDemandData] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,13 +46,13 @@ export default function ValuesPage() {
       q: debouncedSearch,
       category,
       rarity,
-      demand,
-      sort,
+      demand: hasDemandData ? demand : "ALL",
+      sort: sort === "DEMAND" && !hasDemandData ? "AZ" : sort,
       limit: String(PAGE_SIZE),
       offset: "0",
     });
     return params.toString();
-  }, [category, debouncedSearch, demand, rarity, sort]);
+  }, [category, debouncedSearch, demand, hasDemandData, rarity, sort]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -66,6 +67,7 @@ export default function ValuesPage() {
         setItems(Array.isArray(payload.items) ? payload.items : []);
         setTotal(Number(payload.total) || 0);
         if (Array.isArray(payload.rarities)) setRarities(payload.rarities);
+        setHasDemandData(Boolean(payload.hasDemandData));
       })
       .catch((caught: unknown) => {
         if (caught instanceof DOMException && caught.name === "AbortError") return;
@@ -94,6 +96,7 @@ export default function ValuesPage() {
       const nextTotal = Number(payload.total);
       if (Number.isFinite(nextTotal)) setTotal(nextTotal);
       if (Array.isArray(payload.rarities)) setRarities(payload.rarities);
+      setHasDemandData(Boolean(payload.hasDemandData));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not load more values.");
     } finally {
@@ -103,7 +106,7 @@ export default function ValuesPage() {
 
   const categoryCounts = (tradingMeta as { categoryCounts?: Record<string, number> }).categoryCounts ?? {};
   const elveUpdatedAt = (valueSources as { sources?: { ELVE?: { updatedAt?: string } } }).sources?.ELVE?.updatedAt;
-  const hasFilters = category !== "ALL" || rarity !== "ALL" || demand !== "ALL" || Boolean(search.trim()) || sort !== "AZ";
+  const hasFilters = category !== "ALL" || rarity !== "ALL" || (hasDemandData && demand !== "ALL") || Boolean(search.trim()) || sort !== "AZ";
 
   function clearFilters() {
     setSearch("");
@@ -131,8 +134,8 @@ export default function ValuesPage() {
           </div>
           <div className="mt-4 grid gap-2 sm:grid-cols-3">
             <select value={rarity} onChange={(e)=>setRarity(e.target.value)} aria-label="Filter by rarity" className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-3)] px-3 text-xs font-black"><option value="ALL">All rarities</option>{rarities.map((r)=><option key={r} value={r}>{r}</option>)}</select>
-            <select value={demand} onChange={(e)=>setDemand(e.target.value as DemandTier|"ALL")} aria-label="Filter by demand tier" className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-3)] px-3 text-xs font-black"><option value="ALL">All demand tiers</option>{["S","A","B","C","D"].map((d)=><option key={d} value={d}>{d} tier</option>)}</select>
-            <select value={sort} onChange={(e)=>setSort(e.target.value as SortMode)} aria-label="Sort values" className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-3)] px-3 text-xs font-black"><option value="AZ">A–Z</option><option value="GCASH_HIGH">Highest GCash</option><option value="ELVE_HIGH">Highest Elve</option><option value="DEMAND">Highest demand</option><option value="RECENT">Recently updated</option></select>
+            {hasDemandData ? <select value={demand} onChange={(e)=>setDemand(e.target.value as DemandTier|"ALL")} aria-label="Filter by demand tier" className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-3)] px-3 text-xs font-black"><option value="ALL">All demand tiers</option>{["S","A","B","C","D"].map((d)=><option key={d} value={d}>{d} tier</option>)}</select> : <div className="flex min-h-11 items-center rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-3)] px-3 text-xs font-bold text-[var(--foreground-muted)]">Catalog demand tiers unavailable</div>}
+            <select value={sort} onChange={(e)=>setSort(e.target.value as SortMode)} aria-label="Sort values" className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-3)] px-3 text-xs font-black"><option value="AZ">A–Z</option><option value="GCASH_HIGH">Highest GCash</option><option value="ELVE_HIGH">Highest Elve</option>{hasDemandData ? <option value="DEMAND">Highest demand</option> : null}<option value="RECENT">Recently updated</option></select>
           </div>
         </section>
 

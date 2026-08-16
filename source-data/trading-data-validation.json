@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-08-12T21:19:11.749Z",
+  "generatedAt": "2026-08-16T07:12:20.797Z",
   "categories": {
-    "PET": 768,
+    "PET": 770,
     "PETWEAR": 942,
     "EGG": 37,
     "VEHICLE": 268,
@@ -12,7 +12,7 @@
     "STICKER": 365,
     "OTHER": 28
   },
-  "total": 3387,
+  "total": 3389,
   "warnings": [
     "2023 Uplift Butterfly: no matching Elve Shark snapshot record; workbook fallback used.",
     "Dango Penguin: no matching Elve Shark snapshot record; workbook fallback used.",

@@ -14,8 +14,8 @@ function defaultVariant(item: TradeItem, source: ValueSource): ValueType {
   return "NORMAL";
 }
 
-export function exchangeItemFromTradeItem(item: TradeItem, source: ValueSource): ExchangeItem {
-  const valueType = defaultVariant(item, source);
+export function exchangeItemFromTradeItem(item: TradeItem, source: ValueSource, preferredValueType?: ValueType, quantity = 1): ExchangeItem {
+  const valueType = preferredValueType && hasItemValue(item, source, preferredValueType) ? preferredValueType : defaultVariant(item, source);
   return {
     item_id: item.ID,
     item_name: item.NAME,
@@ -23,7 +23,7 @@ export function exchangeItemFromTradeItem(item: TradeItem, source: ValueSource):
     category: item.CATEGORY,
     value_type: valueType,
     potion_status: "BASE",
-    quantity: 1,
+    quantity: Math.max(1, Math.min(99, quantity)),
     snapshot_value: parseTradeValue(getInventoryItemValue(item, source, valueType, "BASE")),
     demand_tier: item.DEMAND_TIER ?? null,
   };

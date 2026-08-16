@@ -126,7 +126,7 @@ export default function TradeHistory() {
         </div>
       </div>
 
-      {schemaMissing && <p className="mt-5 rounded-2xl bg-amber-50 p-4 text-sm font-bold text-amber-800 dark:bg-amber-400/10 dark:text-amber-200">Run <code>src/lib/supabase/foundation.sql</code> to activate saved trade history.</p>}
+      {schemaMissing && <p className="mt-5 rounded-2xl bg-amber-50 p-4 text-sm font-bold text-amber-800 dark:bg-amber-400/10 dark:text-amber-200">Saved trade history is temporarily unavailable. Please try again later.</p>}
       {error && !schemaMissing && <p className="mt-5 rounded-2xl bg-rose-50 p-4 text-sm font-bold text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
 
       {!schemaMissing && visible.length === 0 ? (

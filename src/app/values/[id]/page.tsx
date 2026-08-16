@@ -8,7 +8,7 @@ import { getItemById } from "../../../lib/search";
 export async function generateMetadata({params}:{params:Promise<{id:string}>}):Promise<Metadata>{
   const{id}=await params; const item=getItemById(decodeURIComponent(id)); if(!item)return{title:"Item not found"};
   const canonical=`https://csbthub.com/values/${encodeURIComponent(item.ID)}`;
-  const description=`Check ${item.NAME} GCash and Elve Shark values, value health, history, rarity, demand, wishlist and trading tools on CSBT HUB.`;
+  const description=`Check ${item.NAME} GCash and Elve Shark values, source freshness, value history, rarity, wishlist and trading tools on CSBT HUB.`;
   return{title:`${item.NAME} Values`,description,alternates:{canonical},openGraph:{title:`${item.NAME} Values | CSBT HUB`,description,url:canonical,type:"article",images:item.IMAGE?[{url:item.IMAGE,alt:item.NAME}]:[{url:"/logo.png",alt:"CSBT HUB"}]},twitter:{card:"summary_large_image",title:`${item.NAME} Values | CSBT HUB`,description,images:[item.IMAGE||"/logo.png"]}};
 }
 

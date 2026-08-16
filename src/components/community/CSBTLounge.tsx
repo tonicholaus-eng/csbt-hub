@@ -21,7 +21,7 @@ const AVATAR_BUCKET = "avatars";
 const MAX_POST_LENGTH = 2000;
 const MAX_REPLY_LENGTH = 1000;
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
-const MAX_POSTS = 120;
+const CHANNEL_PAGE_SIZE = 40;
 const REACTIONS = ["👍", "😂", "🔥", "😭", "🤝", "W", "F", "L"] as const;
 
 type ChannelSlug =
@@ -264,6 +264,9 @@ export default function CSBTLounge() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [posting, setPosting] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [hasOlder, setHasOlder] = useState(false);
+  const [channelCountRows, setChannelCountRows] = useState<Array<{ channel_slug: ChannelSlug; post_count: number }>>([]);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [threadPostId, setThreadPostId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
@@ -293,7 +296,7 @@ export default function CSBTLounge() {
     if (!client) return;
     const unique = [...new Set(ids.filter(Boolean))];
     if (!unique.length) return;
-    const { data, error } = await client.from("profiles").select("user_id,display_name,avatar_path,created_at,updated_at").in("user_id", unique);
+    const { data, error } = await client.from("public_profiles").select("user_id,display_name,avatar_path,created_at,updated_at").in("user_id", unique);
     if (error) return;
     setProfiles((current) => {
       const next = { ...current };
@@ -318,25 +321,65 @@ export default function CSBTLounge() {
     if (!error) setReplies((data ?? []) as ReplyRow[]);
   }, [supabase]);
 
+  const loadChannelCounts = useCallback(async () => {
+    const client = supabase;
+    if (!client) return;
+    const { data, error } = await client.rpc("community_channel_counts");
+    if (!error) setChannelCountRows(((data ?? []) as Array<{ channel_slug: ChannelSlug; post_count: number }>).filter((row) => isChannelSlug(row.channel_slug)));
+  }, [supabase]);
+
   const loadPosts = useCallback(async () => {
     const client = supabase;
     if (!client) { setLoading(false); return; }
     setLoading(true);
-    const { data, error } = await client.from("community_posts").select("id,user_id,display_name,content,image_path,channel_slug,created_at,updated_at").order("created_at", { ascending: false }).limit(MAX_POSTS);
+    const { data, error } = await client.from("community_posts")
+      .select("id,user_id,display_name,content,image_path,channel_slug,created_at,updated_at")
+      .eq("channel_slug", activeChannel)
+      .order("created_at", { ascending: false })
+      .limit(CHANNEL_PAGE_SIZE + 1);
     if (error) {
-      setNotice({ type: "error", text: error.message.includes("channel_slug") ? "CSBT Lounge database upgrade is not installed yet. Run src/lib/supabase/community-lounge.sql in Supabase." : error.message });
+      setNotice({ type: "error", text: error.message.includes("channel_slug") ? "CSBT Lounge is temporarily unavailable. Please try again later." : error.message });
       setLoading(false);
       return;
     }
     const rows = (data ?? []) as CommunityPostRow[];
-    const next = rows.map(toPost);
+    setHasOlder(rows.length > CHANNEL_PAGE_SIZE);
+    const next = rows.slice(0, CHANNEL_PAGE_SIZE).map(toPost);
     setPosts(next);
     postIdsRef.current = next.map((post) => post.id);
     void loadProfiles(next.map((post) => post.user_id));
     void loadReactions(postIdsRef.current);
     void loadReplies(postIdsRef.current);
+    void loadChannelCounts();
     setLoading(false);
-  }, [loadProfiles, loadReactions, loadReplies, supabase, toPost]);
+  }, [activeChannel, loadChannelCounts, loadProfiles, loadReactions, loadReplies, supabase, toPost]);
+
+  const loadOlderPosts = useCallback(async () => {
+    const client = supabase;
+    const oldest = posts[posts.length - 1];
+    if (!client || !oldest || loadingOlder || !hasOlder) return;
+    setLoadingOlder(true);
+    const { data, error } = await client.from("community_posts")
+      .select("id,user_id,display_name,content,image_path,channel_slug,created_at,updated_at")
+      .eq("channel_slug", activeChannel)
+      .lt("created_at", oldest.created_at)
+      .order("created_at", { ascending: false })
+      .limit(CHANNEL_PAGE_SIZE + 1);
+    if (!error) {
+      const rows = (data ?? []) as CommunityPostRow[];
+      setHasOlder(rows.length > CHANNEL_PAGE_SIZE);
+      const additions = rows.slice(0, CHANNEL_PAGE_SIZE).map(toPost);
+      setPosts((current) => [...current, ...additions.filter((post) => !current.some((existing) => existing.id === post.id))]);
+      const ids = [...postIdsRef.current, ...additions.map((post) => post.id)];
+      postIdsRef.current = [...new Set(ids)];
+      void loadProfiles(additions.map((post) => post.user_id));
+      void loadReactions(postIdsRef.current);
+      void loadReplies(postIdsRef.current);
+    } else {
+      setNotice({ type: "error", text: "Older Lounge messages could not be loaded." });
+    }
+    setLoadingOlder(false);
+  }, [activeChannel, hasOlder, loadProfiles, loadReactions, loadReplies, loadingOlder, posts, supabase, toPost]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 30_000);
@@ -379,13 +422,35 @@ export default function CSBTLounge() {
   useEffect(() => {
     const client = supabase;
     if (!client) return;
-    const channel = client.channel("csbt-lounge-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "community_posts" }, () => void loadPosts())
+    const filter = `channel_slug=eq.${activeChannel}`;
+    const channel = client.channel(`csbt-lounge-${activeChannel}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "community_posts", filter }, (payload) => {
+        const row = payload.new as CommunityPostRow;
+        if (!row?.id || row.channel_slug !== activeChannel) return;
+        const next = toPost(row);
+        setPosts((current) => [next, ...current.filter((post) => post.id !== next.id)]);
+        postIdsRef.current = [next.id, ...postIdsRef.current.filter((id) => id !== next.id)];
+        void loadProfiles([next.user_id]);
+        void loadChannelCounts();
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "community_posts", filter }, (payload) => {
+        const row = payload.new as CommunityPostRow;
+        if (!row?.id) return;
+        const next = toPost(row);
+        setPosts((current) => current.map((post) => post.id === next.id ? next : post));
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "community_posts" }, (payload) => {
+        const oldRow = payload.old as Partial<CommunityPostRow>;
+        if (!oldRow?.id) return;
+        setPosts((current) => current.filter((post) => post.id !== oldRow.id));
+        postIdsRef.current = postIdsRef.current.filter((id) => id !== oldRow.id);
+        void loadChannelCounts();
+      })
       .on("postgres_changes", { event: "*", schema: "public", table: "community_reactions" }, () => void loadReactions(postIdsRef.current))
       .on("postgres_changes", { event: "*", schema: "public", table: "community_replies" }, () => void loadReplies(postIdsRef.current))
       .subscribe();
     return () => { void client.removeChannel(channel); };
-  }, [loadPosts, loadReactions, loadReplies, supabase]);
+  }, [activeChannel, loadChannelCounts, loadProfiles, loadReactions, loadReplies, supabase, toPost]);
 
   useEffect(() => {
     const client = supabase;
@@ -419,22 +484,22 @@ export default function CSBTLounge() {
     return () => { void client.removeChannel(presence); };
   }, [activeChannel, currentDisplayName, supabase, user?.id]);
 
-  const visiblePosts = useMemo(() => posts.filter((post) => post.channel_slug === activeChannel).slice().reverse(), [activeChannel, posts]);
+  const visiblePosts = useMemo(() => posts.slice().reverse(), [posts]);
   const threadPost = threadPostId ? posts.find((post) => post.id === threadPostId) ?? null : null;
   const threadReplies = useMemo(() => replies.filter((reply) => reply.post_id === threadPostId), [replies, threadPostId]);
 
   const channelCounts = useMemo(() => {
     const counts = new Map<ChannelSlug, number>();
-    for (const post of posts) counts.set(post.channel_slug, (counts.get(post.channel_slug) ?? 0) + 1);
+    for (const row of channelCountRows) counts.set(row.channel_slug, Number(row.post_count) || 0);
     return counts;
-  }, [posts]);
+  }, [channelCountRows]);
 
   const activeMembers = useMemo(() => presenceMembers.filter((member) => member.channel === activeChannel), [activeChannel, presenceMembers]);
   const trendingChannels = useMemo(() => [...CHANNELS].sort((a, b) => (channelCounts.get(b.slug) ?? 0) - (channelCounts.get(a.slug) ?? 0)).slice(0, 3), [channelCounts]);
 
   useEffect(() => {
     if (!loading) window.setTimeout(() => feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight, behavior: shouldReduceMotion ? "auto" : "smooth" }), 50);
-  }, [activeChannel, loading, shouldReduceMotion, visiblePosts.length]);
+  }, [activeChannel, loading, shouldReduceMotion]);
 
   async function createPost(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -457,7 +522,7 @@ export default function CSBTLounge() {
       const { data, error } = await client.from("community_posts").insert({ user_id: user.id, display_name: currentDisplayName, content: clean, image_path: uploadedPath, channel_slug: activeChannel }).select("id,user_id,display_name,content,image_path,channel_slug,created_at,updated_at").single();
       if (error) throw error;
       const next = toPost(data as CommunityPostRow);
-      setPosts((current) => [next, ...current.filter((post) => post.id !== next.id)].slice(0, MAX_POSTS));
+      setPosts((current) => [next, ...current.filter((post) => post.id !== next.id)]);
       setMessage("");
       setSelectedImage(null);
       setNotice({ type: "success", text: `Posted in #${currentChannel.label}.` });
@@ -552,7 +617,15 @@ export default function CSBTLounge() {
             {loading ? (
               <div className="space-y-3 p-3">{[1,2,3,4,5].map((item) => <div key={item} className="flex animate-pulse gap-3 rounded-xl p-3"><div className="h-10 w-10 rounded-full bg-white/10"/><div className="flex-1"><div className="h-3 w-36 rounded bg-white/10"/><div className="mt-3 h-3 w-4/5 rounded bg-white/5"/></div></div>)}</div>
             ) : visiblePosts.length ? (
-              <AnimatePresence initial={false}>
+              <>
+                {hasOlder && (
+                  <div className="mb-3 flex justify-center">
+                    <button type="button" onClick={() => void loadOlderPosts()} disabled={loadingOlder} className="min-h-10 rounded-full border border-white/10 bg-white/[0.05] px-4 text-xs font-black text-white/70 transition hover:bg-white/10 disabled:opacity-50">
+                      {loadingOlder ? "Loading…" : "Load older messages"}
+                    </button>
+                  </div>
+                )}
+                <AnimatePresence initial={false}>
                 {visiblePosts.map((post) => (
                   <LoungeMessage
                     key={post.id}
@@ -567,7 +640,8 @@ export default function CSBTLounge() {
                     onDelete={() => void deletePost(post)}
                   />
                 ))}
-              </AnimatePresence>
+                </AnimatePresence>
+              </>
             ) : (
               <div className="flex min-h-[480px] items-center justify-center px-6 text-center"><div className="max-w-sm"><div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br ${currentChannel.accent} text-2xl shadow-xl`}>{currentChannel.icon}</div><h3 className="mt-5 text-xl font-black">Welcome to #{currentChannel.label}</h3><p className="mt-2 text-sm leading-6 text-white/40">{currentChannel.description}. {activeChannel === "announcements" ? "Official updates will appear here." : "Start the conversation and make this channel yours."}</p></div></div>
             )}

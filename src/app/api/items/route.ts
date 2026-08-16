@@ -16,11 +16,12 @@ export async function GET(request: Request) {
   const offset = Math.max(0, Number(searchParams.get("offset") ?? 0) || 0);
   const limit = Math.min(240, Math.max(1, Number(searchParams.get("limit") ?? 30) || 30));
 
+  const hasDemandData = itemList.some((item) => Boolean(item.DEMAND_TIER));
   const base = query ? searchItems(query, itemList.length) : itemList;
   const filtered = base.filter((item) => {
     if (category !== "ALL" && item.CATEGORY !== category) return false;
     if (rarity !== "ALL" && (item.RARITY ?? "").toLowerCase() !== rarity.toLowerCase()) return false;
-    if (demand !== "ALL" && item.DEMAND_TIER !== demand) return false;
+    if (hasDemandData && demand !== "ALL" && item.DEMAND_TIER !== demand) return false;
     if (source !== "ALL") {
       return ["NORMAL", "NEON", "MEGA"].some((type) => (parseTradeValue(getItemValue(item, source, type as "NORMAL" | "NEON" | "MEGA")) ?? 0) > 0);
     }
@@ -30,13 +31,13 @@ export async function GET(request: Request) {
   filtered.sort((a, b) => {
     if (sort === "GCASH_HIGH") return (parseTradeValue(getItemValue(b, "GCASH", "NORMAL")) ?? -1) - (parseTradeValue(getItemValue(a, "GCASH", "NORMAL")) ?? -1) || a.NAME.localeCompare(b.NAME);
     if (sort === "ELVE_HIGH") return (parseTradeValue(getItemValue(b, "ELVE", "NORMAL")) ?? -1) - (parseTradeValue(getItemValue(a, "ELVE", "NORMAL")) ?? -1) || a.NAME.localeCompare(b.NAME);
-    if (sort === "DEMAND") return (demandOrder[a.DEMAND_TIER ?? ""] ?? 99) - (demandOrder[b.DEMAND_TIER ?? ""] ?? 99) || a.NAME.localeCompare(b.NAME);
+    if (sort === "DEMAND" && hasDemandData) return (demandOrder[a.DEMAND_TIER ?? ""] ?? 99) - (demandOrder[b.DEMAND_TIER ?? ""] ?? 99) || a.NAME.localeCompare(b.NAME);
     if (sort === "RECENT") return new Date(b.UPDATED_AT ?? 0).getTime() - new Date(a.UPDATED_AT ?? 0).getTime() || a.NAME.localeCompare(b.NAME);
     return a.NAME.localeCompare(b.NAME, undefined, { numeric: true, sensitivity: "base" });
   });
 
   const rarities = Array.from(new Set(itemList.map((item) => item.RARITY?.trim()).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b));
-  return NextResponse.json({ items: filtered.slice(offset, offset + limit), total: filtered.length, rarities }, {
+  return NextResponse.json({ items: filtered.slice(offset, offset + limit), total: filtered.length, rarities, hasDemandData }, {
     headers: { "Cache-Control": query ? "public, max-age=60, stale-while-revalidate=300" : "public, max-age=300, stale-while-revalidate=1800" },
   });
 }

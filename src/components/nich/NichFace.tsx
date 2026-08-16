@@ -49,7 +49,6 @@ export default function NichFace({
           alt="Nich"
           fill
           priority
-          unoptimized
           onError={() => setImageFailed(true)}
           className="object-contain drop-shadow-[0_14px_18px_rgba(15,23,42,.28)]"
           sizes={`${size}px`}

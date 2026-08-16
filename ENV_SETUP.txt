@@ -2,8 +2,8 @@ CSBT HUB LOCAL ENVIRONMENT SETUP
 
 Create a file named .env.local beside package.json and add:
 
-NEXT_PUBLIC_SUPABASE_URL=https://dobghbprsggrmihubcfr.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_JPi3hZCVoRftD_r11Q24ww_QUW81pjZ
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SECRET_KEY=PASTE_YOUR_SUPABASE_SECRET_KEY_HERE
 NICH_AI_STYLE_MODE=advice
 

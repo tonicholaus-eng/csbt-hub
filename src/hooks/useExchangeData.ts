@@ -80,10 +80,12 @@ export function useExchangeData({
   supabase,
   user,
   authLoading,
+  loadMarketEvents = false,
 }: {
   supabase: SupabaseClient | null;
   user: User | null;
   authLoading: boolean;
+  loadMarketEvents?: boolean;
 }) {
   const [listings, setListings] = useState<ExchangeListing[]>([]);
   const [offers, setOffers] = useState<ExchangeOffer[]>([]);
@@ -114,27 +116,24 @@ export function useExchangeData({
   }, []);
 
   const loadPublic = useCallback(async (client: SupabaseClient) => {
-    const [{ data: listingRows, error: listingError }, { data: marketRows }] = await Promise.all([
-      client
-        .from("marketplace_listings")
-        .select("*,marketplace_listing_items(*)")
-        .eq("status", "OPEN")
-        .gt("expires_at", new Date().toISOString())
-        .order("created_at", { ascending: false })
-        .limit(120),
-      client
-        .from("marketplace_events")
-        .select("id,event_type,listing_id,offer_id,room_id,item_id,value_source,value,metadata,created_at")
-        .order("created_at", { ascending: false })
-        .limit(600),
-    ]);
+    const listingRequest = client
+      .from("marketplace_listings")
+      .select("*,marketplace_listing_items(*)")
+      .eq("status", "OPEN")
+      .gt("expires_at", new Date().toISOString())
+      .order("created_at", { ascending: false })
+      .limit(120);
+    const marketRequest = loadMarketEvents
+      ? client.from("marketplace_events").select("id,event_type,listing_id,offer_id,room_id,item_id,value_source,value,metadata,created_at").order("created_at", { ascending: false }).limit(600)
+      : Promise.resolve({ data: [] as ExchangeMarketEvent[], error: null });
+    const [{ data: listingRows, error: listingError }, { data: marketRows }] = await Promise.all([listingRequest, marketRequest]);
     if (listingError) throw listingError;
     if (!mountedRef.current) return;
     const normalized = ((listingRows ?? []) as DbListing[]).map(normalizeListing);
     setListings(normalized);
     setEvents((marketRows ?? []) as ExchangeMarketEvent[]);
     await loadTrustForUsers(client, normalized.map((row) => row.user_id));
-  }, [loadTrustForUsers]);
+  }, [loadMarketEvents, loadTrustForUsers]);
 
   const loadPrivate = useCallback(async (client: SupabaseClient, userId: string) => {
     const [inventoryResult, wishlistResult, preferencesResult, offerResult, roomResult, blockResult, ownedListingResult] = await Promise.all([
@@ -273,6 +272,7 @@ export function useExchangeData({
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "trade_rooms" }, roomChange)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "marketplace_events" }, (payload) => {
+        if (!loadMarketEvents) return;
         const event = payload.new as ExchangeMarketEvent;
         if (!event?.id) return;
         setEvents((current) => [event, ...current.filter((row) => row.id !== event.id)].slice(0, 600));
@@ -280,7 +280,7 @@ export function useExchangeData({
       .subscribe();
 
     return () => { void client.removeChannel(channel); };
-  }, [refreshListing, refreshOffer, refreshRoom, supabase, user]);
+  }, [loadMarketEvents, refreshListing, refreshOffer, refreshRoom, supabase, user]);
 
   return {
     listings,

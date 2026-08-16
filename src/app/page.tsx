@@ -11,7 +11,7 @@ export default function Home() {
       <div className="relative z-10 min-w-0 lg:pl-[268px]">
         <div className="csbt-workspace max-w-[1450px] pb-20 sm:pb-28">
           <Hero totalItems={tradingMeta.totalItems} categoryCount={Object.keys(tradingMeta.categoryCounts).length} generatedAt={tradingMeta.generatedAt} />
-          <HomeDeferredSections totalItems={tradingMeta.totalItems} />
+          <HomeDeferredSections totalItems={tradingMeta.totalItems} generatedAt={tradingMeta.generatedAt} />
         </div>
         <div className="home-content-auto"><Footer /></div>
       </div>

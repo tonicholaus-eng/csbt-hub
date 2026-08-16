@@ -1,0 +1,6 @@
+import Link from "next/link";
+import Navbar from "../components/Navbar";
+
+export default function NotFound() {
+  return <main className="csbt-page min-h-screen"><Navbar/><div className="lg:pl-[268px]"><div className="csbt-app-workspace flex min-h-[70vh] max-w-3xl items-center justify-center"><section className="w-full rounded-[var(--radius-section)] border border-[var(--border)] bg-[var(--surface-raised)] p-8 text-center shadow-[var(--shadow-md)] sm:p-12"><p className="text-xs font-black uppercase tracking-[.16em] text-[var(--brand-primary)]">404 · Lost trade</p><h1 className="mt-3 text-4xl font-black text-[var(--foreground)]">That CSBT page is not here.</h1><p className="mx-auto mt-3 max-w-xl text-sm font-semibold leading-6 text-[var(--foreground-muted)]">The link may be old or the item may have moved. You can recover by searching Values, browsing Exchange, or returning home.</p><div className="mt-7 flex flex-wrap justify-center gap-3"><Link href="/values" className="csbt-btn-primary min-h-11 px-5 py-3 text-sm font-black">Search Values</Link><Link href="/exchange" className="csbt-btn-secondary min-h-11 px-5 py-3 text-sm font-black">Open Exchange</Link><Link href="/" className="csbt-btn-quiet min-h-11 px-5 py-3 text-sm font-black">Home</Link></div></section></div></div></main>;
+}

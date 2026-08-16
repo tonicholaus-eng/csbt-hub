@@ -261,6 +261,29 @@
    Tailwind Theme
 ========================= */
 
+/* Semantic aliases shared by every visual theme. Feature components should prefer these
+   when the meaning matters more than the literal palette. */
+:root,
+[data-theme] {
+  --surface-base: var(--surface-0);
+  --surface-raised: var(--surface-1);
+  --surface-elevated: var(--surface-2);
+  --surface-interactive: var(--surface-hover);
+  --text-primary: var(--foreground);
+  --text-secondary: var(--foreground-muted);
+  --text-muted: var(--foreground-muted);
+  --action-primary: var(--brand-primary);
+  --action-primary-hover: var(--brand-secondary);
+  --state-success: var(--green);
+  --state-warning: var(--amber);
+  --state-danger: var(--rose);
+  --state-info: var(--blue);
+  --market-up: var(--green);
+  --market-down: var(--rose);
+  --market-neutral: var(--foreground-muted);
+  --shadow-float: var(--shadow-md);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

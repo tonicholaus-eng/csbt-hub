@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import Navbar from "../../components/Navbar";
 import TradeVotingBoard from "../../components/community/TradeVotingBoard";
@@ -20,7 +21,7 @@ export default function TradeFeedPage() {
             title="Win / Fair / Lose"
             description="See real trades from the CSBT community and vote on whether they look like a Win, Fair, or Loss."
           />
-          <TradeVotingBoard />
+          <Suspense fallback={<div className="rounded-[22px] border border-[var(--line)] bg-[var(--surface-raised)] p-6 text-sm font-semibold text-[var(--muted)]">Loading community trades…</div>}><TradeVotingBoard /></Suspense>
         </div>
         
       </div>

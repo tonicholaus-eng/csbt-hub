@@ -2,8 +2,8 @@
   "source": "Elvebredd",
   "valueSystem": "Shark",
   "sourceUrl": "https://www.elvebredd.com/adopt-me-calculator",
-  "sourceVersion": 490,
-  "fetchedAt": "2026-08-12T09:30:39.972Z",
+  "sourceVersion": 491,
+  "fetchedAt": "2026-08-12T13:33:37.906Z",
   "recordCount": 3387,
   "supportedCategories": [
     "PET",
@@ -4239,7 +4239,7 @@
       "image": "/images/pets/Cryptid.png",
       "normal": 134,
       "neon": 320,
-      "mega": 1310,
+      "mega": 1250,
       "status": "Ready",
       "rarity": "legendary"
     },

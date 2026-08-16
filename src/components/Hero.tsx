@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import ItemSearchPicker from "./items/ItemSearchPicker";
 import { useCSBTTheme } from "./ThemeProvider";
 import {
   motion,
@@ -38,6 +40,7 @@ function formatRefreshDate(value: string) {
 
 export default function Hero({ totalItems, categoryCount, generatedAt }: HeroProps) {
   const { theme } = useCSBTTheme();
+  const router = useRouter();
   const shouldReduceMotion = useReducedMotion();
 
   const pointerX = useMotionValue(0);
@@ -212,9 +215,19 @@ export default function Hero({ totalItems, categoryCount, generatedAt }: HeroPro
         </h1>
 
         <p className="mx-auto mt-7 max-w-3xl text-lg leading-relaxed text-white/90 sm:text-xl md:text-2xl">
-          Check <strong className="text-white">Adopt Me values</strong>, compare
-          trades, follow demand, and get instant help from Nich—all in one hub.
+          <strong className="text-white">Know the value. Build the trade. Find the trader.</strong>
+          {" "}CSBT connects values, inventory, trading tools, Exchange, community opinions, and NICH in one hub.
         </p>
+
+        <div className="mx-auto mt-8 max-w-2xl text-left">
+          <div className="rounded-[22px] border border-white/25 bg-slate-950/20 p-2 shadow-xl backdrop-blur-md">
+            <ItemSearchPicker
+              onSelect={(item) => router.push(`/values/${encodeURIComponent(item.ID)}`)}
+              placeholder="Search Frost Dragon, FD, SSBD, or any Adopt Me item…"
+            />
+          </div>
+          <p className="mt-2 text-center text-xs font-bold text-white/70">Start with an item. From its page you can value it, watch it, add it to inventory, build a trade, or find traders.</p>
+        </div>
 
         <div className="mt-9 flex flex-wrap justify-center gap-3 sm:gap-4">
           {featureItems.map((item) => (

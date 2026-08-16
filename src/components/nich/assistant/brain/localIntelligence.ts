@@ -564,7 +564,7 @@ function offerBuilder(input: NichBrainInput): NichResponse | null {
     return `- ${item.quantity > 1 ? `${item.quantity}× ` : ""}${variant}${potion ? `${potion} ` : ""}${item.item_name} — ${formatNumber(itemValue)}`;
   });
   const descriptor = objective === "LOWBALL" ? "Lowball attempt" : objective === "COMPETITIVE" ? "Competitive offer" : objective === "HIGH_DEMAND" ? "Demand-friendly offer" : "Optimized offer";
-  const demandText = built.averageDemand >= 90 ? "very strong" : built.averageDemand >= 82 ? "strong" : built.averageDemand >= 70 ? "good" : "mixed";
+  const demandText = built.averageDemand === null ? "unavailable" : built.averageDemand >= 90 ? "very strong" : built.averageDemand >= 82 ? "strong" : built.averageDemand >= 70 ? "good" : "mixed";
   const activeConstraintLines = [
     categories.allowed?.size ? `Categories: ${Array.from(categories.allowed).join(", ")} only` : "",
     categories.excluded.size ? `Excluded categories: ${Array.from(categories.excluded).join(", ")}` : "",
@@ -842,16 +842,19 @@ function externalTrendLabel(trend: "rising" | "dropping" | "mixed" | "stable" | 
   return null;
 }
 
-function demandStrength(item: TradeItem, data?: NichLocalProfileData) {
+function demandStrength(item: TradeItem, data?: NichLocalProfileData): number | null {
   const signal = getDemandSignal(data, item.ID);
   const liveOverride = buildLiveDemandOverrides(data).get(item.ID);
-  let strength = item.DEMAND_TIER ? getDemandScore(item.DEMAND_TIER) : liveOverride ?? 60;
-  if (signal && item.DEMAND_TIER) {
+  if (liveOverride !== undefined) return liveOverride;
+  if (!item.DEMAND_TIER) return null;
+
+  let strength = getDemandScore(item.DEMAND_TIER);
+  if (signal) {
     strength += Math.min(14, signal.wants24h * 1.6 + signal.accepted7d * 0.9);
     if (signal.externalTrend === "rising") strength += 4;
     if (signal.externalTrend === "dropping") strength -= 4;
   }
-  return strength;
+  return Math.max(0, Math.min(100, strength));
 }
 
 function demandIntelligence(input: NichBrainInput): NichResponse | null {
@@ -895,11 +898,15 @@ function demandIntelligence(input: NichBrainInput): NichResponse | null {
     const trend = externalTrendLabel(signal?.externalTrend);
     if (trend) lines.push(`External market-update signal: ${trend}${signal?.externalUpdatedAt ? ` (latest update ${signal.externalUpdatedAt.slice(0, 10)})` : ""}.`);
     const strength = demandStrength(target, data);
-    lines.push(strength >= 96 ? "Local read: very easy to move compared with most items." : strength >= 84 ? "Local read: strong demand and generally good liquidity." : strength >= 70 ? "Local read: healthy/usable demand, but not top-tier liquidity." : strength >= 56 ? "Local read: average liquidity; value alone may not guarantee a quick retrade." : "Local read: weaker liquidity, so I’d be more careful accepting it as a large part of an offer.");
+    if (strength === null) {
+      lines.push("Local read: not enough catalog or Exchange evidence to classify liquidity yet.");
+    } else {
+      lines.push(strength >= 96 ? "Local read: very easy to move compared with most items." : strength >= 84 ? "Local read: strong demand and generally good liquidity." : strength >= 70 ? "Local read: healthy/usable demand, but not top-tier liquidity." : strength >= 56 ? "Local read: average liquidity; value alone may not guarantee a quick retrade." : "Local read: weaker liquidity, so I’d be more careful accepting it as a large part of an offer.");
+    }
     return {
       text: lines.join("\n"),
       intent: "tradeAdvice",
-      reaction: strength >= 84 ? "celebrate" : "calculator",
+      reaction: strength !== null && strength >= 84 ? "celebrate" : "calculator",
       localConfidence: 0.99,
       aiEligible: false,
       context: { lastPetName: target.NAME },
@@ -915,7 +922,8 @@ function demandIntelligence(input: NichBrainInput): NichResponse | null {
     const item = getItemById(id);
     if (!item) return [];
     const signal = getDemandSignal(data, id);
-    return [{ item, signal, strength: demandStrength(item, data) }];
+    const strength = demandStrength(item, data);
+    return strength === null ? [] : [{ item, signal, strength }];
   }).sort((a, b) => b.strength - a.strength || (b.signal?.wants24h ?? 0) - (a.signal?.wants24h ?? 0));
 
   if (!ranked.length) {
@@ -1149,7 +1157,13 @@ export function getTradeDemandAnalysis(comparison: NichTradeComparison, data?: N
   if (!sourceItems.length || !targetItems.length) return null;
 
   const aggregate = (items: TradeItem[]) => {
-    const baseDemand = items.reduce((sum, item) => sum + getDemandScore(item.DEMAND_TIER), 0) / items.length;
+    const catalogScores = items.flatMap((item) => item.DEMAND_TIER ? [getDemandScore(item.DEMAND_TIER)] : []);
+    const knownStrengths = items.flatMap((item) => {
+      const strength = demandStrength(item, data);
+      return strength === null ? [] : [strength];
+    });
+    const baseDemand = catalogScores.length ? catalogScores.reduce((sum, score) => sum + score, 0) / catalogScores.length : null;
+    const liveStrength = knownStrengths.length ? knownStrengths.reduce((sum, score) => sum + score, 0) / knownStrengths.length : null;
     let wants24h = 0;
     let accepted7d = 0;
     let rising = 0;
@@ -1162,22 +1176,26 @@ export function getTradeDemandAnalysis(comparison: NichTradeComparison, data?: N
       if (signal.externalTrend === "rising") rising += 1;
       if (signal.externalTrend === "dropping") dropping += 1;
     }
-    const liveAdjustment = Math.min(14, wants24h * 1.4 + accepted7d * 0.8) + rising * 2.5 - dropping * 2.5;
-    return { baseDemand, liveStrength: baseDemand + liveAdjustment, wants24h, accepted7d, rising, dropping };
+    return { baseDemand, liveStrength, wants24h, accepted7d, rising, dropping };
   };
 
   const yours = aggregate(sourceItems);
   const theirs = aggregate(targetItems);
-  const demandGap = theirs.liveStrength - yours.liveStrength;
+  if (yours.liveStrength === null && theirs.liveStrength === null) return null;
+  const demandGap = yours.liveStrength !== null && theirs.liveStrength !== null
+    ? theirs.liveStrength - yours.liveStrength
+    : null;
   const shape = targetItems.length < sourceItems.length ? "upgrade" : targetItems.length > sourceItems.length ? "downgrade" : "sidegrade";
-  const downgradePremium = shape === "downgrade"
+  const downgradePremium = shape === "downgrade" && demandGap !== null
     ? Math.min(8, 2 + Math.max(0, targetItems.length - sourceItems.length) * 0.8 + Math.max(0, -demandGap) * 0.04)
     : 0;
-  const liquidity = demandGap >= 12
-    ? "Their side has the stronger current demand/liquidity profile."
-    : demandGap <= -12
-      ? "Your current side has the stronger demand/liquidity profile."
-      : "Demand and liquidity look fairly balanced between the two sides.";
+  const liquidity = demandGap === null
+    ? "There isn’t enough comparable demand evidence to rank both sides confidently."
+    : demandGap >= 12
+      ? "Their side has the stronger current demand/liquidity profile."
+      : demandGap <= -12
+        ? "Your current side has the stronger demand/liquidity profile."
+        : "Current demand/liquidity evidence looks fairly balanced between the two sides.";
   return { yours, theirs, demandGap, shape, downgradePremium, liquidity };
 }
 
@@ -1192,6 +1210,11 @@ export function enhanceTradeResponseLocally(response: NichResponse, input: NichB
   const shapeLabel = demand.shape === "upgrade" ? "Upgrade" : demand.shape === "downgrade" ? "Downgrade" : "Sidegrade";
   const demandBand = (value: number) => value >= 93 ? "Very High" : value >= 82 ? "High" : value >= 70 ? "Good" : value >= 56 ? "Average" : "Low";
   const shapeLine = `Trade shape: ${shapeLabel}.`;
+  const sideDemandLabel = (side: typeof demand.yours) => {
+    const catalog = side.baseDemand === null ? "catalog tier unavailable" : `${demandBand(side.baseDemand)} catalog demand`;
+    const current = side.liveStrength === null ? "no current comparable demand score" : `${demandBand(side.liveStrength)} current evidence`;
+    return `${catalog} · ${current}`;
+  };
   const liveLine = (side: typeof demand.yours) => side.wants24h || side.accepted7d
     ? `${side.wants24h} wanted on Exchange in 24h · ${side.accepted7d} accepted in 7d`
     : "no strong recent Exchange activity signal";
@@ -1201,8 +1224,8 @@ export function enhanceTradeResponseLocally(response: NichResponse, input: NichB
   const extra = userAskedDemand ? [
     "",
     "Demand check:",
-    `Your side: ${demandBand(demand.yours.baseDemand)} base demand · ${liveLine(demand.yours)} · ${trendLine(demand.yours)}`,
-    `Their side: ${demandBand(demand.theirs.baseDemand)} base demand · ${liveLine(demand.theirs)} · ${trendLine(demand.theirs)}`,
+    `Your side: ${sideDemandLabel(demand.yours)} · ${liveLine(demand.yours)} · ${trendLine(demand.yours)}`,
+    `Their side: ${sideDemandLabel(demand.theirs)} · ${liveLine(demand.theirs)} · ${trendLine(demand.theirs)}`,
     demand.liquidity,
     ...(demand.shape === "downgrade" && demand.downgradePremium > 0 ? [`For this downgrade, I’d want roughly ${demand.downgradePremium.toFixed(1)}% extra value/demand cushion before calling it attractive.`] : []),
   ] : [];

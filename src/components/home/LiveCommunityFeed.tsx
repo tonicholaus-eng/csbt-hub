@@ -1479,7 +1479,7 @@ export default function LiveCommunityFeed() {
         data,
         error,
       } = await supabase
-        .from("profiles")
+        .from("public_profiles")
         .select(
           "user_id,display_name,avatar_path,created_at,updated_at",
         )

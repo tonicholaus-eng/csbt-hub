@@ -12,6 +12,8 @@ test("search finds exact and fuzzy Adopt Me items", () => {
   assert.ok(frost.some((item) => item.NAME.toLowerCase() === "frost dragon"));
   const fuzzy = searchItems("frost dragn", 8);
   assert.ok(fuzzy.some((item) => item.NAME.toLowerCase() === "frost dragon"));
+  const abbreviation = searchItems("fd", 8);
+  assert.ok(abbreviation.some((item) => item.NAME.toLowerCase() === "frost dragon"));
 });
 
 test("id lookup returns the same indexed item", () => {

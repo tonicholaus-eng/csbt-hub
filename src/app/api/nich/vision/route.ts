@@ -16,6 +16,8 @@ import {
 } from "@/lib/nich/vision";
 import { itemList } from "@/lib/search";
 
+import { consumeServerQuota } from "@/lib/nich/serverQuota";
+
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
@@ -25,8 +27,6 @@ const RATE_LIMIT_WINDOW_MS = 60_000;
 const DEFAULT_RATE_LIMIT = 6;
 const DEFAULT_DAILY_LIMIT = 100;
 
-const minuteBuckets = new Map<string, { count: number; resetAt: number }>();
-let dailyBucket = { day: "", count: 0 };
 const visionResultCache = new Map<string, { response: NichVisionApiResponse; expiresAt: number }>();
 const DEFAULT_VISION_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_VISION_CACHE_ENTRIES = 250;
@@ -56,20 +56,16 @@ function getClientIdentifier(request: NextRequest) {
   return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown";
 }
 
-function consumeVisionMinuteQuota(request: NextRequest) {
-  const now = Date.now();
+async function consumeVisionMinuteQuota(request: NextRequest) {
   const identifier = getClientIdentifier(request);
   const perMinute = Math.floor(parseNumberSetting(process.env.NICH_GEMINI_VISION_RATE_LIMIT, DEFAULT_RATE_LIMIT, 1, 60));
-  const existing = minuteBuckets.get(identifier);
-
-  if (!existing || now >= existing.resetAt) {
-    minuteBuckets.set(identifier, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-  } else {
-    existing.count += 1;
-    if (existing.count > perMinute) return "Too many screenshot analyses. Please wait a minute and try again.";
-  }
-
-  return null;
+  const allowed = await consumeServerQuota({
+    namespace: "nich-vision-minute",
+    identifier,
+    limit: perMinute,
+    windowSeconds: Math.floor(RATE_LIMIT_WINDOW_MS / 1000),
+  });
+  return allowed ? null : "Too many screenshot analyses. Please wait a minute and try again.";
 }
 
 /**
@@ -77,17 +73,15 @@ function consumeVisionMinuteQuota(request: NextRequest) {
  * the exact same screenshot can still be rate-limited for abuse, but it does
  * not consume another daily AI-call slot or another paid Gemini request.
  */
-function consumeVisionDailyGeminiQuota() {
-  const day = new Date().toISOString().slice(0, 10);
-  if (dailyBucket.day !== day) dailyBucket = { day, count: 0 };
+async function consumeVisionDailyGeminiQuota(identifier: string) {
   const dailyLimit = Math.floor(parseNumberSetting(process.env.NICH_GEMINI_VISION_DAILY_LIMIT, DEFAULT_DAILY_LIMIT, 1, 100_000));
-
-  if (dailyBucket.count >= dailyLimit) {
-    return "Nich’s screenshot limit for today has been reached. This limit protects the AI budget.";
-  }
-
-  dailyBucket.count += 1;
-  return null;
+  const allowed = await consumeServerQuota({
+    namespace: "nich-gemini-vision-daily",
+    identifier,
+    limit: dailyLimit,
+    windowSeconds: 24 * 60 * 60,
+  });
+  return allowed ? null : "Nich’s screenshot limit for today has been reached. This limit protects the AI budget.";
 }
 
 function getVisionCacheTtlMs() {
@@ -280,7 +274,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, message: "Gemini Vision is not configured yet. Add GEMINI_API_KEY to the server environment." } satisfies NichVisionApiResponse, { status: 503 });
   }
 
-  const minuteQuotaError = consumeVisionMinuteQuota(request);
+  const minuteQuotaError = await consumeVisionMinuteQuota(request);
   if (minuteQuotaError) {
     return NextResponse.json({ ok: false, message: minuteQuotaError } satisfies NichVisionApiResponse, { status: 429 });
   }
@@ -329,7 +323,7 @@ export async function POST(request: NextRequest) {
     }
     if (cached) visionResultCache.delete(imageHash);
 
-    const dailyQuotaError = consumeVisionDailyGeminiQuota();
+    const dailyQuotaError = await consumeVisionDailyGeminiQuota(getClientIdentifier(request));
     if (dailyQuotaError) {
       return NextResponse.json({ ok: false, message: dailyQuotaError } satisfies NichVisionApiResponse, { status: 429 });
     }

@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import ExchangeItemBuilder from "./ExchangeItemBuilder";
 import type { ExchangeItem, ExchangeListing, ExchangeOffer, InventoryExchangeRow, OfferSuggestion } from "../../lib/exchange/types";
 import { buildOfferSuggestions, getCompatibilityExplanation, sumExchangeItems } from "../../lib/exchange/matching";
+import AccessibleDialog from "../ui/AccessibleDialog";
 
 function stripSide(item: ExchangeItem): ExchangeItem {
   const { side, ...rest } = item;
@@ -92,8 +93,8 @@ export default function OfferComposer({
   }
 
   return (
-    <div className="fixed inset-0 z-[110] overflow-y-auto bg-slate-950/65 p-3 backdrop-blur-sm sm:p-6">
-      <div className="mx-auto max-w-6xl rounded-[32px] border border-white/70 bg-[#fffaf0] p-4 shadow-2xl dark:border-white/10 dark:bg-[#081321] sm:p-6">
+    <AccessibleDialog open onClose={onClose} title={isCounter ? "Counteroffer" : "Make an offer"} className="max-w-6xl">
+      <div className="rounded-[var(--radius-section)] border border-white/70 bg-[#fffaf0] p-4 shadow-2xl dark:border-white/10 dark:bg-[#081321] sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-500">{isCounter ? "Counteroffer" : "Make an offer"}</p>
@@ -148,6 +149,6 @@ export default function OfferComposer({
           <button type="button" disabled={busy || !senderItems.length || !recipientItems.length} onClick={() => void sendOffer()} className="min-h-12 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500 px-6 text-sm font-black text-white shadow-lg disabled:opacity-40">{busy ? "Sending…" : isCounter ? "Send Counteroffer" : "Send Offer"}</button>
         </div>
       </div>
-    </div>
+    </AccessibleDialog>
   );
 }

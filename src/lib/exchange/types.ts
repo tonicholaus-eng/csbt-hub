@@ -91,7 +91,7 @@ export type MatchBreakdown = {
   inventory: number;
   value: number;
   wishlist: number;
-  demand: number;
+  demand: number | null;
   preferences: number;
   freshness: number;
 };

@@ -15,7 +15,7 @@ export default function PerformanceProvider({ children }: { children: ReactNode 
   }, []);
 
   return (
-    <MotionConfig reducedMotion={mobile ? "always" : "user"} transition={{ duration: mobile ? 0.12 : 0.25 }}>
+    <MotionConfig reducedMotion="user" transition={{ duration: mobile ? 0.18 : 0.25 }}>
       {children}
     </MotionConfig>
   );

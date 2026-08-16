@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
   motion,
@@ -19,6 +20,7 @@ import {
 } from "./types";
 import { getItemValue, parseTradeValue } from "../../lib/valueSystem";
 import { getItemById } from "../../lib/search";
+import { buildTradeContextParams, decodeTradeRows, selectedItemsToRows } from "../../lib/tradeContext";
 
 type TradeSideType = "your" | "their";
 
@@ -224,6 +226,41 @@ export default function TradeCalculator() {
     };
   }, [yourTotal, theirTotal]);
 
+  const adjustmentSuggestion = useMemo(() => {
+    if (yourTotal <= 0 || theirTotal <= 0) return null;
+    const currentGap = Math.abs(yourTotal - theirTotal);
+    const currentPercent = currentGap / Math.max(yourTotal, theirTotal, 1) * 100;
+    if (currentPercent <= 5) return null;
+    const unit = valueSource === "GCASH" ? "₱" : "🦈 ";
+
+    if (yourTotal > theirTotal && yourItems.length) {
+      const candidates = yourItems.map((selected) => {
+        const value = parseItemValue(selected.item, selected.valueType, valueSource);
+        const nextYour = Math.max(0, yourTotal - value);
+        const nextGap = Math.abs(nextYour - theirTotal);
+        const nextPercent = nextGap / Math.max(nextYour, theirTotal, 1) * 100;
+        return { selected, value, nextPercent, nextGap };
+      }).filter((candidate) => candidate.value > 0 && candidate.nextGap < currentGap)
+        .sort((a, b) => a.nextGap - b.nextGap);
+      const best = candidates[0];
+      if (best) {
+        return {
+          title: `Try removing ${best.selected.item.NAME}`,
+          text: `That would move the deterministic value gap to about ${best.nextPercent.toFixed(1)}% using ${valueSource} values.`,
+        };
+      }
+      return {
+        title: "Ask for an add",
+        text: `Their side is short by approximately ${unit}${currentGap.toLocaleString("en-US", { maximumFractionDigits: 2 })} in this value source.`,
+      };
+    }
+
+    return {
+      title: "Expect a possible add request",
+      text: `Your side is lower by approximately ${unit}${currentGap.toLocaleString("en-US", { maximumFractionDigits: 2 })}. If you want to make it closer to fair, use that as the deterministic adjustment target.`,
+    };
+  }, [theirTotal, valueSource, yourItems, yourTotal]);
+
   function openAddItemModal(
     side: TradeSideType,
   ) {
@@ -362,17 +399,33 @@ export default function TradeCalculator() {
 
   useEffect(() => {
     if (initialItemHandled.current) return;
+    const requestedSource: ValueSource = searchParams.get("source") === "ELVE" ? "ELVE" : "GCASH";
+    const yourContext = decodeTradeRows(searchParams.get("your"));
+    const theirContext = decodeTradeRows(searchParams.get("their"));
+    const expandRows = (rows: ReturnType<typeof decodeTradeRows>) => rows.flatMap((row) => {
+      const item = getItemById(row.itemId);
+      if (!item) return [];
+      const valueType = getStartingValueType(item, row.valueType, requestedSource);
+      return Array.from({ length: row.quantity }, () => ({ id: crypto.randomUUID(), item, valueType }));
+    });
+
+    if (yourContext.length || theirContext.length) {
+      initialItemHandled.current = true;
+      queueMicrotask(() => {
+        setValueSource(requestedSource);
+        setYourItems(expandRows(yourContext));
+        setTheirItems(expandRows(theirContext));
+      });
+      return;
+    }
+
     const itemId = searchParams.get("add");
     if (!itemId) return;
     const item = getItemById(itemId);
     initialItemHandled.current = true;
     if (!item) return;
-    const requestedSource: ValueSource = searchParams.get("source") === "ELVE" ? "ELVE" : "GCASH";
     queueMicrotask(() => setValueSource(requestedSource));
-    queueMicrotask(() => setYourItems((current) => [
-      ...current,
-      createSelectedItem(item, defaultValueType, requestedSource),
-    ]));
+    queueMicrotask(() => setYourItems((current) => [...current, createSelectedItem(item, defaultValueType, requestedSource)]));
   }, [defaultValueType, searchParams]);
 
   return (
@@ -569,6 +622,23 @@ export default function TradeCalculator() {
         theirTotal={theirTotal}
         valueSource={valueSource}
       />
+
+      {!tradeIsEmpty && (() => {
+        const context = buildTradeContextParams(selectedItemsToRows(yourItems), selectedItemsToRows(theirItems), valueSource);
+        const contextString = context.toString();
+        const prompt = [
+          "Explain this CSBT Trade Calculator result using the deterministic totals below. Do not invent or recalculate values.",
+          `Value source: ${valueSource}. Your total: ${yourTotal}. Their total: ${theirTotal}.`,
+          `You give: ${yourItems.map((row) => `${row.valueType} ${row.item.NAME}`).join(", ") || "nothing"}.`,
+          `They give: ${theirItems.map((row) => `${row.valueType} ${row.item.NAME}`).join(", ") || "nothing"}.`,
+        ].join(" ");
+        const opinion = new URLSearchParams(context);
+        const exchange = new URLSearchParams(context);
+        exchange.set("tab", "browse");
+        const target = theirItems[0]?.item.NAME ?? yourItems[0]?.item.NAME;
+        if (target) exchange.set("q", target);
+        return <div className="mt-5 rounded-[22px] border border-[var(--border)] bg-[var(--surface-raised)] p-4"><p className="text-xs font-black uppercase tracking-[.12em] text-[var(--brand-primary)]">Next step</p><h3 className="mt-1 text-lg font-black text-[var(--foreground)]">Turn the result into an action.</h3><div className="mt-3 flex flex-wrap gap-2"><Link href={`/nich?prompt=${encodeURIComponent(prompt)}`} className="csbt-btn-secondary min-h-11 px-4 py-2.5 text-xs font-black">Explain with NICH</Link><Link href={`/exchange?${exchange.toString()}`} className="csbt-btn-primary min-h-11 px-4 py-2.5 text-xs font-black">Find Traders</Link><Link href={`/trade-feed?${opinion.toString()}`} className="csbt-btn-secondary min-h-11 px-4 py-2.5 text-xs font-black">Get Opinions</Link><button type="button" onClick={() => void navigator.clipboard.writeText(`${window.location.origin}/calculator?${contextString}`)} className="csbt-btn-quiet min-h-11 px-4 py-2.5 text-xs font-black">Copy Trade Link</button></div></div>;
+      })()}
 
     </div>
   </motion.section>

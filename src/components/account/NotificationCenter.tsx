@@ -119,7 +119,7 @@ export default function NotificationCenter() {
           <button onClick={markAllRead} disabled={busy || unread === 0} className="min-h-11 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-600 disabled:opacity-40 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">Mark all read</button>
         </div>
 
-        {schemaMissing && <p className="m-5 rounded-2xl bg-amber-50 p-4 text-sm font-bold text-amber-800 dark:bg-amber-400/10 dark:text-amber-200">Run <code>src/lib/supabase/foundation.sql</code> in Supabase to activate notifications.</p>}
+        {schemaMissing && <p className="m-5 rounded-2xl bg-amber-50 p-4 text-sm font-bold text-amber-800 dark:bg-amber-400/10 dark:text-amber-200">Notifications are temporarily unavailable. Please try again later.</p>}
         {error && !schemaMissing && <p className="m-5 rounded-2xl bg-rose-50 p-4 text-sm font-bold text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
 
         {!schemaMissing && items.length === 0 ? (

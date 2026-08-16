@@ -21,15 +21,21 @@ export default function CreateListingPanel({
   supabase,
   onCreated,
   onCancel,
+  initialSource = "GCASH",
+  initialHave = [],
+  initialWant = [],
 }: {
   supabase: SupabaseClient;
   onCreated: () => void;
   onCancel?: () => void;
+  initialSource?: ValueSource;
+  initialHave?: ExchangeItem[];
+  initialWant?: ExchangeItem[];
 }) {
-  const [source, setSource] = useState<ValueSource>("GCASH");
-  const [intent, setIntent] = useState<ListingIntent>("OPEN_OFFERS");
-  const [have, setHave] = useState<ExchangeItem[]>([]);
-  const [want, setWant] = useState<ExchangeItem[]>([]);
+  const [source, setSource] = useState<ValueSource>(initialSource);
+  const [intent, setIntent] = useState<ListingIntent>(initialWant.length ? "SPECIFIC" : "OPEN_OFFERS");
+  const [have, setHave] = useState<ExchangeItem[]>(initialHave);
+  const [want, setWant] = useState<ExchangeItem[]>(initialWant);
   const [title, setTitle] = useState("");
   const [note, setNote] = useState("");
   const [highDemandOnly, setHighDemandOnly] = useState(false);

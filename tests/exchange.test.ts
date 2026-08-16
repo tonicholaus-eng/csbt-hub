@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_MARKETPLACE_PREFERENCES, getDemandScore, sumExchangeItems } from "../src/lib/exchange/matching";
+import { DEFAULT_MARKETPLACE_PREFERENCES, buildOptimizedOffer, getDemandScore, sumExchangeItems } from "../src/lib/exchange/matching";
 
 test("exchange item totals respect quantity", () => {
   const total = sumExchangeItems([
@@ -13,4 +13,16 @@ test("exchange item totals respect quantity", () => {
 test("marketplace defaults keep a meaningful match threshold", () => {
   assert.equal(DEFAULT_MARKETPLACE_PREFERENCES.min_match_score, 65);
   assert.ok(getDemandScore("S") > getDemandScore("C"));
+});
+
+
+test("unknown catalog demand is not fabricated by offer building", () => {
+  const inventory = [
+    { item_id: "pet-frost-dragon", item_name: "Frost Dragon", image_url: null, category: "PET", value_type: "NORMAL" as const, potion_status: "BASE" as const, quantity: 1 },
+  ];
+  const built = buildOptimizedOffer(inventory, "GCASH", 3600);
+  assert.equal(built.averageDemand, null);
+
+  const highDemandOnly = buildOptimizedOffer(inventory, "GCASH", 3600, { highDemandOnly: true });
+  assert.equal(highDemandOnly.items.length, 0);
 });

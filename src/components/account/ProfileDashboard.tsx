@@ -342,7 +342,7 @@ export default function ProfileDashboard() {
 
         {schemaMissing && (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200">
-            Profile foundation migration is not applied yet. Run <code>src/lib/supabase/foundation.sql</code> in your Supabase SQL Editor.
+            Profile services are temporarily unavailable. Please try again later.
           </div>
         )}
 

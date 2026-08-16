@@ -1506,8 +1506,8 @@ export default function NichChat({
               </button>
             </div>
 
-            <p className="nich-smart-note mt-3 flex items-center justify-center gap-1.5 text-center text-[9px] font-semibold sm:text-[10px]">
-              <span aria-hidden="true">◇</span> Screenshot recognition uses Gemini only for uploaded images. Values and W/F/L still come from CSBT.
+            <p className="nich-smart-note mt-3 flex items-center justify-center gap-1.5 text-center text-xs font-semibold">
+              <span aria-hidden="true">◇</span> Uploaded screenshots are processed by Gemini. Avoid private chats or personal information. Values and W/F/L still come from CSBT.
             </p>
           </form>
         </motion.aside>

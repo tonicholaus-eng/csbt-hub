@@ -12,8 +12,15 @@ import type {
 
 const DEMAND_SCORE: Record<string, number> = { S: 100, A: 86, B: 72, C: 58, D: 42 };
 
+function getKnownDemandScore(tier: string | null | undefined): number | null {
+  const value = DEMAND_SCORE[String(tier ?? "").toUpperCase()];
+  return typeof value === "number" ? value : null;
+}
+
+// Kept for deterministic NICH/domain callers that explicitly need a fallback.
+// Exchange match scoring uses getKnownDemandScore so missing demand never masquerades as known data.
 export function getDemandScore(tier: string | null | undefined) {
-  return DEMAND_SCORE[String(tier ?? "").toUpperCase()] ?? 60;
+  return getKnownDemandScore(tier) ?? 60;
 }
 
 export const DEFAULT_MARKETPLACE_PREFERENCES: MarketplacePreferences = {
@@ -116,7 +123,7 @@ export function scoreListingMatch(
         demandBias: preferences.prefer_high_demand ? 0.12 : 0.035,
         itemCountBias: preferences.avoid_randoms ? 0.01 : 0.004,
       })
-    : { items: [] as ExchangeItem[], total: 0, differencePercent: -100, averageDemand: 0 };
+    : { items: [] as ExchangeItem[], total: 0, differencePercent: -100, averageDemand: null };
   const valueDifferencePercent = targetValue > 0
     ? Math.abs(builtForTarget.total - targetValue) / targetValue * 100
     : 0;
@@ -130,18 +137,18 @@ export function scoreListingMatch(
     : 0;
 
   const canonicalHave = effectiveHave.map((item) => getItemById(item.item_id));
-  const tiers = canonicalHave.map((item, index) =>
-    DEMAND_SCORE[String(item?.DEMAND_TIER ?? effectiveHave[index]?.demand_tier ?? "").toUpperCase()] ?? 60,
-  );
+  const tiers = canonicalHave
+    .map((item, index) => getKnownDemandScore(item?.DEMAND_TIER ?? effectiveHave[index]?.demand_tier))
+    .filter((value): value is number => value !== null);
   const demandCompatibility = tiers.length
     ? Math.round(tiers.reduce((a, b) => a + b, 0) / tiers.length)
-    : 60;
+    : null;
 
   let preferenceCompatibility = 70;
   preferenceCompatibility += listing.value_source === preferences.value_source ? 8 : -4;
   if (listing.intent === "UPGRADE" && preferences.prefer_upgrades) preferenceCompatibility += 12;
   if (listing.intent === "DOWNGRADE" && preferences.prefer_downgrades) preferenceCompatibility += 12;
-  if (preferences.prefer_high_demand && demandCompatibility >= 80) preferenceCompatibility += 8;
+  if (preferences.prefer_high_demand && demandCompatibility !== null && demandCompatibility >= 80) preferenceCompatibility += 8;
   if (preferences.prefer_overpays && builtForTarget.total >= targetValue * 1.02) preferenceCompatibility += 5;
 
   const rejectedCategories = effectiveHave.filter((item) => {
@@ -154,14 +161,16 @@ export function scoreListingMatch(
   const ownerHighDemandOnly = listing.preferences?.highDemandOnly === true;
   const ownerNoRandoms = listing.preferences?.noRandoms === true;
   if (ownerHighDemandOnly) {
-    const builtDemand = builtForTarget.items.map((row) => {
-      const source = getItemById(row.item_id);
-      return DEMAND_SCORE[String(source?.DEMAND_TIER ?? row.demand_tier ?? "").toUpperCase()] ?? 60;
-    });
-    const averageBuiltDemand = builtDemand.length
-      ? builtDemand.reduce((sum, value) => sum + value, 0) / builtDemand.length
-      : 0;
-    preferenceCompatibility += averageBuiltDemand >= 80 ? 10 : -12;
+    const builtDemand = builtForTarget.items
+      .map((row) => {
+        const source = getItemById(row.item_id);
+        return getKnownDemandScore(source?.DEMAND_TIER ?? row.demand_tier);
+      })
+      .filter((value): value is number => value !== null);
+    if (builtDemand.length) {
+      const averageBuiltDemand = builtDemand.reduce((sum, value) => sum + value, 0) / builtDemand.length;
+      preferenceCompatibility += averageBuiltDemand >= 80 ? 10 : -12;
+    }
   }
   if (ownerNoRandoms) {
     preferenceCompatibility += builtForTarget.items.length > 0 && builtForTarget.items.length <= 5 ? 8 : -8;
@@ -186,20 +195,24 @@ export function scoreListingMatch(
     freshness,
   };
 
-  const score = Math.round(
+  const weightedWithoutDemand =
     breakdown.inventory * 0.35 +
-      breakdown.value * 0.25 +
-      breakdown.wishlist * 0.15 +
-      breakdown.demand * 0.10 +
-      breakdown.preferences * 0.10 +
-      breakdown.freshness * 0.05,
+    breakdown.value * 0.25 +
+    breakdown.wishlist * 0.15 +
+    breakdown.preferences * 0.10 +
+    breakdown.freshness * 0.05;
+  const score = Math.round(
+    breakdown.demand === null
+      ? weightedWithoutDemand / 0.90
+      : weightedWithoutDemand + breakdown.demand * 0.10,
   );
 
   const reasons: string[] = [];
   if (matchedRequestedUnits > 0) reasons.push(`${matchedRequestedUnits}/${requestedUnits} requested item unit${requestedUnits === 1 ? "" : "s"} already in your inventory`);
   if (wishlistMatches > 0) reasons.push(`${wishlistMatches} item${wishlistMatches === 1 ? "" : "s"} from your wishlist`);
   if (valueCompatibility >= 90) reasons.push("Smart Offer Builder can assemble a close-value offer");
-  if (demandCompatibility >= 82) reasons.push("Strong demand profile");
+  if (demandCompatibility !== null && demandCompatibility >= 82) reasons.push("Strong known demand profile");
+  if (demandCompatibility === null) reasons.push("Catalog demand is unavailable, so demand was not used in this score");
   if (preferenceCompatibility >= 85) reasons.push("Fits both traders' stated preferences");
   if (freshness >= 90) reasons.push("Fresh listing");
   if (!reasons.length) reasons.push("Open listing that may fit your trading preferences");
@@ -230,7 +243,7 @@ type Candidate = {
   row: InventoryExchangeRow;
   item: TradeItem;
   unitValue: number;
-  demand: number;
+  demand: number | null;
 };
 
 export type OfferBuildConstraints = {
@@ -256,7 +269,7 @@ export type OptimizedOffer = {
   items: ExchangeItem[];
   total: number;
   differencePercent: number;
-  averageDemand: number;
+  averageDemand: number | null;
 };
 
 function expandInventory(inventory: InventoryExchangeRow[], source: ValueSource): Candidate[] {
@@ -266,7 +279,7 @@ function expandInventory(inventory: InventoryExchangeRow[], source: ValueSource)
     if (!item) continue;
     const unitValue = parseTradeValue(getInventoryItemValue(item, source, row.value_type, row.potion_status)) ?? 0;
     if (unitValue <= 0) continue;
-    const demand = DEMAND_SCORE[String(item.DEMAND_TIER ?? "").toUpperCase()] ?? 60;
+    const demand = getKnownDemandScore(item.DEMAND_TIER);
     for (let index = 0; index < Math.min(row.quantity, 20); index += 1) {
       candidates.push({ row, item, unitValue, demand });
     }
@@ -310,7 +323,7 @@ export function buildOptimizedOffer(
   constraints: OfferBuildConstraints = {},
 ): OptimizedOffer {
   if (targetValue <= 0 || !inventory.length) {
-    return { items: [], total: 0, differencePercent: -100, averageDemand: 0 };
+    return { items: [], total: 0, differencePercent: -100, averageDemand: null };
   }
 
   const excluded = constraints.excludedItemIds ?? new Set<string>();
@@ -335,7 +348,7 @@ export function buildOptimizedOffer(
       demand: constraints.demandScoreOverrides?.get(candidate.item.ID) ?? candidate.demand,
     }))
     .filter((candidate) => !excluded.has(candidate.item.ID))
-    .filter((candidate) => candidate.demand >= minimumDemand)
+    .filter((candidate) => minimumDemand <= 0 || (candidate.demand !== null && candidate.demand >= minimumDemand))
     .filter((candidate) => !allowedCategories?.size || allowedCategories.has(String(candidate.item.CATEGORY).toUpperCase()))
     .filter((candidate) => !excludedCategories.has(String(candidate.item.CATEGORY).toUpperCase()))
     .filter((candidate) => !allowedValueTypes?.size || allowedValueTypes.has(candidate.row.value_type as ValueType))
@@ -343,7 +356,7 @@ export function buildOptimizedOffer(
     .sort((a, b) => {
       const aPreferred = preferred.has(a.item.ID) ? 1 : 0;
       const bPreferred = preferred.has(b.item.ID) ? 1 : 0;
-      return bPreferred - aPreferred || b.demand - a.demand || b.unitValue - a.unitValue;
+      return bPreferred - aPreferred || (b.demand ?? -1) - (a.demand ?? -1) || b.unitValue - a.unitValue;
     });
 
   // Keep the search bounded while preserving a useful mix of high-value and
@@ -354,21 +367,23 @@ export function buildOptimizedOffer(
     selected: Candidate[];
     total: number;
     demandTotal: number;
+    demandCount: number;
     preferredCount: number;
   };
 
-  let beam: State[] = [{ selected: [], total: 0, demandTotal: 0, preferredCount: 0 }];
+  let beam: State[] = [{ selected: [], total: 0, demandTotal: 0, demandCount: 0, preferredCount: 0 }];
   let best: State | null = null;
   const beamWidth = 360;
 
   const scoreState = (state: State) => {
     const diff = Math.abs(state.total - targetValue) / targetValue;
-    const avgDemand = state.selected.length ? state.demandTotal / state.selected.length : 0;
+    const avgDemand = state.demandCount ? state.demandTotal / state.demandCount : null;
     const underPenalty = state.total < targetValue * minTargetPercent ? 0.5 : 0;
     const overPenalty = state.total > upperBound ? 0.8 : 0;
     const itemPenalty = state.selected.length * (constraints.itemCountBias ?? 0.004);
     const preferredBonus = state.preferredCount * 0.018;
-    return diff + underPenalty + overPenalty + itemPenalty - (avgDemand / 100) * demandBias - preferredBonus;
+    const demandBonus = avgDemand === null ? 0 : (avgDemand / 100) * demandBias;
+    return diff + underPenalty + overPenalty + itemPenalty - demandBonus - preferredBonus;
   };
 
   for (const candidate of pool) {
@@ -382,7 +397,8 @@ export function buildOptimizedOffer(
       nextStates.push({
         selected: [...state.selected, candidate],
         total: state.total + candidate.unitValue,
-        demandTotal: state.demandTotal + candidate.demand,
+        demandTotal: state.demandTotal + (candidate.demand ?? 0),
+        demandCount: state.demandCount + (candidate.demand === null ? 0 : 1),
         preferredCount: state.preferredCount + (preferred.has(candidate.item.ID) ? 1 : 0),
       });
     }
@@ -409,9 +425,10 @@ export function buildOptimizedOffer(
 
   const selected = best?.selected ?? [];
   const total = best?.total ?? 0;
-  const averageDemand = selected.length
-    ? selected.reduce((sum, candidate) => sum + candidate.demand, 0) / selected.length
-    : 0;
+  const knownDemand = selected.flatMap((candidate) => candidate.demand === null ? [] : [candidate.demand]);
+  const averageDemand = knownDemand.length
+    ? knownDemand.reduce((sum, demand) => sum + demand, 0) / knownDemand.length
+    : null;
 
   return {
     items: groupCandidates(selected),

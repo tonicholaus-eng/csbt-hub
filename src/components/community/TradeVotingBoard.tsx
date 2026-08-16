@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import ItemSearchPicker from "../items/ItemSearchPicker";
 import type { TradeItem, ValueSource, ValueType } from "../trade/types";
 import { useAuthSession } from "../../hooks/useAuthSession";
@@ -10,6 +11,7 @@ import { getItemById } from "../../lib/search";
 import { formatTradeValue, getItemValue, hasItemValue, parseTradeValue } from "../../lib/valueSystem";
 import { getItemCategoryDetails } from "../../lib/itemCategory";
 import { EmptyState, SectionHeader } from "../ui/CSBTUI";
+import { buildTradeContextParams, decodeTradeRows } from "../../lib/tradeContext";
 
 type SideItem = { itemId: string; valueType: ValueType; quantity: number };
 type Vote = { vote: "WIN" | "FAIR" | "LOSE"; user_id: string };
@@ -43,6 +45,8 @@ function bestValueType(item: TradeItem, source: ValueSource, preferred: ValueTyp
 
 export default function TradeVotingBoard() {
   const { supabase, user, loading } = useAuthSession();
+  const searchParams = useSearchParams();
+  const contextApplied = useRef(false);
   const [source, setSource] = useState<ValueSource>("GCASH");
   const [your, setYour] = useState<SideItem[]>([]);
   const [their, setTheir] = useState<SideItem[]>([]);
@@ -74,6 +78,21 @@ export default function TradeVotingBoard() {
     // Preserve the existing realtime subscription lifecycle around the Supabase client.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase]);
+
+  useEffect(() => {
+    if (contextApplied.current) return;
+    const importedYour = decodeTradeRows(searchParams.get("your"));
+    const importedTheir = decodeTradeRows(searchParams.get("their"));
+    if (!importedYour.length && !importedTheir.length) return;
+    contextApplied.current = true;
+    const importedSource: ValueSource = searchParams.get("source") === "ELVE" ? "ELVE" : "GCASH";
+    queueMicrotask(() => {
+      setSource(importedSource);
+      setYour(importedYour.map((row) => ({ itemId: row.itemId, valueType: row.valueType, quantity: row.quantity })));
+      setTheir(importedTheir.map((row) => ({ itemId: row.itemId, valueType: row.valueType, quantity: row.quantity })));
+      setNote("Imported from CSBT Trade Calculator.");
+    });
+  }, [searchParams]);
 
   useEffect(() => {
     const normalize = (rows: SideItem[]) => rows.map((row) => {
@@ -205,7 +224,7 @@ export default function TradeVotingBoard() {
 
       {error && (
         <p role="alert" className="rounded-[var(--radius-control)] bg-rose-500/10 p-4 text-xs font-bold text-[var(--rose)]">
-          {error.includes("relation") ? "Run src/lib/supabase/phase-two.sql in Supabase first." : error}
+          {error.includes("relation") ? "Community trade voting is temporarily unavailable. Please try again later." : error}
         </p>
       )}
 
@@ -343,6 +362,9 @@ function TradeCard({ trade, currentUserId, onVote }: { trade: FeedTrade; current
             </button>
           );
         })}
+      </div>
+      <div className="mt-3 flex justify-end">
+        <Link href={`/calculator?${buildTradeContextParams(trade.your_items, trade.their_items, trade.value_source).toString()}`} className="csbt-btn-quiet min-h-10 px-3 py-2 text-xs font-black">Open in Calculator →</Link>
       </div>
     </article>
   );

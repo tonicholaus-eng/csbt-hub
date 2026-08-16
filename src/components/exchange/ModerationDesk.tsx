@@ -73,7 +73,7 @@ export default function ModerationDesk() {
     setReports(nextReports);
     const ids = Array.from(new Set(nextReports.flatMap((row) => [row.reporter_id, row.target_user_id].filter(Boolean) as string[])));
     if (ids.length) {
-      const { data: profileRows } = await client.from("profiles").select("user_id,display_name").in("user_id", ids);
+      const { data: profileRows } = await client.from("public_profiles").select("user_id,display_name").in("user_id", ids);
       setProfiles(new Map(((profileRows ?? []) as Profile[]).map((row) => [row.user_id, row.display_name])));
     } else setProfiles(new Map());
     setLoading(false);

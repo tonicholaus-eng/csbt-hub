@@ -13,6 +13,8 @@ import type {
 import { resetNichContext } from "@/components/nich/assistant/memory/context";
 import { NICH_SYSTEM_PROMPT } from "@/lib/nich/systemPrompt";
 
+import { consumeServerQuota } from "@/lib/nich/serverQuota";
+
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
@@ -37,7 +39,6 @@ const requestBuckets = new Map<
 
 const aiTextCache = new Map<string, { text: string; expiresAt: number }>();
 const geminiInFlight = new Map<string, Promise<GeneratedAIText | null>>();
-let geminiDailyBucket = { day: "", count: 0 };
 
 type HistoryMessage = {
   role: "user" | "assistant";
@@ -128,7 +129,7 @@ const AI_EXPLICIT_OPT_IN_PHRASES = [
   "deep explanation",
 ] as const;
 
-const TAGALOG_CURSE_REPLY = "tanginamoka rin";
+const TAGALOG_CURSE_REPLY = "Grabe ka 😭 anyway, anong trade ang gusto mong ipa-check?";
 
 const TAGALOG_CURSE_PHRASES = [
   "putangina",
@@ -432,39 +433,16 @@ function getClientIdentifier(
   );
 }
 
-function isRateLimited(
+async function isRateLimited(
   identifier: string,
 ) {
-  const now = Date.now();
-  const existing =
-    requestBuckets.get(identifier);
-
-  if (!existing || now >= existing.resetAt) {
-    requestBuckets.set(identifier, {
-      count: 1,
-      resetAt:
-        now + RATE_LIMIT_WINDOW_MS,
-    });
-
-    return false;
-  }
-
-  existing.count += 1;
-
-  if (
-    requestBuckets.size > 2_000
-  ) {
-    for (const [key, bucket] of requestBuckets) {
-      if (now >= bucket.resetAt) {
-        requestBuckets.delete(key);
-      }
-    }
-  }
-
-  return (
-    existing.count >
-    RATE_LIMIT_REQUESTS
-  );
+  const allowed = await consumeServerQuota({
+    namespace: "nich-text-minute",
+    identifier,
+    limit: RATE_LIMIT_REQUESTS,
+    windowSeconds: Math.floor(RATE_LIMIT_WINDOW_MS / 1000),
+  });
+  return !allowed;
 }
 
 function sanitizeMessage(value: unknown) {
@@ -1698,12 +1676,7 @@ function pruneAITextCache(now = Date.now()) {
   }
 }
 
-function consumeGeminiTextDailyQuota() {
-  const day = new Date().toISOString().slice(0, 10);
-  if (geminiDailyBucket.day !== day) {
-    geminiDailyBucket = { day, count: 0 };
-  }
-
+async function consumeGeminiTextDailyQuota(identifier: string) {
   const limit = Math.floor(
     parseNumberSetting(
       process.env.NICH_GEMINI_TEXT_DAILY_LIMIT,
@@ -1712,10 +1685,12 @@ function consumeGeminiTextDailyQuota() {
       100_000,
     ),
   );
-
-  if (geminiDailyBucket.count >= limit) return false;
-  geminiDailyBucket.count += 1;
-  return true;
+  return consumeServerQuota({
+    namespace: "nich-gemini-text-daily",
+    identifier,
+    limit,
+    windowSeconds: 24 * 60 * 60,
+  });
 }
 
 function createGeminiCacheKey(
@@ -1882,10 +1857,12 @@ async function generateWithGemini({
   message,
   history,
   deterministicResponse,
+  identifier,
 }: {
   message: string;
   history: HistoryMessage[];
   deterministicResponse: NichResponse;
+  identifier: string;
 }): Promise<GeneratedAIText | null> {
   const key = createGeminiCacheKey(message, history, deterministicResponse);
   const now = Date.now();
@@ -1899,7 +1876,7 @@ async function generateWithGemini({
   const existing = geminiInFlight.get(key);
   if (existing) return existing;
 
-  if (!consumeGeminiTextDailyQuota()) {
+  if (!(await consumeGeminiTextDailyQuota(identifier))) {
     console.warn("[NICH Gemini] Daily text safety limit reached; using local response.");
     return null;
   }
@@ -1929,10 +1906,12 @@ async function generateAIText({
   message,
   history,
   deterministicResponse,
+  identifier,
 }: {
   message: string;
   history: HistoryMessage[];
   deterministicResponse: NichResponse;
+  identifier: string;
 }): Promise<GeneratedAIText | null> {
   if (
     !shouldUseAI(
@@ -1963,6 +1942,7 @@ async function generateAIText({
       message,
       history,
       deterministicResponse,
+      identifier,
     });
 
   const attempts:
@@ -2064,9 +2044,10 @@ export async function GET() {
 export async function POST(
   request: NextRequest,
 ) {
+  const identifier = getClientIdentifier(request);
   if (
-    isRateLimited(
-      getClientIdentifier(request),
+    await isRateLimited(
+      identifier,
     )
   ) {
     return NextResponse.json(
@@ -2134,6 +2115,7 @@ export async function POST(
     message,
     history: sanitizeHistory(body.history),
     deterministicResponse,
+    identifier,
   });
 
   const responseText =

@@ -10,6 +10,7 @@ import { getItemCategoryDetails } from "../lib/itemCategory";
 import ValueHistoryCard from "./values/ValueHistoryCard";
 import WatchValueButton from "./values/WatchValueButton";
 import WishlistButton from "./values/WishlistButton";
+import { getRelatedItems } from "../lib/relatedItems";
 
 type Props = { pet: TradeItem; onBack?: () => void };
 const variants: Array<{ key: ValueType; label: string; icon: string }> = [
@@ -43,6 +44,7 @@ export default function PetDetails({ pet, onBack }: Props) {
   const possibleValues = category.regularOnly ? 2 : 6;
   const refreshAgeDays = updatedAt ? Math.max(0, Math.floor((now - new Date(updatedAt).getTime()) / 86400000)) : null;
   const freshnessLabel = refreshAgeDays == null ? "Unknown" : refreshAgeDays <= 2 ? "Fresh" : refreshAgeDays <= 7 ? "Recent" : "Needs review";
+  const relatedItems = useMemo(() => getRelatedItems(pet, source, 6), [pet, source]);
 
   return (
     <section className="overflow-hidden rounded-[30px] border border-white/65 bg-white/80 shadow-[0_24px_80px_rgba(15,23,42,.12)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/72">
@@ -56,7 +58,7 @@ export default function PetDetails({ pet, onBack }: Props) {
             <div className="flex flex-wrap justify-center gap-2 sm:justify-start">
               <span className="rounded-full bg-white/20 px-3 py-1 text-[10px] font-black uppercase tracking-wider">{category.icon} {category.label}</span>
               <span className="rounded-full bg-white/20 px-3 py-1 text-[10px] font-black uppercase tracking-wider">Rarity: {pet.RARITY || "Not set"}</span>
-              <span className="rounded-full bg-white/20 px-3 py-1 text-[10px] font-black uppercase tracking-wider">Demand: {pet.DEMAND_TIER ? `${pet.DEMAND_TIER} Tier` : "Not rated"}</span>
+              <span className="rounded-full bg-white/20 px-3 py-1 text-[10px] font-black uppercase tracking-wider">Catalog demand: {pet.DEMAND_TIER ? `${pet.DEMAND_TIER} Tier` : "Unavailable"}</span>
             </div>
             <h1 className="mt-4 break-words text-3xl font-black sm:text-5xl">{pet.NAME}</h1>
             <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-white/90">Compare both value systems, follow market history, save it to your wishlist, or send it straight to your inventory/calculator.</p>
@@ -76,7 +78,7 @@ export default function PetDetails({ pet, onBack }: Props) {
           <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <HealthMetric label="Last verified" value={formatDate(updatedAt)} />
             <HealthMetric label="Data coverage" value={`${availableValues}/${possibleValues} listed values`} />
-            <HealthMetric label="Demand signal" value={pet.DEMAND_TIER ? `${pet.DEMAND_TIER} tier` : "Not rated yet"} />
+            <HealthMetric label="Demand signal" value={pet.DEMAND_TIER ? `${pet.DEMAND_TIER} tier` : "Unavailable"} />
             <HealthMetric label="Source comparison" value="Separate systems" />
           </div>
           <p className="mt-4 text-xs font-semibold leading-5 text-slate-500 dark:text-slate-400"><strong className="text-slate-700 dark:text-slate-200">Provenance:</strong> GCash values come from the CSBT-maintained master value sheet. Elve values come from the latest stored Elvebredd Shark snapshot. The two systems are intentionally shown separately and are never auto-converted into each other.</p>
@@ -85,6 +87,8 @@ export default function PetDetails({ pet, onBack }: Props) {
         <div className="mt-6 flex flex-wrap gap-2">
           <Link href={`/inventory?add=${encodeURIComponent(pet.ID)}&source=${source}`} className="inline-flex min-h-11 items-center rounded-2xl csbt-theme-primary px-4 text-xs font-black text-slate-950">🎒 Add to Inventory</Link>
           <Link href={`/calculator?add=${encodeURIComponent(pet.ID)}&source=${source}`} className="inline-flex min-h-11 items-center rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 text-xs font-black text-white">🧮 Add to Calculator</Link>
+          <Link href={`/exchange?tab=browse&q=${encodeURIComponent(pet.NAME)}`} className="inline-flex min-h-11 items-center rounded-2xl bg-violet-600 px-4 text-xs font-black text-white">🔎 Find Traders</Link>
+          <Link href={`/nich?prompt=${encodeURIComponent(`Tell me about ${pet.NAME} using CSBT's verified ${source} values and available market context. Do not invent demand data if CSBT does not have it.`)}`} className="inline-flex min-h-11 items-center rounded-2xl bg-slate-900 px-4 text-xs font-black text-white dark:bg-white dark:text-slate-950">🤖 Ask NICH</Link>
           <WishlistButton item={pet} />
         </div>
 
@@ -106,6 +110,8 @@ export default function PetDetails({ pet, onBack }: Props) {
         </div>
         <ValueHistoryCard itemId={pet.ID} source={source} valueType={historyVariants.some(v => v.key === historyType) ? historyType : "NORMAL"} />
         <WatchValueButton itemId={pet.ID} itemName={pet.NAME} source={source} valueType={historyVariants.some(v => v.key === historyType) ? historyType : "NORMAL"} />
+
+        {relatedItems.length ? <section className="mt-7" aria-labelledby="related-items-title"><div className="flex items-end justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[.12em] text-[var(--foreground-muted)]">Discovery</p><h2 id="related-items-title" className="mt-1 text-xl font-black text-[var(--foreground)]">Similar-value items</h2></div><p className="text-xs font-bold text-[var(--foreground-muted)]">Deterministic · {source}</p></div><div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{relatedItems.map((item)=><Link key={item.ID} href={`/values/${encodeURIComponent(item.ID)}`} className="flex min-w-0 items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] p-3 transition hover:-translate-y-0.5 hover:border-[var(--brand-primary)]">{item.IMAGE?<Image src={item.IMAGE} alt="" width={44} height={44} className="h-11 w-11 shrink-0 object-contain"/>:<span className="flex h-11 w-11 items-center justify-center">📦</span>}<span className="min-w-0"><span className="block truncate text-sm font-black text-[var(--foreground)]">{item.NAME}</span><span className="text-xs font-bold text-[var(--foreground-muted)]">{source === "GCASH" ? "₱ " : "🦈 "}{formatTradeValue(getItemValue(item, source, "NORMAL"))}</span></span></Link>)}</div></section> : null}
 
         <div className="mt-7 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs leading-6 text-slate-500 dark:border-white/10 dark:bg-white/[0.03] dark:text-slate-400"><strong className="text-slate-800 dark:text-white">Reminder:</strong> GCash and Elve Shark are separate value systems. Missing GCash values stay N/A until your CSBT master sheet is updated; they are never estimated from Elve.</div>
       </div>

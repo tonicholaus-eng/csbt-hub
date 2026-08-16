@@ -9,6 +9,7 @@ import AuthCard from "../account/AuthCard";
 import CreateListingPanel from "./CreateListingPanel";
 import ListingCard from "./ListingCard";
 import { EmptyState, SectionHeader } from "../ui/CSBTUI";
+import AccessibleDialog from "../ui/AccessibleDialog";
 import OfferComposer from "./OfferComposer";
 import type {
   ExchangeListing,
@@ -17,18 +18,23 @@ import type {
 } from "../../lib/exchange/types";
 import { rankListingMatches } from "../../lib/exchange/matching";
 import { getItemById } from "../../lib/search";
+import { decodeTradeRows } from "../../lib/tradeContext";
+import { exchangeItemFromTradeItem } from "./ExchangeItemBuilder";
 import { useExchangeData, type ExchangeMarketEvent } from "../../hooks/useExchangeData";
 
-const tabs = [
-  ["for-you", "For You"],
+const coreTabs = [
+  ["for-you", "Find Trades"],
   ["browse", "Browse"],
-  ["feed", "Live Feed"],
   ["my-listings", "My Listings"],
   ["offers", "Offers"],
   ["rooms", "Trade Rooms"],
+] as const;
+const advancedTabs = [
+  ["feed", "Live Feed"],
   ["market", "Market"],
   ["settings", "Trading Style"],
 ] as const;
+const tabs = [...coreTabs, ...advancedTabs] as const;
 type Tab = typeof tabs[number][0];
 
 function ago(value: string) {
@@ -42,16 +48,28 @@ function ago(value: string) {
 export default function ExchangeHub() {
   const { supabase, user, loading: authLoading } = useAuthSession();
   const searchParams = useSearchParams();
+  const [tab, setTab] = useState<Tab>("for-you");
   const {
     listings, offers, ownedListings, rooms, inventory, wishlistIds, preferences, setPreferences,
     trust, events, blockedIds, loading, error, setError,
     refreshPrivate, refreshListing, refreshOffer,
-  } = useExchangeData({ supabase, user, authLoading });
-  const [tab, setTab] = useState<Tab>("for-you");
+  } = useExchangeData({ supabase, user, authLoading, loadMarketEvents: tab === "market" || tab === "feed" });
   const [createOpen, setCreateOpen] = useState(false);
   const [offerListing, setOfferListing] = useState<ExchangeListing | null>(null);
   const [counterOffer, setCounterOffer] = useState<ExchangeOffer | null>(null);
   const [search, setSearch] = useState("");
+  const importedSource = searchParams.get("source") === "ELVE" ? "ELVE" as const : "GCASH" as const;
+  const importedYour = useMemo(() => decodeTradeRows(searchParams.get("your")), [searchParams]);
+  const importedTheir = useMemo(() => decodeTradeRows(searchParams.get("their")), [searchParams]);
+  const importedHave = useMemo(() => importedYour.flatMap((row) => {
+    const item = getItemById(row.itemId);
+    return item ? [exchangeItemFromTradeItem(item, importedSource, row.valueType, row.quantity)] : [];
+  }), [importedSource, importedYour]);
+  const importedWant = useMemo(() => importedTheir.flatMap((row) => {
+    const item = getItemById(row.itemId);
+    return item ? [exchangeItemFromTradeItem(item, importedSource, row.valueType, row.quantity)] : [];
+  }), [importedSource, importedTheir]);
+  const hasImportedTrade = importedHave.length > 0 || importedWant.length > 0;
 
   useEffect(() => {
     if (search.trim().length < 2) return;
@@ -155,9 +173,41 @@ export default function ExchangeHub() {
   return (
     <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_330px] xl:gap-8 2xl:grid-cols-[minmax(0,1fr)_360px]">
       <main className="min-w-0">
-        <div className="csbt-tabs mb-5 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-1)] p-1 shadow-[var(--shadow-sm)] lg:mb-8" role="tablist" aria-label="Exchange sections">{tabs.map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => setTab(key)} className="csbt-tab">{label}</button>)}</div>
+        <div className="mb-5 flex flex-col gap-2 lg:mb-8 lg:flex-row lg:items-start">
+          <div className="csbt-tabs min-w-0 flex-1 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-1)] p-1 shadow-[var(--shadow-sm)]" role="tablist" aria-label="Main Exchange sections">
+            {coreTabs.map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => setTab(key)} className="csbt-tab">{label}</button>)}
+          </div>
+          <details className="relative shrink-0">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-1)] px-4 text-xs font-black shadow-[var(--shadow-sm)] marker:hidden">
+              {advancedTabs.find(([key]) => key === tab)?.[1] ?? "More Exchange"} <span aria-hidden="true">⌄</span>
+            </summary>
+            <div className="absolute right-0 z-40 mt-2 min-w-48 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-elevated)] p-1.5 shadow-[var(--shadow-float)]">
+              {advancedTabs.map(([key, label]) => <button key={key} type="button" onClick={(event) => { setTab(key); event.currentTarget.closest("details")?.removeAttribute("open"); }} className={`block min-h-10 w-full rounded-xl px-3 text-left text-xs font-black ${tab === key ? "bg-[var(--surface-selected)] text-[var(--foreground)]" : "text-[var(--foreground-muted)] hover:bg-[var(--surface-interactive)]"}`}>{label}</button>)}
+            </div>
+          </details>
+        </div>
 
-        <section className="csbt-exchange-hero relative overflow-hidden rounded-[var(--radius-section)] p-5 sm:p-6 lg:p-9">
+        {hasImportedTrade && (
+        <div className="mb-4 rounded-[var(--radius-panel)] border border-[var(--brand-primary)]/30 bg-[var(--brand-primary)]/10 p-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
+          <div>
+            <p className="text-sm font-black text-[var(--foreground)]">Trade context imported</p>
+            <p className="mt-1 text-xs font-semibold text-[var(--foreground-muted)]">
+              {importedHave.length} item{importedHave.length === 1 ? "" : "s"} from your side and {importedWant.length} item{importedWant.length === 1 ? "" : "s"} from their side are ready to review. Nothing is posted automatically.
+            </p>
+          </div>
+          {user ? (
+            <button type="button" onClick={() => setCreateOpen(true)} className="mt-3 min-h-11 rounded-[var(--radius-control)] bg-[var(--gold)] px-4 text-sm font-black text-slate-950 sm:mt-0">
+              Review as listing
+            </button>
+          ) : (
+            <Link href="/profile" className="mt-3 inline-flex min-h-11 items-center rounded-[var(--radius-control)] border border-[var(--border)] px-4 text-sm font-black sm:mt-0">
+              Sign in to continue
+            </Link>
+          )}
+        </div>
+      )}
+
+      <section className="csbt-exchange-hero relative overflow-hidden rounded-[var(--radius-section)] p-5 sm:p-6 lg:p-9">
           <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-amber-400/[0.07] blur-3xl" /><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--brand-primary)]">CSBT Exchange</p>
@@ -243,13 +293,15 @@ export default function ExchangeHub() {
         </section>
       </aside>}
 
-      {createOpen && user && <div className="fixed inset-0 z-[105] overflow-y-auto bg-slate-950/65 p-3 backdrop-blur-sm sm:p-6"><div className="mx-auto max-w-6xl"><CreateListingPanel supabase={supabase} onCancel={() => setCreateOpen(false)} onCreated={() => { setCreateOpen(false); setTab("my-listings"); void refreshPrivate(); }} /></div></div>}
+      <AccessibleDialog open={Boolean(createOpen && user)} onClose={() => setCreateOpen(false)} title="Create Exchange listing" className="max-w-6xl">
+        {user ? <CreateListingPanel supabase={supabase} initialSource={hasImportedTrade ? importedSource : "GCASH"} initialHave={hasImportedTrade ? importedHave : []} initialWant={hasImportedTrade ? importedWant : []} onCancel={() => setCreateOpen(false)} onCreated={() => { setCreateOpen(false); setTab("my-listings"); void refreshPrivate(); }} /> : null}
+      </AccessibleDialog>
       {offerListing && user && <OfferComposer supabase={supabase} listing={offerListing} inventory={inventory} parentOffer={counterOffer} onClose={() => { setOfferListing(null); setCounterOffer(null); }} onSent={() => { setOfferListing(null); setCounterOffer(null); setTab("offers"); void refreshPrivate(); }} />}
     </div>
   );
 }
 
-function SetupMessage() { return <div className="rounded-[28px] border border-amber-200 bg-amber-50 p-6 text-amber-900"><h2 className="text-xl font-black">Supabase required</h2><p className="mt-2 text-sm">Configure Supabase, then run <code>src/lib/supabase/exchange.sql</code>.</p></div>; }
+function SetupMessage() { return <div className="rounded-[28px] border border-amber-200 bg-amber-50 p-6 text-amber-900"><h2 className="text-xl font-black">Supabase required</h2><p className="mt-2 text-sm">Exchange is temporarily unavailable because its data service is not configured.</p></div>; }
 function Empty({ text }: { text: string }) { return <div className="mt-4"><EmptyState icon="↔" title={text} description="Try browsing the live market, changing your search, or adding items to your inventory to improve matching." /></div>; }
 function Stat({ value, label }: { value: string; label: string }) { return <div className="csbt-exchange-stat rounded-2xl p-3 text-center lg:p-4"><p className="text-xl font-black">{value}</p><p className="mt-1 text-[9px] font-black uppercase tracking-[0.12em] text-[var(--foreground-muted)]">{label}</p></div>; }
 function SectionHeading({ eyebrow, title }: { eyebrow: string; title: string }) { return <SectionHeader eyebrow={eyebrow} title={title} />; }

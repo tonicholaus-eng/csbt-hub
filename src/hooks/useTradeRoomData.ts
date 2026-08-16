@@ -33,7 +33,7 @@ export function useTradeRoomData({supabase,user,authLoading,roomId}:{supabase:Su
     if(roomError||!roomData){setError(roomError?.message??"Trade room not found.");return;}
     const nextRoom=roomData as TradeRoom; setRoom(nextRoom); const userIds=[nextRoom.user_a,nextRoom.user_b];
     const [profileResult,trustResult,messageResult,eventResult,rosterResult,requestResult,staffResult]=await Promise.all([
-      supabase.from("profiles").select("user_id,display_name,roblox_username,avatar_path").in("user_id",userIds),
+      supabase.from("public_profiles").select("user_id,display_name,roblox_username,avatar_path").in("user_id",userIds),
       supabase.from("marketplace_user_stats").select("*").in("user_id",userIds),
       supabase.from("trade_messages").select("id,sender_id,message_type,body,created_at").eq("room_id",roomId).order("created_at",{ascending:true}).limit(300),
       supabase.from("trade_room_events").select("id,actor_id,event_type,body,created_at").eq("room_id",roomId).order("created_at",{ascending:true}).limit(200),
