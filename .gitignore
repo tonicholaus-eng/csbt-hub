@@ -44,3 +44,11 @@ next-env.d.ts
 # local archives and operating-system files
 *.zip
 Thumbs.db
+
+# OpenNext
+.open-next
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example

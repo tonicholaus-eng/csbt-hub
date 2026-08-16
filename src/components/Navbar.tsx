@@ -109,7 +109,7 @@ export default function Navbar() {
       <aside data-tour="sidebar-container" className="fixed inset-y-0 left-0 z-50 hidden w-[268px] p-3 lg:block" aria-label="CSBT HUB sidebar">
         <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[22px] border border-[var(--border)] bg-[var(--surface-1)] shadow-[var(--shadow-md)] backdrop-blur-xl">
           <Link href="/" className="flex items-center gap-3 border-b border-[var(--border)] px-4 py-4">
-            <span className="relative shrink-0"><Image src="/logo.png" alt="" width={52} height={52} priority className="h-[52px] w-[52px] rounded-full object-cover shadow-sm" />{birthdayActive && <PartyHat aria-hidden="true" className="birthday-logo-hat h-7 w-7" />}</span>
+            <span className="relative shrink-0"><Image src="/logo.png" alt="" width={52} height={52} className="h-[52px] w-[52px] rounded-full object-cover shadow-sm" />{birthdayActive && <PartyHat aria-hidden="true" className="birthday-logo-hat h-7 w-7" />}</span>
             <div className="min-w-0"><span className="block truncate text-[17px] font-black tracking-[-.035em] text-[var(--foreground)]">CSBT HUB</span><span className="block truncate text-[10px] font-bold uppercase tracking-[.12em] text-[var(--gold-dark)] dark:text-[var(--gold-bright)]">Adopt Me trading hub</span></div>
           </Link>
 
@@ -140,7 +140,7 @@ export default function Navbar() {
       <header className="sticky top-0 z-50 px-3 py-2.5 lg:hidden">
         <div className="mx-auto flex max-w-7xl items-center justify-between rounded-[16px] border border-[var(--border)] bg-[var(--surface-1)] px-3 py-2.5 shadow-[0_10px_35px_rgba(15,23,42,.1)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/92">
           <Link href="/" className="flex min-w-0 items-center gap-2.5" aria-label="CSBT HUB home">
-            <span className="relative shrink-0"><Image src="/logo.png" alt="" width={40} height={40} priority className="h-10 w-10 rounded-full object-cover" />{birthdayActive && <PartyHat aria-hidden="true" className="birthday-logo-hat birthday-logo-hat--mobile h-6 w-6" />}</span>
+            <span className="relative shrink-0"><Image src="/logo.png" alt="" width={40} height={40} className="h-10 w-10 rounded-full object-cover" />{birthdayActive && <PartyHat aria-hidden="true" className="birthday-logo-hat birthday-logo-hat--mobile h-6 w-6" />}</span>
             <div className="min-w-0"><span className="block truncate text-base font-black text-amber-900 dark:text-amber-300">CSBT HUB</span><span className="block truncate text-[10px] font-bold text-slate-400">Adopt Me trading hub</span></div>
           </Link>
           <div className="flex items-center gap-1.5">
