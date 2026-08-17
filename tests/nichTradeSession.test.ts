@@ -262,3 +262,103 @@ test("explicit shorthand memory remains separate from trade correction state", (
   assert.equal(response.context?.userMemory?.aliases?.cb, "Cabbit");
   assert.equal(response.context?.activeTrade?.unresolvedSlots.length, 2);
 });
+
+
+function knownIdentityUnknownVariant(name: string, side: "YOU" | "THEM", slot: number): VisionTradeItemLike {
+  const item = getItem(name);
+  assert.ok(item, `Missing test item ${name}`);
+  return {
+    rawName: name,
+    side,
+    slot,
+    variant: "UNKNOWN",
+    potion: "UNKNOWN",
+    quantity: 1,
+    confidence: 0.94,
+    itemConfidence: 0.97,
+    variantConfidence: 0.25,
+    sideConfidence: 0.99,
+    itemId: item.ID,
+    itemName: item.NAME,
+    category: String(item.CATEGORY),
+    databaseConfidence: 1,
+    verified: true,
+    alternatives: [],
+  };
+}
+
+function buildScreenshotVariantRegressionSession(): NichTradeSession {
+  const session = createTradeSessionFromVision({
+    valueSystem: "GCASH",
+    layoutConfidence: 0.96,
+    recognitionVersion: "screenshot-variant-regression",
+    items: [
+      knownIdentityUnknownVariant("Balloon Unicorn", "YOU", 1),
+      knownIdentityUnknownVariant("Frostbite Bear", "YOU", 2),
+      knownIdentityUnknownVariant("Fairy Bat Dragon", "YOU", 3),
+      knownIdentityUnknownVariant("Cupid Dragon", "YOU", 4),
+      knownIdentityUnknownVariant("Cabbit", "THEM", 1),
+    ],
+  });
+  assert.ok(session);
+  assert.equal(session.unresolvedSlots.length, 5);
+  return session;
+}
+
+test("screenshot shorthand applies FR/R/FR/FR to left slots and MFR to the right without renaming pets", () => {
+  const before = buildScreenshotVariantRegressionSession();
+  const response = run("fr, r, fr, fr then on the other side it's mfr", before);
+  const after = response.context?.activeTrade;
+  assert.ok(after);
+  assert.equal(after.unresolvedSlots.length, 0);
+
+  const expected = [
+    ["Balloon Unicorn", false, false, true, true],
+    ["Frostbite Bear", false, false, false, true],
+    ["Fairy Bat Dragon", false, false, true, true],
+    ["Cupid Dragon", false, false, true, true],
+  ] as const;
+
+  for (let index = 0; index < expected.length; index += 1) {
+    const slot = after.userSide[index];
+    const [name, neon, mega, fly, ride] = expected[index];
+    assert.equal(slot.canonicalName, name);
+    assert.equal(slot.neon, neon);
+    assert.equal(slot.mega, mega);
+    assert.equal(slot.fly, fly);
+    assert.equal(slot.ride, ride);
+  }
+
+  const cabbit = after.theirSide[0];
+  assert.equal(cabbit.canonicalName, "Cabbit");
+  assert.equal(cabbit.mega, true);
+  assert.equal(cabbit.neon, false);
+  assert.equal(cabbit.fly, true);
+  assert.equal(cabbit.ride, true);
+  assert.ok(response.tradeComparison, "fully corrected screenshot trade should immediately calculate");
+  assert.doesNotMatch(response.text, /4x Frost|Red Dragon/i);
+});
+
+test("single-letter screenshot potion replies are metadata and never item identities", () => {
+  assert.equal(resolveNichItem("r", { category: "PET" }).status, "notFound");
+  assert.equal(resolveNichItem("fr", { category: "PET" }).status, "notFound");
+  assert.equal(resolveNichItem("mfr", { category: "PET" }).status, "notFound");
+});
+
+test("short visual names resolve to the intended current CSBT pets", () => {
+  assert.equal(resolveNichItem("frostbite", { category: "PET" }).item?.NAME, "Frostbite Bear");
+  assert.equal(resolveNichItem("cupid", { category: "PET" }).item?.NAME, "Cupid Dragon");
+  assert.equal(resolveNichItem("fairy bat", { category: "PET" }).item?.NAME, "Fairy Bat Dragon");
+});
+
+test("what do you mean keeps the active screenshot state and explains what was detected", () => {
+  const session = buildScreenshotVariantRegressionSession();
+  const response = run("what do you mean", session);
+  assert.equal(response.context?.activeTrade?.id, session.id);
+  assert.match(response.text, /Balloon Unicorn/);
+  assert.match(response.text, /Frostbite Bear/);
+  assert.match(response.text, /Fairy Bat Dragon/);
+  assert.match(response.text, /Cupid Dragon/);
+  assert.match(response.text, /Cabbit/);
+  assert.doesNotMatch(response.text, /can't see which pets/i);
+});

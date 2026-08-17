@@ -46,7 +46,7 @@ const CATEGORY_HINTS = new Set<NichVisionCategory>([
   "PET", "PETWEAR", "EGG", "VEHICLE", "FOOD", "GIFT", "STROLLER", "TOY", "STICKER", "OTHER", "UNKNOWN",
 ]);
 
-const VISION_PIPELINE_VERSION = "vision-v5-stateful-focused-recheck-20260816";
+const VISION_PIPELINE_VERSION = "vision-v6-stateful-slot-variants-20260817";
 const VISION_PET_CATALOG = itemList
   .filter((item) => String(item.CATEGORY) === "PET")
   .map((item) => item.NAME)
@@ -351,7 +351,9 @@ const VISION_PROMPT = [
   "Compare body shape, silhouette, color layout, face, ears/horns/wings/tail, accessories, and markings. Do not shorten a specific multi-word pet to a generic species.",
   "Maintain up to five plausible candidateNames and candidateScores. Candidate scores are visual hypotheses, not database values. Do not fill the list with random pets.",
   "Recognize identity and variants independently. itemConfidence means exact canonical identity confidence. variantConfidence covers NORMAL/NEON/MEGA and F/R badges. sideConfidence covers the assigned trade side/slot. confidence is the conservative overall identity confidence.",
-  "Read N/M/F/R/FR badges independently from pet identity. NONE potion means you can visibly establish that no Fly/Ride badge is present in that slot; UNKNOWN means the badge area is obscured or genuinely unclear. Never infer potion from species.",
+  "Read N/M/F/R/FR badges independently from pet identity. A red/pink R badge means Ride; a blue/purple F badge means Fly. If both F and R badges are visible, potion is FR. If M is visible together with F/R, variant is MEGA and potion is determined separately. NONE potion means you can visibly establish that no Fly/Ride badge is present in that slot; UNKNOWN means the badge area is obscured or genuinely unclear. Never infer potion from species.",
+  "Treat the visible pet artwork and the tiny N/M/F/R badges as separate evidence regions. Do not let a badge letter become part of the pet name (R is never Red Dragon; FR is never Frost Dragon).",
+  "When multiple catalog names share a prefix, inspect the full icon before choosing. Examples: Frostbite Bear vs Frostbite Cub; Cupid Dragon vs other Cupid-named non-pets. Return the full canonical PET name only when the artwork supports it.",
   "Return a normalized 0..1 box around each visible item/slot when you can localize it. x/y are top-left; width/height are relative to the full screenshot.",
   "If two identities remain plausible, do not bluff: lower itemConfidence and include both. A confidently wrong recognition is worse than asking one targeted clarification.",
   "Do not output prices, values, demand, or W/F/L. NICH resolves canonical IDs and calculates deterministically from CSBT after visual verification.",
@@ -393,7 +395,7 @@ function shouldFocusedRecheck(items: NichVisionVerifiedItem[], imageType: NichVi
   if (imageType !== "TRADE") return false;
   if (process.env.NICH_GEMINI_VISION_FOCUSED_RECHECK_ENABLED?.trim().toLowerCase() === "false") return false;
   const uncertain = items.filter((item) => !item.verified || (item.category === "PET" && (item.variant === "UNKNOWN" || item.potion === "UNKNOWN")));
-  return uncertain.length > 0 && uncertain.length <= 4;
+  return uncertain.length > 0 && uncertain.length <= 6;
 }
 
 function mergeFocusedItems(original: NichVisionVerifiedItem[], focused: NichVisionVerifiedItem[]) {
@@ -669,7 +671,18 @@ export async function POST(request: NextRequest) {
       return false;
     })();
     const incompleteTradeGrid = Boolean(youSlotMismatch || themSlotMismatch || duplicateSlots);
-    const lowLayoutConfidence = modelResult.imageType === "TRADE" && modelResult.layoutConfidence < 0.82;
+    const tradeSidesPresent = modelResult.imageType === "TRADE" && sideSlotTotal("YOU") > 0 && sideSlotTotal("THEM") > 0;
+    const structurallyConsistentTrade = Boolean(
+      modelResult.imageType === "TRADE" && tradeSidesPresent && !incompleteTradeGrid,
+    );
+    // Gemini's global layoutConfidence can be conservative even when the two
+    // 3x3 grids, occupied counts and per-slot sides are internally consistent.
+    // Do not poison every recognized slot merely because the global score is
+    // 0.7x. Only block/cap the trade for a genuinely broken grid or a severely
+    // uncertain layout. Individual sideConfidence still guards each slot.
+    const severeLayoutUncertainty = modelResult.imageType === "TRADE" && modelResult.layoutConfidence < 0.55;
+    const lowLayoutConfidence = modelResult.imageType === "TRADE" && modelResult.layoutConfidence < 0.82 && !structurallyConsistentTrade;
+    const layoutBlocksCalculation = Boolean(incompleteTradeGrid || severeLayoutUncertainty);
 
     let tradeSession = modelResult.imageType === "TRADE"
       ? createTradeSessionFromVision({
@@ -685,7 +698,7 @@ export async function POST(request: NextRequest) {
         })
       : undefined;
 
-    if (tradeSession && (incompleteTradeGrid || lowLayoutConfidence)) {
+    if (tradeSession && layoutBlocksCalculation) {
       const all = [...tradeSession.userSide, ...tradeSession.theirSide].map((slot) => ({
         ...slot,
         status: "UNCERTAIN" as const,
@@ -740,7 +753,7 @@ export async function POST(request: NextRequest) {
     const unknownVariantCount = modelResult.imageType === "TRADE"
       ? items.filter((item) => item.verified && item.category === "PET" && (item.variant === "UNKNOWN" || item.potion === "UNKNOWN")).length
       : 0;
-    const localPrompt = !sessionUnresolved && !lowLayoutConfidence && !incompleteTradeGrid
+    const localPrompt = !sessionUnresolved && !layoutBlocksCalculation
       ? candidateLocalPrompt
       : undefined;
     const sideUnclear = modelResult.imageType === "TRADE" && !tradeSession;
@@ -749,9 +762,9 @@ export async function POST(request: NextRequest) {
       summary || "I couldn’t identify any Adopt Me items confidently.",
       focusedRecheckUsed ? "\n✓ I re-checked the uncertain trade slots before showing this result." : "",
       incompleteTradeGrid ? "\n⚠️ The detected items do not fully match the occupied trade grid, so I preserved the recognized slots but will not calculate an incomplete trade." : "",
-      lowLayoutConfidence ? "\n⚠️ I’m not confident enough about the trade-grid layout to calculate yet." : "",
+      lowLayoutConfidence ? "\n⚠️ The trade-grid structure is still unclear, so I’m keeping the detected slots without calculating yet." : "",
       unknownVariantCount ? `\nI still need ${unknownVariantCount} variant/potion detail${unknownVariantCount === 1 ? "" : "s"} confirmed.` : "",
-      sessionUnresolved || uncertainIdentityCount || sideUnclear || lowLayoutConfidence || incompleteTradeGrid
+      sessionUnresolved || uncertainIdentityCount || sideUnclear || layoutBlocksCalculation
         ? "\nI kept everything I recognized. Correct only the unclear slot(s), and I’ll continue from this same trade automatically."
         : "",
     ].filter(Boolean).join("\n");

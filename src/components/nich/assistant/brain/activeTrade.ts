@@ -125,24 +125,45 @@ function applyItemCorrection(
   };
 }
 
-function parseVariantPhrase(message: string) {
+type ParsedVariantState = {
+  mega?: boolean;
+  neon?: boolean;
+  fly?: boolean;
+  ride?: boolean;
+  label: string;
+};
+
+const VARIANT_ONLY_PATTERN = /^(?:mfr|mrf|nfr|nrf|mf|fm|mr|rm|nf|fn|nr|rn|fr|rf|f|r|np|n|m|mega|neon|fly ride|ride fly|fly|ride|normal|no pot|no potion|unpotted)$/i;
+
+function parseVariantPhrase(message: string): ParsedVariantState | null {
   const text = normalize(message);
-  const codeMatch = text.match(/\b(mfr|nfr|mf|mr|nf|nr|fr|np|mega|neon|fly ride|fly|ride|normal)\b/i);
+  const codeMatch = text.match(/\b(mfr|mrf|nfr|nrf|mf|fm|mr|rm|nf|fn|nr|rn|fr|rf|np|mega|neon|fly ride|ride fly|no potion|no pot|unpotted|normal|fly|ride|f|r|m|n)\b/i);
   if (!codeMatch) return null;
   const code = codeMatch[1].toLowerCase();
-  if (code === "mfr") return { mega: true, neon: false, fly: true, ride: true, label: "MFR" };
-  if (code === "nfr") return { mega: false, neon: true, fly: true, ride: true, label: "NFR" };
-  if (code === "mf") return { mega: true, neon: false, fly: true, ride: false, label: "MF" };
-  if (code === "mr") return { mega: true, neon: false, fly: false, ride: true, label: "MR" };
-  if (code === "nf") return { mega: false, neon: true, fly: true, ride: false, label: "NF" };
-  if (code === "nr") return { mega: false, neon: true, fly: false, ride: true, label: "NR" };
-  if (code === "fr" || code === "fly ride") return { fly: true, ride: true, label: "FR" };
-  if (code === "np" || code === "normal") return { mega: false, neon: false, fly: false, ride: false, label: "NP" };
-  if (code === "mega") return { mega: true, neon: false, label: "Mega" };
-  if (code === "neon") return { mega: false, neon: true, label: "Neon" };
-  if (code === "fly") return { fly: true, label: "Fly" };
-  if (code === "ride") return { ride: true, label: "Ride" };
+
+  // A fully specified shorthand (FR/R/F/NP/NFR/MFR/etc.) describes the
+  // complete state of a screenshot slot. Reset mutually exclusive flags so a
+  // correction never leaves stale Neon/Mega/Fly/Ride data behind.
+  if (code === "mfr" || code === "mrf") return { mega: true, neon: false, fly: true, ride: true, label: "MFR" };
+  if (code === "nfr" || code === "nrf") return { mega: false, neon: true, fly: true, ride: true, label: "NFR" };
+  if (code === "mf" || code === "fm") return { mega: true, neon: false, fly: true, ride: false, label: "MF" };
+  if (code === "mr" || code === "rm") return { mega: true, neon: false, fly: false, ride: true, label: "MR" };
+  if (code === "nf" || code === "fn") return { mega: false, neon: true, fly: true, ride: false, label: "NF" };
+  if (code === "nr" || code === "rn") return { mega: false, neon: true, fly: false, ride: true, label: "NR" };
+  if (code === "fr" || code === "rf" || code === "fly ride" || code === "ride fly") return { mega: false, neon: false, fly: true, ride: true, label: "FR" };
+  if (code === "f" || code === "fly") return { mega: false, neon: false, fly: true, ride: false, label: "F" };
+  if (code === "r" || code === "ride") return { mega: false, neon: false, fly: false, ride: true, label: "R" };
+  if (code === "np" || code === "normal" || code === "no pot" || code === "no potion" || code === "unpotted") return { mega: false, neon: false, fly: false, ride: false, label: "NP" };
+
+  // "Neon"/"Mega" alone only answers the age variant. Keep potion state as-is
+  // because the user may still need to confirm F/R separately.
+  if (code === "mega" || code === "m") return { mega: true, neon: false, label: "Mega" };
+  if (code === "neon" || code === "n") return { mega: false, neon: true, label: "Neon" };
   return null;
+}
+
+function isVariantOnlyPhrase(message: string) {
+  return VARIANT_ONLY_PATTERN.test(normalize(message));
 }
 
 function findSlotsByItemText(session: NichTradeSession, text: string, memory?: NichUserMemory) {
@@ -168,10 +189,17 @@ function findSlotsByItemText(session: NichTradeSession, text: string, memory?: N
   return direct;
 }
 
-function applyVariantChange(session: NichTradeSession, slot: NichTradeSlot, message: string) {
+function applyVariantChange(
+  session: NichTradeSession,
+  slot: NichTradeSlot,
+  message: string,
+  recordHistory = true,
+) {
   const parsed = parseVariantPhrase(message);
   if (!parsed) return null;
-  const historical = withHistory(session, `Change ${slot.canonicalName ?? slotLabel(slot)} variant`);
+  const historical = recordHistory
+    ? withHistory(session, `Change ${slot.canonicalName ?? slotLabel(slot)} variant`)
+    : session;
   const event = createCorrectionEvent({
     tradeSessionId: session.id,
     slotId: slot.slotId,
@@ -221,13 +249,109 @@ function cleanCorrectionFragment(value: string) {
 
 function resolveCorrectionFragment(fragment: string, session: NichTradeSession, slot: NichTradeSlot, memory?: NichUserMemory) {
   const cleaned = cleanCorrectionFragment(fragment);
-  if (!cleaned) return null;
+  if (!cleaned || isVariantOnlyPhrase(cleaned)) return null;
   const resolution = resolveNichItem(cleaned, {
     userMemory: memory,
     contextualSlots: [slot],
     category: slot.category === "PET" ? "PET" : undefined,
   });
   return resolution.status === "resolved" && resolution.item ? resolution.item.NAME : null;
+}
+
+type VariantSlotUpdate = { slot: NichTradeSlot; variantText: string };
+
+function extractVariantCodes(text: string) {
+  const normalized = normalize(text);
+  const matches = normalized.match(/\b(?:mfr|mrf|nfr|nrf|mf|fm|mr|rm|nf|fn|nr|rn|fr|rf|np|mega|neon|fly ride|ride fly|no potion|no pot|unpotted|normal|fly|ride|f|r|m|n)\b/gi) ?? [];
+  return matches
+    .map((entry) => normalize(entry))
+    .filter((entry) => Boolean(parseVariantPhrase(entry)));
+}
+
+function orderedSideSlots(session: NichTradeSession, side: NichTradeSide) {
+  return (side === "YOU" ? session.userSide : session.theirSide)
+    .slice()
+    .sort((a, b) => a.gridPosition - b.gridPosition);
+}
+
+function parseSequentialVariantCorrections(message: string, session: NichTradeSession): VariantSlotUpdate[] {
+  const text = normalize(message);
+  const allCodes = extractVariantCodes(text);
+  if (!allCodes.length) return [];
+
+  // Strong separator used in natural screenshot replies such as:
+  // "fr, r, fr, fr then on the other side it's mfr".
+  const sideSeparator = /\b(?:then\s+)?(?:on\s+)?(?:the\s+)?(?:other|their|right)\s+(?:side|offer)?(?:\s+it(?:'s| is)|\s+is|\s*:|\s*=)?\s*/i;
+  const separatorMatch = sideSeparator.exec(text);
+  if (separatorMatch?.index !== undefined) {
+    const leftText = text.slice(0, separatorMatch.index);
+    const rightText = text.slice(separatorMatch.index + separatorMatch[0].length);
+    const leftCodes = extractVariantCodes(leftText);
+    const rightCodes = extractVariantCodes(rightText);
+    const leftSlots = orderedSideSlots(session, "YOU");
+    const rightSlots = orderedSideSlots(session, "THEM");
+
+    // Only accept positional shorthand when the counts line up. This prevents a
+    // stray "R" elsewhere in prose from mutating the wrong pet.
+    if (leftCodes.length === leftSlots.length && rightCodes.length === rightSlots.length) {
+      return [
+        ...leftCodes.map((variantText, index) => ({ slot: leftSlots[index], variantText })),
+        ...rightCodes.map((variantText, index) => ({ slot: rightSlots[index], variantText })),
+      ];
+    }
+  }
+
+  // Explicit "left:" / "my side:" and "right:" / "their side:" syntax.
+  const leftRight = text.match(/(?:^|\b)(?:left|my side|my offer)\s*(?:is|are|:|=)?\s*(.+?)\s+(?:right|their side|their offer)\s*(?:is|are|:|=)?\s*(.+)$/i);
+  if (leftRight) {
+    const leftCodes = extractVariantCodes(leftRight[1]);
+    const rightCodes = extractVariantCodes(leftRight[2]);
+    const leftSlots = orderedSideSlots(session, "YOU");
+    const rightSlots = orderedSideSlots(session, "THEM");
+    if (leftCodes.length === leftSlots.length && rightCodes.length === rightSlots.length) {
+      return [
+        ...leftCodes.map((variantText, index) => ({ slot: leftSlots[index], variantText })),
+        ...rightCodes.map((variantText, index) => ({ slot: rightSlots[index], variantText })),
+      ];
+    }
+  }
+
+  const unresolvedVariantSlots = getUnresolvedTradeSlots(session)
+    .filter((slot) => Boolean(slot.canonicalName))
+    .filter((slot) => slot.neon === null || slot.mega === null || slot.fly === null || slot.ride === null)
+    .sort((a, b) => (a.side === b.side ? a.gridPosition - b.gridPosition : a.side === "YOU" ? -1 : 1));
+
+  // If every unresolved variant is answered with one shorthand token, map in
+  // deterministic grid order (your side first, then their side).
+  if (allCodes.length === unresolvedVariantSlots.length && unresolvedVariantSlots.length > 1) {
+    return allCodes.map((variantText, index) => ({ slot: unresolvedVariantSlots[index], variantText }));
+  }
+
+  return [];
+}
+
+function applyVariantUpdates(
+  session: NichTradeSession,
+  updates: VariantSlotUpdate[],
+  message: string,
+) {
+  if (!updates.length) return null;
+  let next = withHistory(session, "Apply screenshot variant corrections");
+  const labels: string[] = [];
+  const seen = new Set<string>();
+
+  for (const update of updates) {
+    if (seen.has(update.slot.slotId)) continue;
+    const currentSlot = findTradeSlot(next, update.slot.slotId);
+    if (!currentSlot) continue;
+    const changed = applyVariantChange(next, currentSlot, update.variantText, false);
+    if (!changed) continue;
+    next = changed.session;
+    labels.push(`${currentSlot.canonicalName ?? slotLabel(currentSlot)} ${changed.label}`);
+    seen.add(update.slot.slotId);
+  }
+
+  return labels.length ? { session: next, labels } : null;
 }
 
 function parseOrdinalCorrections(message: string, session: NichTradeSession, memory?: NichUserMemory) {
@@ -439,17 +563,48 @@ function parseQuantityCommand(session: NichTradeSession, message: string, memory
   };
 }
 
+function formatCurrentTradeState(session: NichTradeSession) {
+  const formatSide = (slots: NichTradeSlot[]) => slots
+    .slice()
+    .sort((a, b) => a.gridPosition - b.gridPosition)
+    .map((slot, index) => {
+      const name = slot.canonicalName ?? slot.rawName ?? `Unknown slot ${slot.gridPosition}`;
+      const variantKnown = slot.neon !== null && slot.mega !== null && slot.fly !== null && slot.ride !== null;
+      return `${index + 1}. ${variantKnown ? `${slotVariantLabel(slot)} ` : "? "}${name}`;
+    });
+
+  const yourLines = formatSide(session.userSide);
+  const theirLines = formatSide(session.theirSide);
+  return [
+    "Here’s what I kept from the screenshot:",
+    "",
+    "Your side",
+    ...(yourLines.length ? yourLines : ["• No occupied slots detected"]),
+    "",
+    "Their side",
+    ...(theirLines.length ? theirLines : ["• No occupied slots detected"]),
+  ].join("\n");
+}
+
+function isTradeStateExplanationQuestion(message: string) {
+  const text = normalize(message);
+  return /^(?:what do you mean|wdym|what did you see|what did you detect|what did you recognize|which ones|show me what you saw|what is unclear|what's unclear|whats unclear|huh|how)$/i.test(text);
+}
+
 function unresolvedClarification(session: NichTradeSession, acknowledgement?: string): NichResponse {
   const unresolved = getUnresolvedTradeSlots(session);
   const first = unresolved[0];
   const candidateText = first?.alternatives.slice(0, 3).map((candidate) => candidate.itemName).join(" / ");
+  const variantOnly = unresolved.filter((slot) => slot.canonicalName && (slot.fly === null || slot.ride === null || slot.neon === null || slot.mega === null));
   const missing = first
-    ? first.canonicalName && (first.fly === null || first.ride === null || first.neon === null || first.mega === null)
-      ? `I only need the variant/potion for ${first.canonicalName} in ${slotLabel(first)}.`
-      : `I only need ${slotLabel(first)} confirmed${candidateText ? ` (${candidateText})` : ""}.`
+    ? variantOnly.length === unresolved.length && variantOnly.length > 1
+      ? `I recognized the item slots. I only need ${variantOnly.length} variant/potion states, in grid order.`
+      : first.canonicalName && (first.fly === null || first.ride === null || first.neon === null || first.mega === null)
+        ? `I only need the variant/potion for ${first.canonicalName} in ${slotLabel(first)}.`
+        : `I only need ${slotLabel(first)} confirmed${candidateText ? ` (${candidateText})` : ""}.`
     : "I still need one trade detail confirmed.";
   return {
-    text: [acknowledgement, missing].filter(Boolean).join("\n\n"),
+    text: [acknowledgement, formatCurrentTradeState(session), missing].filter(Boolean).join("\n\n"),
     intent: "tradeComparison",
     reaction: "search",
     localConfidence: 1,
@@ -678,6 +833,25 @@ export function handleActiveTradeMessage(input: NichBrainInput): NichResponse | 
 
   const session = updateValueSystem(active, message);
 
+  if (isTradeStateExplanationQuestion(message)) {
+    return unresolvedClarification(session);
+  }
+
+  // Positional screenshot replies such as "FR, R, FR, FR then on the other
+  // side MFR" are metadata corrections, not pet names. Handle this BEFORE any
+  // item-name correction/fuzzy resolver so R can never turn into Red Dragon and
+  // FR can never turn into Frost Dragon.
+  const sequentialVariantUpdates = parseSequentialVariantCorrections(message, session);
+  if (sequentialVariantUpdates.length) {
+    const applied = applyVariantUpdates(session, sequentialVariantUpdates, message);
+    if (applied) {
+      const ack = `Got it — I applied the slot variants without changing the pet identities: ${applied.labels.join(", ")}.`;
+      return applied.session.unresolvedSlots.length
+        ? unresolvedClarification(applied.session, ack)
+        : calculateSession(applied.session, input, ack);
+    }
+  }
+
   // Screenshot recognition and explicit follow-ups can ask to calculate the
   // already-confirmed structured trade without converting it back into prose.
   if (
@@ -691,7 +865,7 @@ export function handleActiveTradeMessage(input: NichBrainInput): NichResponse | 
   // already has a known item and only its variant/potion is uncertain.
   const unresolvedNow = getUnresolvedTradeSlots(session);
   const shortVariant = parseVariantPhrase(message);
-  if (shortVariant && unresolvedNow.length === 1 && unresolvedNow[0].canonicalName && /^(?:mfr|nfr|mf|mr|nf|nr|fr|np|mega|neon|fly ride|fly|ride|normal)$/i.test(normalize(message))) {
+  if (shortVariant && unresolvedNow.length === 1 && unresolvedNow[0].canonicalName && VARIANT_ONLY_PATTERN.test(normalize(message))) {
     const changed = applyVariantChange(session, unresolvedNow[0], message);
     if (changed) {
       const ack = `Got it — ${unresolvedNow[0].canonicalName} is ${changed.label}.`;

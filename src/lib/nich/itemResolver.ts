@@ -32,7 +32,21 @@ const CURATED_ALIASES: Record<string, string> = {
   pp: "Peppermint Penguin",
   "pep peng": "Peppermint Penguin",
   peppermint: "Peppermint Penguin",
+  frostbite: "Frostbite Bear",
+  "frostbite bear": "Frostbite Bear",
+  cupid: "Cupid Dragon",
+  "cupid drag": "Cupid Dragon",
+  "fairy bat": "Fairy Bat Dragon",
+  "balloon uni": "Balloon Unicorn",
 };
+
+const RESERVED_TRADE_METADATA = new Set([
+  "f", "r", "fr", "rf", "n", "m", "np",
+  "nf", "fn", "nr", "rn", "nfr", "nrf",
+  "mf", "fm", "mr", "rm", "mfr", "mrf",
+  "fly", "ride", "fly ride", "ride fly",
+  "normal", "neon", "mega", "no pot", "no potion", "unpotted",
+]);
 
 function levenshtein(a: string, b: string) {
   const rows = b.length + 1;
@@ -112,6 +126,13 @@ export function resolveNichItem(
 ): NichItemResolution {
   const normalized = normalizeSearchText(query);
   if (!normalized) return { status: "notFound", confidence: 0, alternatives: [] };
+
+  // Variant/potion shorthand is metadata, never an item identity. This guard is
+  // especially important after screenshot recognition, where replies like
+  // "FR, R, FR, FR, MFR" must not fuzzy-match into Frost Dragon/Red Dragon/etc.
+  if (RESERVED_TRADE_METADATA.has(normalized)) {
+    return { status: "notFound", confidence: 0, alternatives: [] };
+  }
 
   // Exact canonical truth always wins over fuzzy matching.
   const exact = getItem(query);
