@@ -38,7 +38,7 @@ const NICH_CHAT_STORAGE_VERSION = 2;
 const NICH_CHAT_EXPIRY_MS =
   30 * 60 * 1000;
 const MAX_SAVED_MESSAGES = 60;
-const NICH_VISION_SESSION_CACHE_PREFIX = "csbt-hub:nich-vision:v2:";
+const NICH_VISION_SESSION_CACHE_PREFIX = "csbt-hub:nich-vision:v20-free-plan:";
 const NICH_VISION_SESSION_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 type CachedNichVisionPayload = {
@@ -49,7 +49,8 @@ type CachedNichVisionPayload = {
 export async function getVisionFileHash(file: File) {
   if (!globalThis.crypto?.subtle) return null;
   try {
-    const digest = await globalThis.crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+    const bytes = await file.arrayBuffer();
+    const digest = await globalThis.crypto.subtle.digest("SHA-256", bytes);
     return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
   } catch {
     return null;
@@ -74,6 +75,15 @@ export function readVisionSessionCache(hash: string | null): NichVisionApiRespon
 
 export function writeVisionSessionCache(hash: string | null, payload: NichVisionApiResponse) {
   if (!hash || typeof window === "undefined" || !payload.ok) return;
+
+  // Never freeze an uncertain screenshot result for the rest of the browser
+  // session. Re-uploading a blurry/photo screenshot should be allowed to make a
+  // fresh focused vision pass instead of replaying the exact same unresolved
+  // answer. Fully resolved trades remain cacheable to protect the AI budget.
+  if (payload.imageType === "TRADE" && (!payload.tradeSession || payload.tradeSession.unresolvedSlots.length > 0 || !payload.localPrompt)) {
+    return;
+  }
+
   try {
     const entry: CachedNichVisionPayload = { savedAt: Date.now(), payload };
     window.sessionStorage.setItem(`${NICH_VISION_SESSION_CACHE_PREFIX}${hash}`, JSON.stringify(entry));

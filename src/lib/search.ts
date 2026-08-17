@@ -103,6 +103,64 @@ export function searchItems(query: string, limit = 8): TradeItem[] {
     .map((result) => result.item);
 }
 
+export function searchVisionItems(query: string, limit = 8): TradeItem[] {
+  const normalized = normalizeSearchText(query);
+  if (!normalized) return [];
+
+  const exact = itemByName.get(normalized);
+  if (exact) return [exact];
+
+  const queryTokens = normalized.split(" ").filter(Boolean);
+  const cheap: Array<{ item: TradeItem; score: number }> = [];
+
+  for (const item of itemList) {
+    const row = searchIndexById.get(item.ID)!;
+    let score = 0;
+    if (row.aliases.includes(normalized)) score = 1160;
+    else if (row.normalizedName.startsWith(normalized)) score = 1080 - Math.min(80, row.normalizedName.length - normalized.length);
+    else if (row.aliases.some((alias) => alias.startsWith(normalized))) score = 1030;
+    else {
+      const included = row.normalizedName.indexOf(normalized);
+      if (included !== -1) score = 900 - Math.min(100, included);
+      else if (queryTokens.length > 1) {
+        let matched = true;
+        let total = 0;
+        for (const queryToken of queryTokens) {
+          const token = row.tokens.find((candidate) => candidate === queryToken || candidate.startsWith(queryToken) || queryToken.startsWith(candidate));
+          if (!token) { matched = false; break; }
+          total += token === queryToken ? 140 : 105;
+        }
+        if (matched) score = 760 + Math.min(180, total / queryTokens.length);
+      } else if (queryTokens.length === 1) {
+        const queryToken = queryTokens[0];
+        const token = row.tokens.find((candidate) => candidate.startsWith(queryToken) || queryToken.startsWith(candidate));
+        if (token) score = 650 + Math.min(120, Math.min(token.length, queryToken.length) * 8);
+      }
+    }
+    if (score > 0) cheap.push({ item, score });
+  }
+
+  if (!cheap.length && normalized.length >= 4) {
+    // Only use Levenshtein as a last resort on a narrow bucket. The normal
+    // searchItems() computes it across the entire catalog; that is useful for
+    // interactive search, but too expensive inside a 10 ms Cloudflare Free
+    // vision invocation.
+    const first = normalized[0];
+    for (const item of itemList) {
+      const row = searchIndexById.get(item.ID)!;
+      if (row.normalizedName[0] !== first) continue;
+      if (Math.abs(row.normalizedName.length - normalized.length) > 4) continue;
+      const similarity = getSimilarity(row.normalizedName, normalized);
+      if (similarity >= 0.78) cheap.push({ item, score: Math.round(similarity * 600) });
+    }
+  }
+
+  return cheap
+    .sort((a, b) => b.score - a.score || a.item.NAME.localeCompare(b.item.NAME))
+    .slice(0, Math.max(1, limit))
+    .map((result) => result.item);
+}
+
 export function getItem(name: string): TradeItem | undefined { return itemByName.get(normalizeSearchText(name)); }
 export function getItemById(id: string): TradeItem | undefined { return itemById.get(id); }
 export function searchPets(query: string): TradeItem[] { return searchItems(query); }

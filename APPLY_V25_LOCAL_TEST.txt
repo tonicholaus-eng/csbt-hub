@@ -1,0 +1,13 @@
+CSBT NICH V25 LOCAL TEST
+
+1. Extract this ZIP into your current csbt-price-checker folder and replace matching files.
+2. Do NOT deploy yet.
+3. Stop any existing dev server (Ctrl+C), then run:
+   npm.cmd run dev
+4. Open:
+   http://localhost:3000/api/nich/vision
+   Confirm recognitionVersion = vision-v25-stable-model-guard-20260817
+5. Upload the same trade screenshot locally.
+
+V25 automatically ignores stale/non-current local model overrides such as gemini-3.7-flash and uses gemini-3.6-flash.
+It also maps minimal thinking to low for Interactions compatibility and has a baseline retry with optional fields removed if Gemini returns HTTP 400.

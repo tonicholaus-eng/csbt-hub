@@ -333,7 +333,6 @@ function parseSequentialVariantCorrections(message: string, session: NichTradeSe
 function applyVariantUpdates(
   session: NichTradeSession,
   updates: VariantSlotUpdate[],
-  message: string,
 ) {
   if (!updates.length) return null;
   let next = withHistory(session, "Apply screenshot variant corrections");
@@ -843,7 +842,7 @@ export function handleActiveTradeMessage(input: NichBrainInput): NichResponse | 
   // FR can never turn into Frost Dragon.
   const sequentialVariantUpdates = parseSequentialVariantCorrections(message, session);
   if (sequentialVariantUpdates.length) {
-    const applied = applyVariantUpdates(session, sequentialVariantUpdates, message);
+    const applied = applyVariantUpdates(session, sequentialVariantUpdates);
     if (applied) {
       const ack = `Got it — I applied the slot variants without changing the pet identities: ${applied.labels.join(", ")}.`;
       return applied.session.unresolvedSlots.length

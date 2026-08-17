@@ -22,9 +22,12 @@
     "test": "tsx --test tests/*.test.ts",
     "export:safe": "node scripts/create-safe-export.mjs",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "deploy": "npm run verify:vision-source && opennextjs-cloudflare build && opennextjs-cloudflare deploy && npm run verify:vision-live",
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
-    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
+    "verify:vision-source": "node scripts/verify-vision-source.mjs",
+    "verify:vision-live": "node scripts/verify-live-vision.mjs",
+    "deploy:raw": "opennextjs-cloudflare build && opennextjs-cloudflare deploy"
   },
   "dependencies": {
     "@next/third-parties": "16.3.0",

@@ -1,8 +1,11 @@
-import { createHash, randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 
 import {
   buildVisionLocalPrompt,
+  consolidateTradeSlotDetections,
+  repairTradeGeometry,
+  mergeVisionCrossCheck,
+  shouldBlockTradeLayout,
   summarizeVisionItems,
   verifyVisionItem,
   type NichVisionApiResponse,
@@ -21,21 +24,15 @@ import {
   NICH_CATALOG_VERSION,
   NICH_VISION_PROMPT_VERSION,
 } from "@/lib/nich/tradeSession";
-import { itemList } from "@/lib/search";
 import { consumeServerQuota } from "@/lib/nich/serverQuota";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 90;
 
-const DEFAULT_MAX_IMAGE_BYTES = 6 * 1024 * 1024;
-const DEFAULT_TIMEOUT_MS = 45_000;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const DEFAULT_RATE_LIMIT = 6;
 const DEFAULT_DAILY_LIMIT = 100;
-const DEFAULT_VISION_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-const MAX_VISION_CACHE_ENTRIES = 250;
 const MAX_IMAGE_DIMENSION = 8192;
-const MAX_IMAGE_PIXELS = 40_000_000;
 
 const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const IMAGE_TYPES = new Set<NichVisionImageType>(["TRADE", "INVENTORY", "ITEM", "OTHER"]);
@@ -46,19 +43,14 @@ const CATEGORY_HINTS = new Set<NichVisionCategory>([
   "PET", "PETWEAR", "EGG", "VEHICLE", "FOOD", "GIFT", "STROLLER", "TOY", "STICKER", "OTHER", "UNKNOWN",
 ]);
 
-const VISION_PIPELINE_VERSION = "vision-v6-stateful-slot-variants-20260817";
-const VISION_PET_CATALOG = itemList
-  .filter((item) => String(item.CATEGORY) === "PET")
-  .map((item) => item.NAME)
-  .sort((a, b) => a.localeCompare(b))
-  .join(" | ");
-
-const visionResultCache = new Map<string, { response: NichVisionApiResponse; expiresAt: number }>();
+const VISION_PIPELINE_VERSION = "vision-v28-inline-review-mobile-20260818";
+const VISION_RELEASE = "csbt-nich-vision-v28-inline-review-mobile";
 
 type ImageDimensions = { width: number; height: number };
 
 type GeminiInteractionPayload = {
   status?: unknown;
+  id?: unknown;
   steps?: Array<{
     type?: unknown;
     content?: Array<{ type?: unknown; text?: unknown }>;
@@ -72,9 +64,29 @@ type GeminiInteractionPayload = {
   errors?: Array<{ message?: unknown; code?: unknown }>;
 };
 
+type GeminiGenerateContentPayload = {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{
+        text?: unknown;
+      }>;
+    };
+    finishReason?: unknown;
+    finishMessage?: unknown;
+  }>;
+  usageMetadata?: {
+    promptTokenCount?: unknown;
+    candidatesTokenCount?: unknown;
+    totalTokenCount?: unknown;
+  };
+  error?: { message?: unknown; status?: unknown };
+};
+
+type GeminiVisionPayload = GeminiInteractionPayload | GeminiGenerateContentPayload;
+
 type VisionCallResult = {
   modelResult: NichVisionModelResult;
-  payload: GeminiInteractionPayload;
+  payload: GeminiVisionPayload;
 };
 
 function parseNumberSetting(value: string | undefined, fallback: number, minimum: number, maximum: number) {
@@ -113,89 +125,9 @@ async function consumeVisionDailyGeminiQuota(identifier: string) {
   return allowed ? null : "Nich’s screenshot limit for today has been reached. This limit protects the AI budget.";
 }
 
-function getVisionCacheTtlMs() {
-  return Math.floor(parseNumberSetting(
-    process.env.NICH_GEMINI_VISION_CACHE_TTL_MS,
-    DEFAULT_VISION_CACHE_TTL_MS,
-    60_000,
-    7 * 24 * 60 * 60 * 1000,
-  ));
-}
-
-function pruneVisionCache(now = Date.now()) {
-  for (const [key, entry] of visionResultCache) {
-    if (entry.expiresAt <= now) visionResultCache.delete(key);
-  }
-  while (visionResultCache.size > MAX_VISION_CACHE_ENTRIES) {
-    const oldest = visionResultCache.keys().next().value as string | undefined;
-    if (!oldest) break;
-    visionResultCache.delete(oldest);
-  }
-}
-
 function clamp01(value: unknown) {
   const number = Number(value);
   return Number.isFinite(number) ? Math.max(0, Math.min(1, number)) : 0;
-}
-
-function readUInt24LE(buffer: Buffer, offset: number) {
-  return buffer[offset] | (buffer[offset + 1] << 8) | (buffer[offset + 2] << 16);
-}
-
-function parseImageDimensions(buffer: Buffer, mimeType: string): ImageDimensions | null {
-  try {
-    if (mimeType === "image/png" && buffer.length >= 24) {
-      if (buffer.subarray(0, 8).toString("hex") !== "89504e470d0a1a0a") return null;
-      return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
-    }
-
-    if (mimeType === "image/jpeg" && buffer.length >= 10 && buffer[0] === 0xff && buffer[1] === 0xd8) {
-      let offset = 2;
-      while (offset + 8 < buffer.length) {
-        if (buffer[offset] !== 0xff) { offset += 1; continue; }
-        const marker = buffer[offset + 1];
-        offset += 2;
-        if (marker === 0xd8 || marker === 0xd9) continue;
-        if (offset + 2 > buffer.length) break;
-        const segmentLength = buffer.readUInt16BE(offset);
-        const isStartOfFrame = [0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf].includes(marker);
-        if (isStartOfFrame && offset + 7 < buffer.length) {
-          return { height: buffer.readUInt16BE(offset + 3), width: buffer.readUInt16BE(offset + 5) };
-        }
-        if (segmentLength < 2) break;
-        offset += segmentLength;
-      }
-      return null;
-    }
-
-    if (mimeType === "image/webp" && buffer.length >= 30) {
-      if (buffer.subarray(0, 4).toString("ascii") !== "RIFF" || buffer.subarray(8, 12).toString("ascii") !== "WEBP") return null;
-      const chunk = buffer.subarray(12, 16).toString("ascii");
-      if (chunk === "VP8X" && buffer.length >= 30) {
-        return { width: 1 + readUInt24LE(buffer, 24), height: 1 + readUInt24LE(buffer, 27) };
-      }
-      if (chunk === "VP8 " && buffer.length >= 30) {
-        for (let index = 20; index + 7 < Math.min(buffer.length, 64); index += 1) {
-          if (buffer[index] === 0x9d && buffer[index + 1] === 0x01 && buffer[index + 2] === 0x2a) {
-            return {
-              width: buffer.readUInt16LE(index + 3) & 0x3fff,
-              height: buffer.readUInt16LE(index + 5) & 0x3fff,
-            };
-          }
-        }
-      }
-      if (chunk === "VP8L" && buffer.length >= 25 && buffer[20] === 0x2f) {
-        const b1 = buffer[21], b2 = buffer[22], b3 = buffer[23], b4 = buffer[24];
-        return {
-          width: 1 + (((b2 & 0x3f) << 8) | b1),
-          height: 1 + (((b4 & 0x0f) << 10) | (b3 << 2) | ((b2 & 0xc0) >> 6)),
-        };
-      }
-    }
-  } catch {
-    return null;
-  }
-  return null;
 }
 
 function sanitizeBox(value: unknown) {
@@ -270,8 +202,9 @@ function sanitizeModelResult(value: unknown): NichVisionModelResult | null {
   };
 }
 
-function extractText(payload: GeminiInteractionPayload) {
-  return (payload.steps ?? [])
+
+function extractText(payload: GeminiVisionPayload) {
+  const interactionText = ((payload as GeminiInteractionPayload).steps ?? [])
     .filter((step) => step?.type === "model_output")
     .flatMap((step) => step.content ?? [])
     .filter((part) => part?.type === "text")
@@ -279,167 +212,241 @@ function extractText(payload: GeminiInteractionPayload) {
     .filter(Boolean)
     .join("\n")
     .trim();
+  if (interactionText) return interactionText;
+
+  return (((payload as GeminiGenerateContentPayload).candidates ?? [])[0]?.content?.parts ?? [])
+    .map((part) => (typeof part?.text === "string" ? part.text : ""))
+    .filter(Boolean)
+    .join("\n")
+    .trim();
 }
 
-function safeGeminiErrorDetail(payload: GeminiInteractionPayload) {
+
+function extractBalancedJsonObject(text: string) {
+  const source = text
+    .replace(/^\s*```(?:json)?\s*/i, "")
+    .replace(/\s*```\s*$/i, "")
+    .trim();
+  if (!source) return null;
+
+  try {
+    return JSON.parse(source) as unknown;
+  } catch {
+    // Gemini structured output should be raw JSON, but occasionally a model/backend
+    // can prepend or append text. Recover the first complete JSON object without
+    // attempting to "repair" missing/truncated fields.
+  }
+
+  const start = source.indexOf("{");
+  if (start < 0) return null;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = start; index < source.length; index += 1) {
+    const char = source[index];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+    if (char === "{") depth += 1;
+    if (char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        try {
+          return JSON.parse(source.slice(start, index + 1)) as unknown;
+        } catch {
+          return null;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function safeGeminiErrorDetail(payload: GeminiVisionPayload) {
   if (typeof payload.error?.message === "string") return payload.error.message;
-  const recorded = payload.errors?.find((entry) => typeof entry?.message === "string");
+  const recorded = (payload as GeminiInteractionPayload).errors?.find((entry) => typeof entry?.message === "string");
   return typeof recorded?.message === "string" ? recorded.message : undefined;
 }
 
-const CANDIDATE_SCORE_SCHEMA = {
-  type: "object",
-  properties: {
-    itemName: { type: "string" },
-    score: { type: "number", minimum: 0, maximum: 1 },
-  },
-  required: ["itemName", "score"],
-} as const;
+// v26+ uses prompt-enforced compact JSON through the baseline Interactions
+// request. The old response-schema constants were intentionally removed so
+// production lint stays clean and there is no misleading dead configuration.
 
-const VISION_ITEM_SCHEMA = {
-  type: "object",
-  properties: {
-    rawName: { type: "string" },
-    side: { type: "string", enum: ["YOU", "THEM", "NONE"] },
-    variant: { type: "string", enum: ["NORMAL", "NEON", "MEGA", "UNKNOWN"] },
-    potion: { type: "string", enum: ["NONE", "F", "R", "FR", "UNKNOWN"] },
-    quantity: { type: "integer", minimum: 1, maximum: 18 },
-    confidence: { type: "number", minimum: 0, maximum: 1 },
-    itemConfidence: { type: "number", minimum: 0, maximum: 1 },
-    variantConfidence: { type: "number", minimum: 0, maximum: 1 },
-    sideConfidence: { type: "number", minimum: 0, maximum: 1 },
-    categoryHint: { type: "string", enum: ["PET", "PETWEAR", "EGG", "VEHICLE", "FOOD", "GIFT", "STROLLER", "TOY", "STICKER", "OTHER", "UNKNOWN"] },
-    candidateNames: { type: "array", maxItems: 5, items: { type: "string" } },
-    candidateScores: { type: "array", maxItems: 5, items: CANDIDATE_SCORE_SCHEMA },
-    visualEvidence: { type: "string" },
-    visibleText: { type: "string" },
-    box: {
-      type: "object",
-      properties: {
-        x: { type: "number", minimum: 0, maximum: 1 },
-        y: { type: "number", minimum: 0, maximum: 1 },
-        width: { type: "number", minimum: 0, maximum: 1 },
-        height: { type: "number", minimum: 0, maximum: 1 },
-      },
-      required: ["x", "y", "width", "height"],
-    },
-    slot: { type: "integer", minimum: 1, maximum: 18 },
-  },
-  required: ["rawName", "side", "variant", "potion", "quantity", "confidence", "itemConfidence", "variantConfidence", "sideConfidence", "categoryHint", "candidateNames"],
-} as const;
+const FAST_VISION_PROMPT = [
+  "Inspect this Adopt Me screenshot and return structured JSON only.",
+  "If it is a trade: LEFT grid=YOU, RIGHT grid=THEM. Return one record per occupied slot in row-major order. Ignore empty/+ cells, buttons, usernames, arrows, and center totals.",
+  "Identify pet artwork separately from N/M/F/R badges. N=NEON, M=MEGA, F=Fly, R=Ride, FR=Fly+Ride. Badge letters are never pet names.",
+  "Use an exact Adopt Me item name only when visually defensible. If unsure, lower confidence and provide up to 3 plausible candidateNames instead of guessing.",
+  "Photographed, blurry, compressed, cropped, blue in-game, and coral/pink calculator trade UIs are all valid trades.",
+].join("\n");
 
-const VISION_SCHEMA = {
-  type: "object",
-  properties: {
-    imageType: { type: "string", enum: ["TRADE", "INVENTORY", "ITEM", "OTHER"] },
-    layoutConfidence: { type: "number", minimum: 0, maximum: 1 },
-    items: { type: "array", maxItems: 36, items: VISION_ITEM_SCHEMA },
-    youOccupiedSlots: { type: "integer", minimum: 0, maximum: 18 },
-    themOccupiedSlots: { type: "integer", minimum: 0, maximum: 18 },
-    note: { type: "string" },
-  },
-  required: ["imageType", "layoutConfidence", "items"],
-} as const;
+const EMPTY_TRADE_RECOVERY_PROMPT = [
+  "This is a recovery/verification pass for a screenshot that may be an Adopt Me trade. The first pass either missed the occupied slots or may have classified the screenshot incorrectly.",
+  "First inspect the layout. If it visibly contains two opposing Adopt Me/value-calculator trade grids, set imageType=TRADE and find EVERY visibly occupied item/pet slot even if you cannot identify the exact pet.",
+  "If it is genuinely not a trade, do not force a trade result: return the correct imageType and only items that are visibly defensible.",
+  "LEFT grid=YOU, RIGHT grid=THEM. Return one item record per occupied slot in row-major order on each side.",
+  "If exact identity is unclear, rawName must be a short visual description such as 'blue round pet' and itemConfidence must be low. Do not omit the slot and do not invent a pet name.",
+  "Read N/M/F/R badges separately from identity. N=NEON, M=MEGA, F=Fly, R=Ride, FR=Fly+Ride.",
+  "Ignore empty/+ cells, buttons, usernames, arrows, center totals, prices, and browser/app chrome.",
+  "Return normalized bounding boxes when possible so local geometry can recover the side and slot.",
+].join("\n");
+
+
 
 const VISION_PROMPT = [
-  "You are the visual-recognition layer for NICH, a specialized Adopt Me trading assistant. Accuracy outranks speed. Never invent an item to complete a trade.",
-  "First locate the actual Adopt Me/Elvebredd trade UI and ignore browser chrome, ads, banners, taskbars, chat, value labels outside the grids, and unrelated page content.",
-  "For the familiar two 3x3 trade grids: LEFT grid is YOU and RIGHT grid is THEM unless visible labels clearly contradict it. Slot numbering is row-major independently on each side: 1 top-left, 2 top-middle, 3 top-right, 4 middle-left, 5 center, 6 middle-right, 7 bottom-left, 8 bottom-middle, 9 bottom-right.",
-  "Return one record per visibly occupied trade slot. Empty/Add slots are not items. Do not move a center-adjacent item to the other side. For inventory screenshots, quantity may summarize repeated identical entries when visually justified.",
-  "Classify imageType as TRADE, INVENTORY, ITEM, or OTHER. Classify categoryHint for each visible item.",
-  "For PET items, rawName and candidateNames MUST use exact canonical spellings from the CSBT catalog below. If the image does not support a catalog identity, keep confidence low and provide only genuinely plausible candidates.",
-  "Compare body shape, silhouette, color layout, face, ears/horns/wings/tail, accessories, and markings. Do not shorten a specific multi-word pet to a generic species.",
-  "Maintain up to five plausible candidateNames and candidateScores. Candidate scores are visual hypotheses, not database values. Do not fill the list with random pets.",
-  "Recognize identity and variants independently. itemConfidence means exact canonical identity confidence. variantConfidence covers NORMAL/NEON/MEGA and F/R badges. sideConfidence covers the assigned trade side/slot. confidence is the conservative overall identity confidence.",
-  "Read N/M/F/R/FR badges independently from pet identity. A red/pink R badge means Ride; a blue/purple F badge means Fly. If both F and R badges are visible, potion is FR. If M is visible together with F/R, variant is MEGA and potion is determined separately. NONE potion means you can visibly establish that no Fly/Ride badge is present in that slot; UNKNOWN means the badge area is obscured or genuinely unclear. Never infer potion from species.",
-  "Treat the visible pet artwork and the tiny N/M/F/R badges as separate evidence regions. Do not let a badge letter become part of the pet name (R is never Red Dragon; FR is never Frost Dragon).",
-  "When multiple catalog names share a prefix, inspect the full icon before choosing. Examples: Frostbite Bear vs Frostbite Cub; Cupid Dragon vs other Cupid-named non-pets. Return the full canonical PET name only when the artwork supports it.",
-  "Return a normalized 0..1 box around each visible item/slot when you can localize it. x/y are top-left; width/height are relative to the full screenshot.",
-  "If two identities remain plausible, do not bluff: lower itemConfidence and include both. A confidently wrong recognition is worse than asking one targeted clarification.",
-  "Do not output prices, values, demand, or W/F/L. NICH resolves canonical IDs and calculates deterministically from CSBT after visual verification.",
-  "CURRENT CSBT PET CATALOG (PET names must match exactly):",
-  VISION_PET_CATALOG,
+  "Analyze this image as an Adopt Me trading screenshot. Return only the requested structured result.",
+  "1) Classify imageType as TRADE, INVENTORY, ITEM, or OTHER.",
+  "1b) Before choosing ITEM/OTHER, explicitly check for two opposing item grids, a central separator/arrow/total, trade buttons, or the blue in-game Adopt Me trade window. If those trade-layout cues exist, classify as TRADE even when pet artwork is tiny or unreadable.",
+  "2) For TRADE: LEFT grid=YOU and RIGHT grid=THEM unless visible labels clearly prove otherwise. Slot order is row-major independently on each side.",
+  "3) Return exactly one item for each occupied slot. Ignore empty/+ cells, buttons, usernames, arrows, prices, center totals, browser chrome, and unrelated UI.",
+  "4) Pet identity and N/M/F/R badges are separate evidence. N=NEON, M=MEGA, F=Fly, R=Ride, FR=Fly+Ride. Never turn R into Red Dragon or FR into Frost Dragon.",
+  "5) Use exact canonical Adopt Me names only when the artwork supports them. If two pets are plausible, lower confidence and return up to 3 candidateNames instead of bluffing.",
+  "6) For side/layout confidence, use grid geometry. A blurry pet does not make the trade grid unclear. For trades, always include slot numbers independently on each side.",
+  "8) For INVENTORY use side=NONE and ignore tabs/currency/buttons. Only use quantity>1 when a visible count proves it.",
+  "9) For ITEM use side=NONE; readable item-name text is stronger evidence than a vague icon guess.",
+  "10) For collages, analyze the largest/clearest relevant Adopt Me panel only; do not merge separate screenshots.",
+  "11) If you do not know a new/recent pet, describe it in rawName, keep confidence low, and do not invent a plausible-sounding name.",
+  "12) Do not output prices, demand, or W/F/L. NICH resolves catalog IDs and values after vision.",
+  "Valid trade UIs include the blue in-game Adopt Me window and calculator/value-site layouts with two opposing 3x3 grids, including coral/pink grids with a center numeric total.",
 ].join("\n");
 
 function plainJsonPrompt(basePrompt: string) {
-  return `${basePrompt}\nReturn ONLY one valid JSON object matching the requested schema. No markdown fences or commentary.`;
+  return `${basePrompt}
+Return ONLY one valid JSON object. No markdown fences or commentary.
+Use exactly this compact shape:
+{"imageType":"TRADE|INVENTORY|ITEM|OTHER","layoutConfidence":0.0,"youOccupiedSlots":0,"themOccupiedSlots":0,"items":[{"rawName":"visible item name or short visual description","side":"YOU|THEM|NONE","variant":"NORMAL|NEON|MEGA|UNKNOWN","potion":"NONE|F|R|FR|UNKNOWN","quantity":1,"confidence":0.0,"categoryHint":"PET|PETWEAR|EGG|VEHICLE|FOOD|GIFT|STROLLER|TOY|STICKER|OTHER|UNKNOWN","candidateNames":[],"slot":1}]}
+For TRADE, include one item object for every occupied slot even when identity is uncertain.`;
 }
 
-function buildFocusedRecheckPrompt(items: NichVisionVerifiedItem[]) {
-  const uncertain = items.filter((item) => {
+const VISUAL_RESCUE_CANDIDATES: Array<{ match: RegExp; add: string[] }> = [
+  { match: /glormy/i, add: ["Frostbite Bear", "Frostbite Cub"] },
+  { match: /frostbite/i, add: ["Glormy Dolphin", "Glormy Hound", "Glormy Leo", "Glormy Crab"] },
+  { match: /strawberry/i, add: ["Cabbit"] },
+  { match: /cabbit/i, add: ["Strawberry Shortcake Bat Dragon", "Strawberry Penguin"] },
+  { match: /tuxedo/i, add: ["Siamese Cat"] },
+  { match: /siamese/i, add: ["Tuxedo Cat"] },
+  { match: /elephant/i, add: ["Bush Elephant", "Elephant"] },
+  { match: /bush elephant/i, add: ["Elephant"] },
+  { match: /sugar axolotl|sugar skull dog/i, add: ["Sugar Axolotl", "Sugar Skull Dog"] },
+];
+
+function expandVisualCandidates(names: string[]) {
+  const result = new Set(names.filter(Boolean));
+  const haystack = names.join(" | ");
+  for (const rule of VISUAL_RESCUE_CANDIDATES) {
+    if (!rule.match.test(haystack)) continue;
+    for (const name of rule.add) result.add(name);
+  }
+  return [...result].slice(0, 10);
+}
+
+function buildFocusedRecheckPrompt(items: NichVisionVerifiedItem[], auditAllPetSlots = false) {
+  const selected = items.filter((item) => {
+    if (item.side === "NONE" || !item.slot) return false;
     const variantUnclear = item.category === "PET" && (item.variant === "UNKNOWN" || item.potion === "UNKNOWN");
-    return !item.verified || variantUnclear;
-  }).slice(0, 4);
-  if (!uncertain.length) return null;
-  const details = uncertain.map((item) => ({
-    side: item.side,
-    slot: item.slot,
-    firstPrediction: item.itemName ?? item.rawName,
-    itemConfidence: item.itemConfidence ?? item.confidence,
-    variant: item.variant,
-    potion: item.potion,
-    candidates: [item.itemName, ...(item.candidateNames ?? []), ...item.alternatives].filter(Boolean).slice(0, 6),
-    visualEvidence: item.visualEvidence,
-  }));
+    return auditAllPetSlots ? item.category === "PET" : !item.verified || variantUnclear;
+  }).slice(0, 9);
+  if (!selected.length) return null;
+
+  const details = selected.map((item) => {
+    const names = [item.itemName, item.rawName, ...(item.candidateNames ?? []), ...item.alternatives]
+      .filter((name): name is string => Boolean(name));
+    return auditAllPetSlots
+      ? {
+          side: item.side,
+          slot: item.slot,
+          variantHint: item.variant,
+          potionHint: item.potion,
+          // Candidate order is deliberately alphabetical so the verifier cannot
+          // infer which name came from the first pass.
+          candidatesToCompare: expandVisualCandidates(names).sort((a, b) => a.localeCompare(b)),
+          instruction: "Choose by artwork, not by candidate order. If none matches, return an uncertain description instead of forcing a name.",
+        }
+      : {
+          side: item.side,
+          slot: item.slot,
+          firstPrediction: item.itemName ?? item.rawName,
+          firstPredictionConfidence: item.itemConfidence ?? item.confidence,
+          variant: item.variant,
+          potion: item.potion,
+          candidatesToCompare: expandVisualCandidates(names),
+          visualEvidence: item.visualEvidence,
+        };
+  });
+
   return [
-    VISION_PROMPT,
-    "FOCUSED VERIFICATION PASS:",
-    "The first pass left only the slots below uncertain. Re-inspect ONLY these exact side/slot positions in the same screenshot. Do not re-list already settled slots.",
-    "Compare each uncertain icon against its supplied candidates and the canonical catalog. Re-check the N/M/F/R badge region independently. Keep the original side and slot unless the UI itself proves they were wrong.",
-    "If you still cannot distinguish candidates, keep multiple candidates and low confidence instead of forcing a choice.",
+    "You are the independent visual verification pass for an Adopt Me trade screenshot.",
+    "Do NOT trust the first-pass pet names. Re-identify every listed slot from the artwork. When firstPrediction is present it is only a hypothesis to challenge; in blind-audit rows it is intentionally omitted.",
+    "The screenshot may be either the blue in-game Adopt Me trade UI OR a value-calculator trade UI with two 3x3 grids. LEFT=YOU and RIGHT=THEM. Keep the listed side and slot unless the visible grid clearly proves otherwise.",
+    "Focus on silhouette, face, ears/horns, wings, tail, body color, markings, accessories, and event-specific styling. Treat tiny N/M/F/R badges separately from identity.",
+    "Never collapse a more specific current pet into a generic species merely because their silhouette is similar. In particular, explicitly discriminate Bush Elephant vs Elephant and Sugar Axolotl vs Sugar Skull Dog whenever either appears in candidatesToCompare.",
+    auditAllPetSlots
+      ? "This is a blind candidate audit: the first-pass choice is intentionally hidden and candidate order is arbitrary. Compare every candidate to the artwork. For known confusion families, explicitly use silhouette, ears/horns/wings/tail, face shape, body palette and markings to discriminate them."
+      : "Use candidatesToCompare as a shortlist, including known visual-confusion rescues. If none actually matches the artwork, return a different exact Adopt Me pet name rather than forcing the shortlist. Never invent a non-existent pet.",
+    "For each listed slot, return rawName as your independently chosen exact pet identity, plus up to 3 candidateNames for genuinely close alternatives. If identity is not visually defensible, lower confidence instead of bluffing.",
+    "Re-read N/M/F/R badges independently. R means Ride, F means Fly, M means Mega; badge letters are never part of the pet name.",
+    "Return only the listed slots. imageType must be TRADE. layoutConfidence measures only the left/right grid geometry.",
     JSON.stringify(details),
   ].join("\n");
 }
 
-function shouldFocusedRecheck(items: NichVisionVerifiedItem[], imageType: NichVisionImageType) {
+function shouldFocusedRecheck(
+  items: NichVisionVerifiedItem[],
+  imageType: NichVisionImageType,
+) {
   if (imageType !== "TRADE") return false;
   if (process.env.NICH_GEMINI_VISION_FOCUSED_RECHECK_ENABLED?.trim().toLowerCase() === "false") return false;
-  const uncertain = items.filter((item) => !item.verified || (item.category === "PET" && (item.variant === "UNKNOWN" || item.potion === "UNKNOWN")));
+  const tradePets = items.filter((item) => item.category === "PET" && item.side !== "NONE");
+  const uncertain = tradePets.filter((item) => !item.verified || item.variant === "UNKNOWN" || item.potion === "UNKNOWN");
+  // Keep the expensive second Gemini pass targeted. The previous pipeline audited
+  // nearly every icon-only trade, doubling latency and causing otherwise-good
+  // screenshots to time out. Recheck only genuinely unresolved slots.
   return uncertain.length > 0 && uncertain.length <= 6;
 }
 
-function mergeFocusedItems(original: NichVisionVerifiedItem[], focused: NichVisionVerifiedItem[]) {
-  const focusedBySlot = new Map<string, NichVisionVerifiedItem>();
-  for (const item of focused) {
-    if (item.side === "NONE" || !item.slot) continue;
-    focusedBySlot.set(`${item.side}:${item.slot}`, item);
-  }
+function shouldAuditAllPetSlots(items: NichVisionVerifiedItem[], dimensions: ImageDimensions) {
+  const tradePets = items.filter((item) => item.category === "PET" && item.side !== "NONE");
+  if (!tradePets.length || tradePets.length > 9) return false;
+  return Math.min(dimensions.width, dimensions.height) < 900
+    || tradePets.some((item) => item.verificationReason !== "exact-visible-text");
+}
 
-  return original.map((item) => {
-    if (item.side === "NONE" || !item.slot) return item;
-    const rechecked = focusedBySlot.get(`${item.side}:${item.slot}`);
-    if (!rechecked) return item;
-    const originalIdentity = item.itemConfidence ?? item.confidence;
-    const recheckedIdentity = rechecked.itemConfidence ?? rechecked.confidence;
-    const originalVariant = item.variantConfidence ?? item.confidence;
-    const recheckedVariant = rechecked.variantConfidence ?? rechecked.confidence;
-    const strongerIdentity = rechecked.verified && (!item.verified || recheckedIdentity >= originalIdentity + 0.03);
-    const sameCanonical = Boolean(item.itemId && rechecked.itemId && item.itemId === rechecked.itemId);
-    const strongerVariant = sameCanonical && recheckedVariant >= originalVariant + 0.08;
-    if (strongerIdentity) return rechecked;
-    if (strongerVariant) {
-      return {
-        ...item,
-        variant: rechecked.variant,
-        potion: rechecked.potion,
-        variantConfidence: recheckedVariant,
-        visualEvidence: rechecked.visualEvidence || item.visualEvidence,
-        candidateNames: rechecked.candidateNames?.length ? rechecked.candidateNames : item.candidateNames,
-        candidateScores: rechecked.candidateScores?.length ? rechecked.candidateScores : item.candidateScores,
-      };
-    }
-    return item;
+function downgradeUnauditedPetIdentities(items: NichVisionVerifiedItem[]) {
+  return items.map((item) => {
+    if (item.category !== "PET" || item.side === "NONE" || !item.verified || item.verificationReason === "exact-visible-text") return item;
+    return {
+      ...item,
+      verified: false,
+      confidence: Math.min(item.confidence, 0.69),
+      itemConfidence: Math.min(item.itemConfidence ?? item.confidence, 0.69),
+      verificationReason: "independent-audit-unavailable",
+    };
   });
 }
 
-function sumUsage(...payloads: GeminiInteractionPayload[]) {
-  const sum = (field: "total_input_tokens" | "total_output_tokens" | "total_tokens") => payloads.reduce((total, payload) => {
-    const value = Number(payload.usage?.[field]);
-    return total + (Number.isFinite(value) ? value : 0);
-  }, 0);
-  const promptTokens = sum("total_input_tokens");
-  const outputTokens = sum("total_output_tokens");
-  const totalTokens = sum("total_tokens");
+function sumUsage(...payloads: GeminiVisionPayload[]) {
+  let promptTokens = 0;
+  let outputTokens = 0;
+  let totalTokens = 0;
+  for (const payload of payloads) {
+    const interaction = payload as GeminiInteractionPayload;
+    const generated = payload as GeminiGenerateContentPayload;
+    promptTokens += Number(interaction.usage?.total_input_tokens ?? generated.usageMetadata?.promptTokenCount ?? 0) || 0;
+    outputTokens += Number(interaction.usage?.total_output_tokens ?? generated.usageMetadata?.candidatesTokenCount ?? 0) || 0;
+    totalTokens += Number(interaction.usage?.total_tokens ?? generated.usageMetadata?.totalTokenCount ?? 0) || 0;
+  }
   return {
     ...(promptTokens ? { promptTokens } : {}),
     ...(outputTokens ? { outputTokens } : {}),
@@ -447,12 +454,23 @@ function sumUsage(...payloads: GeminiInteractionPayload[]) {
   };
 }
 
+function recoverTradeImageType(result: NichVisionModelResult): NichVisionModelResult {
+  if (result.imageType === "TRADE") return result;
+  const hasYou = result.items.some((item) => item.side === "YOU");
+  const hasThem = result.items.some((item) => item.side === "THEM");
+  const explicitCounts = (result.youOccupiedSlots ?? 0) > 0 && (result.themOccupiedSlots ?? 0) > 0;
+  if ((hasYou && hasThem) || explicitCounts) {
+    return { ...result, imageType: "TRADE", layoutConfidence: Math.max(result.layoutConfidence, 0.72) };
+  }
+  return result;
+}
+
 function safeDebugEnabled() {
   return process.env.NODE_ENV !== "production" || process.env.NICH_VISION_DEBUG?.trim().toLowerCase() === "true";
 }
 
 function formatVisionError(status: number, detail: string, model: string) {
-  if (status === 400) return `Gemini rejected the screenshot request (G36-400). ${detail.slice(0, 220)}`;
+  if (status === 400) return `Gemini rejected the Interactions vision request (G36-400). ${detail.slice(0, 260)}`;
   if (status === 401 || status === 403) return "Gemini rejected the API key or project authorization. Check GEMINI_API_KEY in the server/Worker secrets.";
   if (status === 404) return `The configured Gemini model (${model}) isn’t available to this project.`;
   if (status === 429) return "Gemini rate/quota limit was reached. Wait briefly and try again.";
@@ -460,16 +478,48 @@ function formatVisionError(status: number, detail: string, model: string) {
   return "Nich couldn’t analyze that screenshot right now. Please try again or type the trade manually.";
 }
 
+const STABLE_PRIMARY_VISION_MODEL = "gemini-3.6-flash";
+const STABLE_FALLBACK_VISION_MODEL = "gemini-3.5-flash-lite";
+
+function normalizePrimaryVisionModel(value: string | undefined) {
+  const configured = value?.trim() || STABLE_PRIMARY_VISION_MODEL;
+  // Keep NICH on Google's current stable production vision model. Older local
+  // .env files have carried experimental/non-current IDs such as 3.7; those
+  // should never silently break screenshot recognition.
+  return configured === STABLE_PRIMARY_VISION_MODEL
+    ? configured
+    : STABLE_PRIMARY_VISION_MODEL;
+}
+
+function normalizeFallbackVisionModel(value: string | undefined) {
+  const configured = value?.trim() || STABLE_FALLBACK_VISION_MODEL;
+  return configured === STABLE_FALLBACK_VISION_MODEL || configured === STABLE_PRIMARY_VISION_MODEL
+    ? configured
+    : STABLE_FALLBACK_VISION_MODEL;
+}
+
+
 export async function GET() {
   return NextResponse.json(
     {
       enabled: process.env.NICH_GEMINI_VISION_ENABLED?.trim().toLowerCase() !== "false",
       configured: Boolean(process.env.GEMINI_API_KEY?.trim()),
-      model: process.env.NICH_GEMINI_VISION_MODEL?.trim() || "gemini-3.6-flash",
+      model: normalizePrimaryVisionModel(process.env.NICH_GEMINI_VISION_MODEL),
+      configuredModel: process.env.NICH_GEMINI_VISION_MODEL?.trim() || STABLE_PRIMARY_VISION_MODEL,
       recognitionVersion: VISION_PIPELINE_VERSION,
+      release: VISION_RELEASE,
       promptVersion: NICH_VISION_PROMPT_VERSION,
       catalogVersion: NICH_CATALOG_VERSION,
       focusedRecheck: process.env.NICH_GEMINI_VISION_FOCUSED_RECHECK_ENABLED?.trim().toLowerCase() !== "false",
+      transport: "gemini-files-stream+interactions-v1beta-baseline",
+      freePlanOptimized: true,
+      thinkingLevel: process.env.NICH_GEMINI_VISION_THINKING_LEVEL?.trim().toLowerCase() || "low",
+      effectivePrimaryThinkingLevel: "model-default",
+      fallbackModel: normalizeFallbackVisionModel(process.env.NICH_GEMINI_VISION_FAST_MODEL),
+      mediaResolutionMode: "model-default-no-optional-config",
+      interactionRequestMode: "baseline-model-text-image-only",
+      screenshotPrepMode: "preserve-original-or-auto-trade-zoom-fallback",
+      visualDisambiguation: "confusion-family-targeted-audit-v2",
       dailySafetyLimit: Math.floor(parseNumberSetting(process.env.NICH_GEMINI_VISION_DAILY_LIMIT, DEFAULT_DAILY_LIMIT, 1, 100_000)),
     },
     { headers: { "Cache-Control": "no-store" } },
@@ -477,7 +527,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const runId = `vision-${randomUUID()}`;
+  const runId = `vision-${globalThis.crypto.randomUUID()}`;
   if (process.env.NICH_GEMINI_VISION_ENABLED?.trim().toLowerCase() === "false") {
     return NextResponse.json({ ok: false, runId, message: "Screenshot recognition is currently disabled." } satisfies NichVisionApiResponse, { status: 503 });
   }
@@ -492,168 +542,285 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, runId, message: minuteQuotaError } satisfies NichVisionApiResponse, { status: 429 });
   }
 
-  let formData: FormData;
-  try {
-    formData = await request.formData();
-  } catch {
-    return NextResponse.json({ ok: false, runId, message: "Invalid screenshot upload." } satisfies NichVisionApiResponse, { status: 400 });
-  }
-
-  const image = formData.get("image");
-  if (!(image instanceof File)) {
-    return NextResponse.json({ ok: false, runId, message: "Choose a screenshot first." } satisfies NichVisionApiResponse, { status: 400 });
-  }
-  if (!ALLOWED_MIME_TYPES.has(image.type)) {
+  const mimeType = (request.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+  if (!ALLOWED_MIME_TYPES.has(mimeType)) {
     return NextResponse.json({ ok: false, runId, message: "Use a JPG, PNG, or WebP screenshot." } satisfies NichVisionApiResponse, { status: 415 });
   }
 
-  const maxBytes = Math.floor(parseNumberSetting(process.env.NICH_GEMINI_VISION_MAX_IMAGE_BYTES, DEFAULT_MAX_IMAGE_BYTES, 250_000, 15 * 1024 * 1024));
-  if (image.size <= 0 || image.size > maxBytes) {
-    return NextResponse.json({ ok: false, runId, message: `Screenshot is too large. Keep it under ${Math.ceil(maxBytes / 1024 / 1024)} MB.` } satisfies NichVisionApiResponse, { status: 413 });
+  const maxBytes = Math.floor(parseNumberSetting(process.env.NICH_GEMINI_VISION_MAX_IMAGE_BYTES, 2 * 1024 * 1024, 250_000, 6 * 1024 * 1024));
+  const declaredBytes = Number(request.headers.get("x-nich-image-bytes") || request.headers.get("content-length") || 0);
+  if (!Number.isFinite(declaredBytes) || declaredBytes <= 0 || declaredBytes > maxBytes) {
+    return NextResponse.json({ ok: false, runId, message: `Screenshot is too large. NICH v20 keeps uploads under ${Math.ceil(maxBytes / 1024 / 1024)} MB to protect the Cloudflare Free CPU budget.` } satisfies NichVisionApiResponse, { status: 413 });
+  }
+  if (!request.body) {
+    return NextResponse.json({ ok: false, runId, message: "The screenshot upload was empty." } satisfies NichVisionApiResponse, { status: 400 });
   }
 
-  const model = process.env.NICH_GEMINI_VISION_MODEL?.trim() || "gemini-3.6-flash";
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), Math.floor(parseNumberSetting(process.env.NICH_GEMINI_VISION_TIMEOUT_MS, DEFAULT_TIMEOUT_MS, 5_000, 120_000)));
+  const headerDimension = (name: string) => {
+    const value = Math.floor(Number(request.headers.get(name)) || 0);
+    return Math.max(1, Math.min(MAX_IMAGE_DIMENSION, value || 1));
+  };
+  const dimensions: ImageDimensions = {
+    width: headerDimension("x-nich-image-width"),
+    height: headerDimension("x-nich-image-height"),
+  };
+  const clientHash = (request.headers.get("x-nich-vision-hash") || "").trim().toLowerCase();
+  const screenshotId = /^[a-f0-9]{64}$/.test(clientHash)
+    ? `shot-${clientHash.slice(0, 24)}`
+    : `shot-${runId.slice(-24)}`;
+
+  const configuredModel = process.env.NICH_GEMINI_VISION_MODEL?.trim() || STABLE_PRIMARY_VISION_MODEL;
+  const model = normalizePrimaryVisionModel(process.env.NICH_GEMINI_VISION_MODEL);
+  const fastModel = normalizeFallbackVisionModel(process.env.NICH_GEMINI_VISION_FAST_MODEL);
+  if (configuredModel !== model) {
+    console.warn(`[NICH Vision ${runId}] ignoring unsupported/non-stable configured model '${configuredModel}', using '${model}'`);
+  }
+  const overallTimeoutMs = Math.floor(parseNumberSetting(process.env.NICH_GEMINI_VISION_TIMEOUT_MS, 52_000, 15_000, 90_000));
+  const deadline = Date.now() + overallTimeoutMs;
+
+  const dailyQuotaError = await consumeVisionDailyGeminiQuota(getClientIdentifier(request));
+  if (dailyQuotaError) {
+    return NextResponse.json({ ok: false, runId, message: dailyQuotaError } satisfies NichVisionApiResponse, { status: 429 });
+  }
+
+  type GeminiFilePayload = {
+    file?: { name?: string; uri?: string; mimeType?: string; state?: string };
+    error?: { message?: string };
+  };
+
+  let uploadedFileName: string | undefined;
+  let uploadedFileUri: string | undefined;
+
+  const cleanupUploadedFile = async () => {
+    if (!uploadedFileName) return;
+    try {
+      await fetch(`https://generativelanguage.googleapis.com/v1beta/${uploadedFileName}`, {
+        method: "DELETE",
+        headers: { "x-goog-api-key": apiKey },
+      });
+    } catch {
+      // Gemini Files automatically expire after 48 hours. Cleanup is best-effort
+      // and never allowed to turn a valid recognition into an error.
+    }
+  };
 
   try {
-    const imageBuffer = Buffer.from(await image.arrayBuffer());
-    const dimensions = parseImageDimensions(imageBuffer, image.type);
-    if (!dimensions) {
-      return NextResponse.json({ ok: false, runId, message: "That image looks malformed or its dimensions could not be verified." } satisfies NichVisionApiResponse, { status: 415 });
-    }
-    if (
-      dimensions.width < 80 || dimensions.height < 80 ||
-      dimensions.width > MAX_IMAGE_DIMENSION || dimensions.height > MAX_IMAGE_DIMENSION ||
-      dimensions.width * dimensions.height > MAX_IMAGE_PIXELS
-    ) {
-      return NextResponse.json({ ok: false, runId, message: "That screenshot has unsupported dimensions. Use a normal screenshot under 8192×8192." } satisfies NichVisionApiResponse, { status: 413 });
-    }
-
-    const imageHash = createHash("sha256")
-      .update(VISION_PIPELINE_VERSION)
-      .update("\0")
-      .update(NICH_CATALOG_VERSION)
-      .update("\0")
-      .update(model)
-      .update("\0")
-      .update(image.type)
-      .update("\0")
-      .update(imageBuffer)
-      .digest("hex");
-    const screenshotId = `shot-${imageHash.slice(0, 24)}`;
-    const cached = visionResultCache.get(imageHash);
-    const now = Date.now();
-
-    if (cached && cached.expiresAt > now) {
-      const cachedSession = cached.response.items && cached.response.imageType === "TRADE"
-        ? createTradeSessionFromVision({
-            items: cached.response.items,
-            layoutConfidence: cached.response.tradeSession?.layoutConfidence ?? 1,
-            recognitionVersion: VISION_PIPELINE_VERSION,
-            promptVersion: NICH_VISION_PROMPT_VERSION,
-            catalogVersion: NICH_CATALOG_VERSION,
-            screenshotId,
-            runId,
-            imageWidth: dimensions.width,
-            imageHeight: dimensions.height,
-          })
-        : undefined;
-      return NextResponse.json({
-        ...cached.response,
-        runId,
-        cacheStatus: "HIT",
-        ...(cachedSession ? { tradeSession: cachedSession } : {}),
-      } satisfies NichVisionApiResponse);
-    }
-    if (cached) visionResultCache.delete(imageHash);
-
-    const dailyQuotaError = await consumeVisionDailyGeminiQuota(getClientIdentifier(request));
-    if (dailyQuotaError) {
-      return NextResponse.json({ ok: false, runId, message: dailyQuotaError } satisfies NichVisionApiResponse, { status: 429 });
-    }
-
-    const data = imageBuffer.toString("base64");
-    const maxOutputTokens = Math.floor(parseNumberSetting(process.env.NICH_GEMINI_VISION_MAX_TOKENS, 1_700, 256, 4_096));
-    const requestedThinkingLevel = process.env.NICH_GEMINI_VISION_THINKING_LEVEL?.trim().toLowerCase() || "minimal";
-    const thinkingLevel = new Set(["minimal", "low", "medium", "high"]).has(requestedThinkingLevel)
-      ? requestedThinkingLevel
-      : "minimal";
-
-    const callGemini = async (prompt: string, structured: boolean) => fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
+    // v20 deliberately streams the browser-prepared image to Gemini Files instead
+    // of Buffer -> SHA256 -> base64 -> JSON.stringify inside the Worker. Network
+    // waiting does not count toward Cloudflare CPU time, while those old transforms
+    // did. This is the main Free-plan CPU fix.
+    const startUpload = await fetch("https://generativelanguage.googleapis.com/upload/v1beta/files", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-      signal: controller.signal,
-      body: JSON.stringify({
-        model,
-        input: [
-          { type: "text", text: structured ? prompt : plainJsonPrompt(prompt) },
-          { type: "image", mime_type: image.type, data },
-        ],
-        ...(structured
-          ? { response_format: { type: "text", mime_type: "application/json", schema: VISION_SCHEMA } }
-          : {}),
-        generation_config: { max_output_tokens: maxOutputTokens, thinking_level: thinkingLevel },
-      }),
+      headers: {
+        "x-goog-api-key": apiKey,
+        "X-Goog-Upload-Protocol": "resumable",
+        "X-Goog-Upload-Command": "start",
+        "X-Goog-Upload-Header-Content-Length": String(declaredBytes),
+        "X-Goog-Upload-Header-Content-Type": mimeType,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ file: { displayName: `nich-${runId}` } }),
     });
+    if (!startUpload.ok) {
+      const detail = (await startUpload.text()).slice(0, 300);
+      throw new Error(`Gemini file upload could not start (${startUpload.status}): ${detail}`);
+    }
+    const uploadUrl = startUpload.headers.get("x-goog-upload-url");
+    if (!uploadUrl) throw new Error("Gemini file upload did not return an upload URL.");
 
-    const readPayload = async (response: Response) => {
-      try { return (await response.json()) as GeminiInteractionPayload; }
-      catch { return {} as GeminiInteractionPayload; }
+    // Node/Undici (used by `next dev`) requires `duplex: "half"` when a
+    // ReadableStream is used as a fetch request body. Cloudflare's fetch ignores
+    // the extra dictionary member, so this preserves the production zero-copy
+    // stream while making local development use the same Gemini Files path.
+    const uploadInit = {
+      method: "POST",
+      headers: {
+        "X-Goog-Upload-Offset": "0",
+        "X-Goog-Upload-Command": "upload, finalize",
+        "Content-Type": mimeType,
+        "Content-Length": String(declaredBytes),
+      },
+      body: request.body,
+      duplex: "half",
+    } as RequestInit & { duplex: "half" };
+    const uploadResponse = await fetch(uploadUrl, uploadInit);
+    let uploadPayload: GeminiFilePayload = {};
+    try { uploadPayload = await uploadResponse.json() as GeminiFilePayload; } catch { /* handled below */ }
+    if (!uploadResponse.ok || !uploadPayload.file?.uri || !uploadPayload.file?.name) {
+      throw new Error(uploadPayload.error?.message || `Gemini file upload failed with status ${uploadResponse.status}.`);
+    }
+    uploadedFileName = uploadPayload.file.name;
+    uploadedFileUri = uploadPayload.file.uri;
+
+    // Stability-first local path: use the exact minimal Interactions request
+    // documented by Google (model + text + uploaded image URI). v25 proved the
+    // image/File URI path reaches Gemini, while optional response_format /
+    // generation_config combinations are currently rejected by this backend.
+    const callGemini = async (
+      prompt: string,
+      modelOverride: string,
+      callTimeoutMs: number,
+    ) => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), Math.max(1_000, callTimeoutMs));
+      try {
+        return await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey,
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            model: modelOverride,
+            input: [
+              { type: "text", text: plainJsonPrompt(prompt) },
+              { type: "image", uri: uploadedFileUri, mime_type: mimeType },
+            ],
+          }),
+        });
+      } finally {
+        clearTimeout(timer);
+      }
     };
 
-    const performVisionCall = async (prompt: string): Promise<VisionCallResult | NextResponse> => {
-      let response = await callGemini(prompt, true);
-      let payload = await readPayload(response);
-      if (!response.ok && response.status === 400) {
-        console.warn(`[NICH Vision ${runId}] structured request rejected; retrying prompt-enforced JSON`, safeGeminiErrorDetail(payload) || "HTTP 400");
-        response = await callGemini(prompt, false);
-        payload = await readPayload(response);
+    const readPayload = async (response: Response) => {
+      try { return await response.json() as GeminiVisionPayload; }
+      catch { return {} as GeminiVisionPayload; }
+    };
+
+    const performVisionCall = async (
+      prompt: string,
+      modelOverride: string,
+      callTimeoutMs: number,
+      _allowPromptJsonFallback = true,
+    ): Promise<VisionCallResult | NextResponse> => {
+      void _allowPromptJsonFallback;
+      let response: Response;
+      try {
+        response = await callGemini(prompt, modelOverride, callTimeoutMs);
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") {
+          console.warn(`[NICH Vision ${runId}] ${modelOverride} baseline interaction timed out after ${callTimeoutMs}ms`);
+          return NextResponse.json({ ok: false, runId, model: modelOverride, message: "Screenshot recognition pass timed out." } satisfies NichVisionApiResponse, { status: 504 });
+        }
+        throw error;
       }
+
+      const payload = await readPayload(response);
       if (!response.ok) {
         const detail = safeGeminiErrorDetail(payload) || `Gemini Vision request failed with status ${response.status}.`;
-        console.warn(`[NICH Vision ${runId}] ${model}:`, detail);
-        return NextResponse.json(
-          { ok: false, runId, model, message: formatVisionError(response.status, detail, model) } satisfies NichVisionApiResponse,
-          { status: 502 },
-        );
+        console.error(`[NICH Vision ${runId}] Interactions baseline HTTP ${response.status}: ${detail.slice(0, 500)}`);
+        return NextResponse.json({ ok: false, runId, model: modelOverride, message: formatVisionError(response.status, detail, modelOverride) } satisfies NichVisionApiResponse, { status: 502 });
       }
+
       const text = extractText(payload);
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim());
-      } catch {
-        return NextResponse.json({ ok: false, runId, model, message: "Nich could see the screenshot, but the recognition result was invalid. Try the screenshot again." } satisfies NichVisionApiResponse, { status: 502 });
+      const parsed = extractBalancedJsonObject(text);
+      if (parsed === null) {
+        console.warn(`[NICH Vision ${runId}] baseline output was not valid JSON; textLength=${text.length}`);
+        return NextResponse.json({
+          ok: false,
+          runId,
+          model: modelOverride,
+          message: "Gemini read the screenshot but returned an invalid recognition format. NICH will try the lightweight fallback automatically.",
+        } satisfies NichVisionApiResponse, { status: 422 });
       }
+
       const modelResult = sanitizeModelResult(parsed);
       if (!modelResult) {
-        return NextResponse.json({ ok: false, runId, model, message: "Nich couldn’t confidently read that screenshot." } satisfies NichVisionApiResponse, { status: 422 });
+        return NextResponse.json({ ok: false, runId, model: modelOverride, message: "Nich couldn’t confidently read that screenshot." } satisfies NichVisionApiResponse, { status: 422 });
       }
       return { modelResult, payload };
     };
 
-    const initialCall = await performVisionCall(VISION_PROMPT);
+    let fastRecoveryUsed = false;
+    let initialCall = await performVisionCall(
+      VISION_PROMPT,
+      model,
+      Math.min(34_000, Math.max(20_000, deadline - Date.now() - 14_000)),
+      true,
+    );
+
+    if (initialCall instanceof NextResponse && Date.now() < deadline - 8_000) {
+      console.warn(`[NICH Vision ${runId}] primary compact pass unavailable; falling back to ${fastModel}`);
+      fastRecoveryUsed = true;
+      initialCall = await performVisionCall(
+        FAST_VISION_PROMPT,
+        fastModel,
+        Math.min(14_000, Math.max(7_000, deadline - Date.now() - 2_000)),
+        false,
+      );
+    }
+
     if (initialCall instanceof NextResponse) return initialCall;
 
-    const modelResult = initialCall.modelResult;
-    let items = modelResult.items.map(verifyVisionItem);
-    const payloads = [initialCall.payload];
-    let focusedRecheckUsed = false;
+    let modelResult = recoverTradeImageType(initialCall.modelResult);
+    let initialItems = consolidateTradeSlotDetections(
+      repairTradeGeometry(modelResult.items, modelResult.imageType),
+      modelResult.imageType,
+    );
+    const expectedOccupied = (modelResult.youOccupiedSlots ?? 0) + (modelResult.themOccupiedSlots ?? 0);
+    const severeUnderDetection = modelResult.imageType === "TRADE"
+      && (initialItems.length === 0 || (expectedOccupied >= 3 && initialItems.length + 1 < expectedOccupied));
+    const possibleTradeMisclassification = modelResult.imageType !== "INVENTORY"
+      && modelResult.imageType !== "TRADE"
+      && initialItems.length === 0;
+    let emptyTradeRecoveryUsed = false;
 
-    if (shouldFocusedRecheck(items, modelResult.imageType)) {
-      const focusedPrompt = buildFocusedRecheckPrompt(items);
-      if (focusedPrompt) {
-        const focusedCall = await performVisionCall(focusedPrompt);
-        if (!(focusedCall instanceof NextResponse)) {
-          focusedRecheckUsed = true;
-          payloads.push(focusedCall.payload);
-          const focusedItems = focusedCall.modelResult.items.map(verifyVisionItem);
-          items = mergeFocusedItems(items, focusedItems);
-        } else {
-          console.warn(`[NICH Vision ${runId}] focused verification failed; preserving first-pass state`);
+    if ((severeUnderDetection || possibleTradeMisclassification) && Date.now() < deadline - 6_000) {
+      const recoveryCall = await performVisionCall(
+        EMPTY_TRADE_RECOVERY_PROMPT,
+        fastModel,
+        Math.min(9_000, Math.max(4_500, deadline - Date.now() - 1_000)),
+        false,
+      );
+      if (!(recoveryCall instanceof NextResponse)) {
+        const recoveredModel = recoverTradeImageType(recoveryCall.modelResult);
+        const recoveredItems = consolidateTradeSlotDetections(
+          repairTradeGeometry(recoveredModel.items, recoveredModel.imageType),
+          recoveredModel.imageType,
+        );
+        if (recoveredItems.length > initialItems.length || (possibleTradeMisclassification && recoveredModel.imageType === "TRADE" && recoveredItems.length > 0)) {
+          emptyTradeRecoveryUsed = true;
+          modelResult = recoveredModel;
+          initialItems = recoveredItems;
+          initialCall = recoveryCall;
         }
       }
     }
+
+    let items = initialItems.map((item) => verifyVisionItem(item));
+    const payloads: GeminiVisionPayload[] = [initialCall.payload];
+    let focusedRecheckUsed = false;
+    const auditAllPetSlots = modelResult.imageType === "TRADE"
+      && process.env.NICH_GEMINI_VISION_FULL_AUDIT_ENABLED?.trim().toLowerCase() === "true"
+      && shouldAuditAllPetSlots(items, dimensions);
+    let identityAuditSucceeded = !auditAllPetSlots;
+
+    if (shouldFocusedRecheck(items, modelResult.imageType) && Date.now() < deadline - 4_000) {
+      const focusedPrompt = buildFocusedRecheckPrompt(items, auditAllPetSlots);
+      if (focusedPrompt) {
+        const focusedCall = await performVisionCall(
+          focusedPrompt,
+          fastModel,
+          Math.min(7_000, Math.max(3_500, deadline - Date.now() - 1_000)),
+          false,
+        );
+        if (!(focusedCall instanceof NextResponse)) {
+          focusedRecheckUsed = true;
+          identityAuditSucceeded = true;
+          payloads.push(focusedCall.payload);
+          const focusedRawItems = consolidateTradeSlotDetections(
+            repairTradeGeometry(focusedCall.modelResult.items, modelResult.imageType),
+            modelResult.imageType,
+          );
+          const focusedItems = focusedRawItems.map((item) => verifyVisionItem(item, { allowConfusionFamilyConfirmation: true }));
+          items = mergeVisionCrossCheck(items, focusedItems);
+        }
+      }
+    }
+
+    if (auditAllPetSlots && !identityAuditSucceeded) items = downgradeUnauditedPetIdentities(items);
 
     const sideSlotTotal = (side: "YOU" | "THEM") => items
       .filter((item) => item.side === side)
@@ -672,17 +839,14 @@ export async function POST(request: NextRequest) {
     })();
     const incompleteTradeGrid = Boolean(youSlotMismatch || themSlotMismatch || duplicateSlots);
     const tradeSidesPresent = modelResult.imageType === "TRADE" && sideSlotTotal("YOU") > 0 && sideSlotTotal("THEM") > 0;
-    const structurallyConsistentTrade = Boolean(
-      modelResult.imageType === "TRADE" && tradeSidesPresent && !incompleteTradeGrid,
-    );
-    // Gemini's global layoutConfidence can be conservative even when the two
-    // 3x3 grids, occupied counts and per-slot sides are internally consistent.
-    // Do not poison every recognized slot merely because the global score is
-    // 0.7x. Only block/cap the trade for a genuinely broken grid or a severely
-    // uncertain layout. Individual sideConfidence still guards each slot.
-    const severeLayoutUncertainty = modelResult.imageType === "TRADE" && modelResult.layoutConfidence < 0.55;
+    const structurallyConsistentTrade = Boolean(modelResult.imageType === "TRADE" && tradeSidesPresent && !incompleteTradeGrid);
     const lowLayoutConfidence = modelResult.imageType === "TRADE" && modelResult.layoutConfidence < 0.82 && !structurallyConsistentTrade;
-    const layoutBlocksCalculation = Boolean(incompleteTradeGrid || severeLayoutUncertainty);
+    const layoutBlocksCalculation = shouldBlockTradeLayout({
+      imageType: modelResult.imageType,
+      layoutConfidence: modelResult.layoutConfidence,
+      incompleteTradeGrid,
+      structurallyConsistentTrade,
+    });
 
     let tradeSession = modelResult.imageType === "TRADE"
       ? createTradeSessionFromVision({
@@ -704,8 +868,6 @@ export async function POST(request: NextRequest) {
         status: "UNCERTAIN" as const,
         confidence: {
           ...slot.confidence,
-          // Force layout-uncertain slots below the auto-confirm gate. Keep the
-          // model's original layout score separately on the TradeSession for debug.
           side: Math.min(slot.confidence.side, modelResult.layoutConfidence, 0.69),
           overall: Math.min(slot.confidence.overall, modelResult.layoutConfidence, 0.69),
           level: "LOW" as const,
@@ -729,9 +891,6 @@ export async function POST(request: NextRequest) {
           verified: Boolean(slot.canonicalItemId),
           alternatives: slot.alternatives.map((candidate) => candidate.itemName),
           slot: slot.gridPosition,
-          visualEvidence: slot.visualEvidence,
-          visibleText: slot.visibleText,
-          box: slot.boundingBox,
         })),
         layoutConfidence: modelResult.layoutConfidence,
         recognitionVersion: VISION_PIPELINE_VERSION,
@@ -753,19 +912,19 @@ export async function POST(request: NextRequest) {
     const unknownVariantCount = modelResult.imageType === "TRADE"
       ? items.filter((item) => item.verified && item.category === "PET" && (item.variant === "UNKNOWN" || item.potion === "UNKNOWN")).length
       : 0;
-    const localPrompt = !sessionUnresolved && !layoutBlocksCalculation
-      ? candidateLocalPrompt
-      : undefined;
+    const localPrompt = !sessionUnresolved && !layoutBlocksCalculation ? candidateLocalPrompt : undefined;
     const sideUnclear = modelResult.imageType === "TRADE" && !tradeSession;
-
+    const hasActionableRecognition = items.length > 0;
     const message = [
       summary || "I couldn’t identify any Adopt Me items confidently.",
       focusedRecheckUsed ? "\n✓ I re-checked the uncertain trade slots before showing this result." : "",
-      incompleteTradeGrid ? "\n⚠️ The detected items do not fully match the occupied trade grid, so I preserved the recognized slots but will not calculate an incomplete trade." : "",
-      lowLayoutConfidence ? "\n⚠️ The trade-grid structure is still unclear, so I’m keeping the detected slots without calculating yet." : "",
-      unknownVariantCount ? `\nI still need ${unknownVariantCount} variant/potion detail${unknownVariantCount === 1 ? "" : "s"} confirmed.` : "",
-      sessionUnresolved || uncertainIdentityCount || sideUnclear || layoutBlocksCalculation
-        ? "\nI kept everything I recognized. Correct only the unclear slot(s), and I’ll continue from this same trade automatically."
+      fastRecoveryUsed ? "\n✓ NICH used the lightweight fallback when the primary read could not finish cleanly." : "",
+      emptyTradeRecoveryUsed ? "\n✓ The first pass missed occupied slots, so I ran a dedicated slot-recovery pass." : "",
+      incompleteTradeGrid && hasActionableRecognition ? "\n⚠️ The detected items do not fully match the occupied trade grid, so I preserved the recognized slots but will not calculate an incomplete trade." : "",
+      lowLayoutConfidence && hasActionableRecognition ? "\n⚠️ Some side/slot geometry is uncertain. The exact affected slots are listed above." : "",
+      unknownVariantCount ? `\nI still need ${unknownVariantCount} variant/potion detail${unknownVariantCount === 1 ? "" : "s"} confirmed; those slots are marked above.` : "",
+      hasActionableRecognition && (sessionUnresolved || uncertainIdentityCount || sideUnclear || layoutBlocksCalculation)
+        ? "\nI preserved the recognized trade state. Correct only the slot(s) marked with ?, and I’ll continue automatically."
         : "",
     ].filter(Boolean).join("\n");
 
@@ -782,35 +941,34 @@ export async function POST(request: NextRequest) {
       promptVersion: NICH_VISION_PROMPT_VERSION,
       catalogVersion: NICH_CATALOG_VERSION,
       cacheStatus: "MISS" as const,
-      image: { width: dimensions.width, height: dimensions.height, bytes: imageBuffer.length, mimeType: image.type },
-      ...(safeDebugEnabled()
-        ? {
-            debug: {
-              model,
-              layoutConfidence: modelResult.layoutConfidence,
-              uncertainSlots: tradeSession?.unresolvedSlots ?? [],
-              focusedRecheckUsed,
-            },
-          }
-        : {}),
+      image: { width: dimensions.width, height: dimensions.height, bytes: declaredBytes, mimeType, detailIncluded: false, recoveryZoomsIncluded: false },
+      ...(safeDebugEnabled() ? {
+        debug: {
+          model,
+          layoutConfidence: modelResult.layoutConfidence,
+          uncertainSlots: tradeSession?.unresolvedSlots ?? [],
+          focusedRecheckUsed,
+          fastRecoveryUsed,
+          emptyTradeRecoveryUsed,
+          identityAuditSucceeded,
+          multiViewUsed: false,
+        },
+      } : {}),
       usage: sumUsage(...payloads),
     } satisfies NichVisionApiResponse;
 
-    console.info(
-      `[NICH Vision ${runId}] type=${modelResult.imageType} items=${items.length} unresolved=${tradeSession?.unresolvedSlots.length ?? uncertainIdentityCount} recheck=${focusedRecheckUsed ? "yes" : "no"} cache=MISS`,
-    );
-
-    pruneVisionCache();
-    visionResultCache.set(imageHash, { response: responseBody, expiresAt: Date.now() + getVisionCacheTtlMs() });
+    console.info(`[NICH Vision ${runId}] type=${modelResult.imageType} items=${items.length} unresolved=${tradeSession?.unresolvedSlots.length ?? uncertainIdentityCount} recheck=${focusedRecheckUsed ? "yes" : "no"} transport=files-stream`);
     return NextResponse.json(responseBody);
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     console.warn(`[NICH Vision ${runId}] ${model} unavailable:`, detail);
     const timeoutMessage = error instanceof Error && error.name === "AbortError"
-      ? "Screenshot analysis timed out. Your chat is still intact—try again with a tighter crop or type the unclear item."
-      : "Nich couldn’t analyze that screenshot right now. Your current chat is still intact; try again or type the trade manually.";
+      ? "Screenshot analysis timed out. Your chat is still intact—try again once."
+      : safeDebugEnabled()
+        ? `Local vision error: ${detail.slice(0, 420)}`
+        : "Nich couldn’t analyze that screenshot right now. Your current chat is still intact; try again or type the trade manually.";
     return NextResponse.json({ ok: false, runId, model, message: timeoutMessage } satisfies NichVisionApiResponse, { status: 502 });
   } finally {
-    clearTimeout(timeout);
+    await cleanupUploadedFile();
   }
 }

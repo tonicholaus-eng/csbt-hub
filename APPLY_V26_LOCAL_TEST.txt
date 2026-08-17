@@ -1,0 +1,9 @@
+NICH v26 local stability test
+
+1) Stop your dev server.
+2) Extract this ZIP over C:\Users\me\Desktop\csbt-price-checker and replace matching files.
+3) Delete .next if needed.
+4) Run: npm.cmd run dev -- --webpack
+5) Open: http://localhost:3000/api/nich/vision
+6) Confirm recognitionVersion = vision-v26-baseline-interactions-stable-20260817
+7) Test the same screenshot locally. Do NOT deploy yet.

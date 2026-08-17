@@ -134,7 +134,7 @@ export type VisionTradeItemLike = {
 };
 
 export const NICH_TRADE_SESSION_VERSION = "trade-session-v2-20260816";
-export const NICH_VISION_PROMPT_VERSION = "nich-vision-prompt-v5-20260816";
+export const NICH_VISION_PROMPT_VERSION = "nich-vision-prompt-v8-multiview-candidate-audit-20260817";
 export const NICH_CATALOG_VERSION = `catalog-${tradingMeta.totalItems}-${tradingMeta.generatedAt}`;
 
 function clamp01(value: unknown) {
