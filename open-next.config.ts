@@ -1,9 +1,15 @@
-// default open-next.config.ts file created by @opennextjs/cloudflare
 import { defineCloudflareConfig } from "@opennextjs/cloudflare";
-// import r2IncrementalCache from "@opennextjs/cloudflare/overrides/incremental-cache/r2-incremental-cache";
+import staticAssetsIncrementalCache from "@opennextjs/cloudflare/overrides/incremental-cache/static-assets-incremental-cache";
 
+/**
+ * CSBT is predominantly build-time/static content. Serving prerendered routes
+ * from Workers Static Assets avoids spinning up the NextServer for every page
+ * request, which is important on the Workers Free 10 ms CPU budget.
+ *
+ * The app does not use ISR/on-demand revalidation. Dynamic API routes still
+ * execute normally; only build-time cache entries are intercepted here.
+ */
 export default defineCloudflareConfig({
-	// For best results consider enabling R2 caching
-	// See https://opennext.js.org/cloudflare/caching for more details
-	// incrementalCache: r2IncrementalCache
+  incrementalCache: staticAssetsIncrementalCache,
+  enableCacheInterception: true,
 });

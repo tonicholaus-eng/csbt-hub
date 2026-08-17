@@ -1,6 +1,10 @@
 import type { NichReactionKey } from "../../NichReactions";
 import type { ValueType } from "../../../trade/types";
 import type {
+  NichTradeSession,
+  NichUserMemory,
+} from "../../../../lib/nich/tradeSession";
+import type {
   ExchangeListing,
   InventoryExchangeRow,
   MarketplacePreferences,
@@ -108,6 +112,12 @@ export type NichConversationContext = {
   /** Last completed deterministic W/F/L result. */
   lastTradeComparison?: NichTradeComparison;
 
+  /** Structured screenshot/manual trade state. This is the source of truth for corrections and follow-ups. */
+  activeTrade?: NichTradeSession;
+
+  /** Durable, privacy-limited user preferences/aliases. */
+  userMemory?: NichUserMemory;
+
   lastIntent?: NichIntent;
   lastUserMessage?: string;
   lastResolvedMessage?: string;
@@ -182,6 +192,8 @@ export type NichTradeHistoryRow = {
 export type NichLocalProfileData = {
   loaded: boolean;
   authenticated: boolean;
+  userId?: string;
+  nichMemory?: NichUserMemory;
   inventory: InventoryExchangeRow[];
   wishlistItemIds: string[];
   preferences: MarketplacePreferences | null;
@@ -223,6 +235,7 @@ export type NichResponse = {
   suggestions?: NichSuggestion[];
   context?: Partial<NichConversationContext>;
   tradeComparison?: NichTradeComparison;
+  tradeSession?: NichTradeSession;
   navigation?: NichNavigationAction;
 };
 

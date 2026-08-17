@@ -27,8 +27,6 @@ export default function AccessibleDialog({
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
-  const closeRef = useRef(onClose);
-  closeRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
@@ -43,7 +41,7 @@ export default function AccessibleDialog({
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        closeRef.current();
+        onClose();
         return;
       }
       if (event.key !== "Tab" || !panel) return;
@@ -71,7 +69,7 @@ export default function AccessibleDialog({
       document.body.style.overflow = previousOverflow;
       returnFocusRef.current?.focus();
     };
-  }, [open]);
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -79,7 +77,7 @@ export default function AccessibleDialog({
     <div
       className="fixed inset-0 z-[120] overflow-y-auto bg-slate-950/70 p-3 backdrop-blur-sm sm:p-6"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) closeRef.current();
+        if (event.target === event.currentTarget) onClose();
       }}
     >
       <div

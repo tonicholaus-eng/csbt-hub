@@ -1,0 +1,29 @@
+{
+  "id": "cabbit-tuxedo-correction-regression",
+  "source": "user-reported-real-world-failure",
+  "imageFixtureIncluded": false,
+  "note": "The task package did not include the original screenshot binary. This fixture preserves the labeled recognition state and conversational correction without fabricating an image.",
+  "valueSystem": "ELVE",
+  "recognized": {
+    "you": [
+      { "slot": 1, "item": "Frost Dragon", "potion": "FR", "status": "confirmed" }
+    ],
+    "them": [
+      { "slot": 1, "item": "Chocolate Chip Bat Dragon", "potion": "FR", "status": "confirmed" },
+      { "slot": 2, "item": "Monkey King", "potion": "FR", "status": "confirmed" },
+      { "slot": 3, "item": "Dalmatian", "potion": "FR", "status": "confirmed" },
+      { "slot": 5, "item": "Peppermint Penguin", "potion": "R", "status": "confirmed" },
+      { "slot": 6, "item": "Puffin", "potion": "NONE", "status": "confirmed" },
+      { "slot": 7, "prediction": "Cobra", "alternatives": ["Cabbit", "Sandfish"], "status": "unresolved" },
+      { "slot": 8, "prediction": "Tuxedo Cat", "alternatives": ["Tuxedo Cat", "Border Collie"], "status": "unresolved" }
+    ]
+  },
+  "correction": "that's a cabbit and yes a tuxedo cat",
+  "expected": {
+    "themSlot7": "Cabbit",
+    "themSlot8": "Tuxedo Cat",
+    "remainingUnresolved": 0,
+    "preservePreviouslyConfirmedSlots": true,
+    "recalculateImmediately": true
+  }
+}

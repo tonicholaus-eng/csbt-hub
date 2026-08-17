@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import tradingItems from "../../../data/tradingItems.json";
+import petImageIndex from "../../../data/petImageIndex.json";
 
 type AmvggUpdate = {
   id?: string;
@@ -31,11 +31,10 @@ type AmvggResponse = {
 
 type Trend = "rising" | "dropping" | "mixed" | "stable";
 
-type TradingItemImage = {
-  NAME?: string;
-  IMAGE?: string;
-  CATEGORY?: string;
-};
+type PetImageRow = [
+  string, // NAME
+  string, // IMAGE
+];
 
 const AMVGG_ENDPOINT =
   "https://amvgg.com/api/value-updates";
@@ -52,18 +51,13 @@ function normalizeName(value: string) {
 }
 
 const imageByName = new Map(
-  (tradingItems as TradingItemImage[])
-    .filter(
-      (item) =>
-        item.CATEGORY === "PET" &&
-        typeof item.NAME === "string" &&
-        typeof item.IMAGE === "string" &&
-        item.IMAGE.length > 0,
+  (petImageIndex as unknown as PetImageRow[])
+    .filter(([name, image]) =>
+      typeof name === "string" &&
+      typeof image === "string" &&
+      image.length > 0,
     )
-    .map((item) => [
-      normalizeName(item.NAME as string),
-      item.IMAGE as string,
-    ]),
+    .map(([name, image]) => [normalizeName(name), image]),
 );
 
 function numericDirection(
@@ -201,9 +195,10 @@ async function fetchUpdatePage(offset: number) {
     headers: {
       Accept: "application/json",
     },
-    next: {
-      revalidate: 1800,
-    },
+    // Do not use the Next.js incremental data cache here. CSBT uses the
+    // read-only Workers Static Assets cache for prerendered pages; this API
+    // remains dynamic and controls freshness at its own response boundary.
+    cache: "no-store",
   });
 
   if (!response.ok) {
@@ -305,7 +300,7 @@ export async function GET() {
       {
         headers: {
           "Cache-Control":
-            "public, s-maxage=1800, stale-while-revalidate=3600",
+            "public, max-age=120, s-maxage=1800",
         },
       },
     );

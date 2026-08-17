@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 
 import { useAuthSession } from "../../../hooks/useAuthSession";
+import { getSupabaseBrowserClient } from "../../../lib/supabase/client";
+import { sanitizeNichUserMemory, type NichUserMemory } from "../../../lib/nich/tradeSession";
 import { DEFAULT_MARKETPLACE_PREFERENCES } from "../../../lib/exchange/matching";
 import type {
   ExchangeItem,
@@ -224,6 +226,9 @@ export default function useNichLocalData(enabled: boolean) {
         const tradesPromise = user
           ? supabase.from("trade_history").select("id,value_source,your_items,their_items,your_total,their_total,verdict,status,created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(50)
           : Promise.resolve({ data: [], error: null });
+        const nichMemoryPromise = user
+          ? supabase.from("nich_user_memory").select("aliases,preferred_value_source,response_style,updated_at").eq("user_id", user.id).maybeSingle()
+          : Promise.resolve({ data: null, error: null });
         const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
         const marketEventsPromise = supabase
           .from("marketplace_events")
@@ -236,12 +241,13 @@ export default function useNichLocalData(enabled: boolean) {
           .then(async (response) => response.ok ? await response.json() as { items?: DemandApiItem[] } : { items: [] as DemandApiItem[] })
           .catch(() => ({ items: [] as DemandApiItem[] }));
 
-        const [listingResult, inventoryResult, wishlistResult, preferencesResult, tradesResult, marketEventsResult, demandTrendResult] = await Promise.all([
+        const [listingResult, inventoryResult, wishlistResult, preferencesResult, tradesResult, nichMemoryResult, marketEventsResult, demandTrendResult] = await Promise.all([
           listingPromise,
           inventoryPromise,
           wishlistPromise,
           preferencesPromise,
           tradesPromise,
+          nichMemoryPromise,
           marketEventsPromise,
           demandTrendPromise,
         ]);
@@ -285,9 +291,20 @@ export default function useNichLocalData(enabled: boolean) {
           demandTrendResult.items ?? [],
         );
 
+        const remoteNichMemory = nichMemoryResult.data
+          ? sanitizeNichUserMemory({
+              aliases: (nichMemoryResult.data as Record<string, unknown>).aliases,
+              preferredValueSource: (nichMemoryResult.data as Record<string, unknown>).preferred_value_source,
+              responseStyle: (nichMemoryResult.data as Record<string, unknown>).response_style,
+              updatedAt: new Date(String((nichMemoryResult.data as Record<string, unknown>).updated_at ?? Date.now())).getTime(),
+            })
+          : undefined;
+
         setData({
           loaded: true,
           authenticated: Boolean(user),
+          ...(user ? { userId: user.id } : {}),
+          ...(remoteNichMemory ? { nichMemory: remoteNichMemory } : {}),
           inventory,
           wishlistItemIds,
           preferences: preferencesResult.data
@@ -359,4 +376,22 @@ export async function enrichNichLocalDataForMessage(
   } catch {
     return data;
   }
+}
+
+
+/** Persist only explicit, privacy-limited NICH preferences. Active trades, chat
+ * messages and screenshots are deliberately not written to this table. */
+export async function persistNichUserMemoryToSupabase(userId: string | undefined, memory: NichUserMemory | undefined) {
+  if (!userId || !memory) return false;
+  const supabase = getSupabaseBrowserClient();
+  const sanitized = sanitizeNichUserMemory(memory);
+  if (!supabase || !sanitized) return false;
+  const { error } = await supabase.from("nich_user_memory").upsert({
+    user_id: userId,
+    aliases: sanitized.aliases ?? {},
+    preferred_value_source: sanitized.preferredValueSource ?? null,
+    response_style: sanitized.responseStyle ?? null,
+    updated_at: new Date(sanitized.updatedAt ?? Date.now()).toISOString(),
+  }, { onConflict: "user_id" });
+  return !error;
 }

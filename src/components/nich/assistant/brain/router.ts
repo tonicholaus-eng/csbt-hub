@@ -15,6 +15,7 @@ import createPetLookupResponse from "./petLookup";
 import createTradeComparisonResponse from "./tradeComparison";
 import createSmartFallbackResponse from "./smartFallback";
 import createWebsiteKnowledgeResponse from "./websiteKnowledge";
+import handleActiveTradeMessage from "./activeTrade";
 import createLocalIntelligenceResponse, {
   enhanceTradeResponseLocally,
 } from "./localIntelligence";
@@ -932,6 +933,21 @@ export function routeNichMessage(
     input.message.trim();
   const locallyNormalizedMessage =
     normalizeLocalChatMessage(originalMessage);
+
+  // Structured screenshot/manual trade state gets first chance to interpret
+  // corrections, side/variant edits, undo, and what-if follow-ups. This prevents
+  // a casual correction from being treated as an unrelated new chat message.
+  const activeTradeResponse = handleActiveTradeMessage({
+    ...input,
+    message: locallyNormalizedMessage,
+  });
+  if (activeTradeResponse) {
+    return attachConversationMetadata(
+      activeTradeResponse,
+      originalMessage,
+      locallyNormalizedMessage,
+    );
+  }
 
   /**
    * Analyze the user's cleaned chat wording before context resolution. This

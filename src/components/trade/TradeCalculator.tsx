@@ -226,40 +226,6 @@ export default function TradeCalculator() {
     };
   }, [yourTotal, theirTotal]);
 
-  const adjustmentSuggestion = useMemo(() => {
-    if (yourTotal <= 0 || theirTotal <= 0) return null;
-    const currentGap = Math.abs(yourTotal - theirTotal);
-    const currentPercent = currentGap / Math.max(yourTotal, theirTotal, 1) * 100;
-    if (currentPercent <= 5) return null;
-    const unit = valueSource === "GCASH" ? "₱" : "🦈 ";
-
-    if (yourTotal > theirTotal && yourItems.length) {
-      const candidates = yourItems.map((selected) => {
-        const value = parseItemValue(selected.item, selected.valueType, valueSource);
-        const nextYour = Math.max(0, yourTotal - value);
-        const nextGap = Math.abs(nextYour - theirTotal);
-        const nextPercent = nextGap / Math.max(nextYour, theirTotal, 1) * 100;
-        return { selected, value, nextPercent, nextGap };
-      }).filter((candidate) => candidate.value > 0 && candidate.nextGap < currentGap)
-        .sort((a, b) => a.nextGap - b.nextGap);
-      const best = candidates[0];
-      if (best) {
-        return {
-          title: `Try removing ${best.selected.item.NAME}`,
-          text: `That would move the deterministic value gap to about ${best.nextPercent.toFixed(1)}% using ${valueSource} values.`,
-        };
-      }
-      return {
-        title: "Ask for an add",
-        text: `Their side is short by approximately ${unit}${currentGap.toLocaleString("en-US", { maximumFractionDigits: 2 })} in this value source.`,
-      };
-    }
-
-    return {
-      title: "Expect a possible add request",
-      text: `Your side is lower by approximately ${unit}${currentGap.toLocaleString("en-US", { maximumFractionDigits: 2 })}. If you want to make it closer to fair, use that as the deterministic adjustment target.`,
-    };
-  }, [theirTotal, valueSource, yourItems, yourTotal]);
 
   function openAddItemModal(
     side: TradeSideType,

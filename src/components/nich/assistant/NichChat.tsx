@@ -19,6 +19,7 @@ import {
 import routeNichMessage from "./brain/router";
 import useNichLocalData, {
   enrichNichLocalDataForMessage,
+  persistNichUserMemoryToSupabase,
 } from "./useNichLocalData";
 import type {
   NichConversationContext,
@@ -38,12 +39,16 @@ import {
   initialMessages,
   initialSuggestions,
   readSavedChat,
+  readNichUserMemory,
   readVisionSessionCache,
   saveChat,
+  saveNichUserMemory,
   writeVisionSessionCache,
   type ChatMessage,
 } from "./NichChatPersistence";
 import type { NichVisionApiResponse } from "../../../lib/nich/vision";
+import type { NichUserMemory } from "../../../lib/nich/tradeSession";
+import NichTradeReviewCard from "./NichTradeReviewCard";
 import { useBirthdayEventActive } from "../../../hooks/useBirthdayEventActive";
 import { birthdayEvent, openBirthdayEvent } from "../../../config/birthdayEvent";
 import { PartyHat } from "../../birthday/BirthdayIcons";
@@ -237,6 +242,26 @@ async function optimizeNichScreenshot(file: File): Promise<File> {
   } catch {
     return file;
   }
+}
+
+function explicitlyRequestsValueSource(message: string) {
+  return /\b(?:gcash|elve(?:\s+shark|bredd)?|in[- ]?game\s+value)\b/i.test(message);
+}
+
+function mergeNichMemory(localMemory?: NichUserMemory, remoteMemory?: NichUserMemory) {
+  if (!localMemory) return remoteMemory;
+  if (!remoteMemory) return localMemory;
+  const localIsNewer = (localMemory.updatedAt ?? 0) >= (remoteMemory.updatedAt ?? 0);
+  const preferred = localIsNewer ? localMemory : remoteMemory;
+  return {
+    preferredValueSource: preferred.preferredValueSource ?? (localIsNewer ? remoteMemory.preferredValueSource : localMemory.preferredValueSource),
+    responseStyle: preferred.responseStyle ?? (localIsNewer ? remoteMemory.responseStyle : localMemory.responseStyle),
+    aliases: {
+      ...(localIsNewer ? remoteMemory.aliases : localMemory.aliases),
+      ...(localIsNewer ? localMemory.aliases : remoteMemory.aliases),
+    },
+    updatedAt: Math.max(localMemory.updatedAt ?? 0, remoteMemory.updatedAt ?? 0) || Date.now(),
+  } satisfies NichUserMemory;
 }
 
 export default function NichChat({
@@ -480,6 +505,24 @@ export default function NichChat({
   }, []);
 
   useEffect(() => {
+    if (!localData.loaded) return;
+
+    const localMemory = readNichUserMemory(localData.userId);
+    const mergedMemory = mergeNichMemory(localMemory, localData.nichMemory);
+    if (!mergedMemory) return;
+
+    saveNichUserMemory(mergedMemory, localData.userId);
+
+    queueMicrotask(() => {
+      setConversationContext((current) => ({
+        ...current,
+        userMemory: mergeNichMemory(current.userMemory, mergedMemory),
+        lastValueSource: current.lastValueSource ?? mergedMemory.preferredValueSource,
+      }));
+    });
+  }, [localData.loaded, localData.nichMemory, localData.userId]);
+
+  useEffect(() => {
     if (!isStorageReady) {
       return;
     }
@@ -694,6 +737,24 @@ export default function NichChat({
         }
       }
 
+      if (explicitlyRequestsValueSource(trimmedMessage)) {
+        const selectedSource = response.context?.lastValueSource ?? response.tradeComparison?.valueSource;
+        if (selectedSource === "GCASH" || selectedSource === "ELVE") {
+          const currentMemory = response.context?.userMemory ?? conversationContext.userMemory ?? localData.nichMemory;
+          response = {
+            ...response,
+            context: {
+              ...response.context,
+              userMemory: {
+                ...(currentMemory ?? {}),
+                preferredValueSource: selectedSource,
+                updatedAt: Date.now(),
+              },
+            },
+          };
+        }
+      }
+
       if (
         requestSequenceRef.current !==
         requestId
@@ -726,7 +787,14 @@ export default function NichChat({
             intent: response.intent,
             tradeComparison:
               response.tradeComparison,
+            tradeSession: response.tradeSession,
           };
+
+          const updatedMemory = response.context?.userMemory;
+          if (updatedMemory) {
+            saveNichUserMemory(updatedMemory, localData.userId);
+            void persistNichUserMemoryToSupabase(localData.userId, updatedMemory);
+          }
 
           setMessages((currentMessages) => [
             ...currentMessages,
@@ -838,24 +906,61 @@ export default function NichChat({
         if (requestSequenceRef.current !== requestId) return;
 
         let response: NichResponse;
+        const screenshotTrade = payload.tradeSession
+          ? {
+              ...payload.tradeSession,
+              valueSystem: conversationContext.lastValueSource
+                ?? conversationContext.userMemory?.preferredValueSource
+                ?? localData.nichMemory?.preferredValueSource
+                ?? payload.tradeSession.valueSystem,
+            }
+          : undefined;
+        const screenshotContext = screenshotTrade
+          ? { ...conversationContext, activeTrade: screenshotTrade, lastValueSource: screenshotTrade.valueSystem }
+          : conversationContext;
 
         if (apiOk && payload.localPrompt) {
           response = routeNichMessage({
-            message: payload.localPrompt,
-            context: conversationContext,
+            // When vision already returned a fully verified TradeSession, use
+            // that structured state directly instead of reparsing AI prose.
+            message: screenshotTrade ? "recalculate this trade" : payload.localPrompt,
+            context: screenshotContext,
             localData,
           });
+          const finalTrade = screenshotTrade
+            ? { ...screenshotTrade, conversationState: response.tradeComparison ? "CALCULATED" as const : screenshotTrade.conversationState }
+            : undefined;
           response = {
             ...response,
             aiEligible: false,
             localConfidence: 1,
+            ...(finalTrade ? { tradeSession: finalTrade } : {}),
+            context: {
+              ...response.context,
+              ...(finalTrade ? { activeTrade: finalTrade, lastValueSource: finalTrade.valueSystem } : {}),
+            },
             text: payload.imageType === "TRADE"
               ? response.text
               : [payload.message, "", response.text].filter(Boolean).join("\n"),
           };
+        } else if (apiOk && screenshotTrade) {
+          response = {
+            text: payload.message || "I recognized most of the trade. Confirm the highlighted item and I’ll continue automatically.",
+            intent: "tradeComparison",
+            reaction: "search",
+            aiEligible: false,
+            localConfidence: 1,
+            typingDuration: 240,
+            tradeSession: screenshotTrade,
+            context: {
+              activeTrade: screenshotTrade,
+              lastValueSource: screenshotTrade.valueSystem,
+              lastIntent: "tradeComparison",
+            },
+          };
         } else {
           response = {
-            text: payload.message || "Nich couldn’t analyze that screenshot. Try a clearer crop or type the trade manually.",
+            text: payload.message || "Nich couldn’t analyze that screenshot. Your chat is still here — try a clearer crop or type the trade manually.",
             intent: "fallback",
             reaction: "searchEmpty",
             aiEligible: false,
@@ -872,6 +977,7 @@ export default function NichChat({
           suggestions: response.suggestions,
           intent: response.intent,
           tradeComparison: response.tradeComparison,
+          tradeSession: response.tradeSession,
         };
 
         setMessages((currentMessages) => [...currentMessages, nichMessage]);
@@ -1252,6 +1358,15 @@ export default function NichChat({
                           : "items-end"
                       } sm:max-w-[86%]`}
                     >
+                      {isNich && message.tradeSession && (
+                        <NichTradeReviewCard
+                          session={message.tradeSession}
+                          onCommand={(command) => {
+                            void sendMessage(command);
+                          }}
+                        />
+                      )}
+
                       {isNich &&
                         message.tradeComparison && (
                           <TradeResultCard

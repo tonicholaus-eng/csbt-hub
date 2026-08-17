@@ -50,6 +50,6 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json(
     { success: true, configured: true, itemId, source, valueType, days, points },
-    { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } },
+    { headers: { "Cache-Control": "public, max-age=60, s-maxage=300" } },
   );
 }

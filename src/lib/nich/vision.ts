@@ -1,4 +1,5 @@
 import { getItem, searchItems } from "../search";
+import type { NichTradeSession } from "./tradeSession";
 
 export type NichVisionImageType =
   | "TRADE"
@@ -28,11 +29,18 @@ export type NichVisionRawItem = {
   variant: NichVisionVariant;
   potion: NichVisionPotion;
   quantity: number;
+  /** Legacy overall visual identity confidence. */
   confidence: number;
+  itemConfidence?: number;
+  variantConfidence?: number;
+  sideConfidence?: number;
   categoryHint?: NichVisionCategory;
   candidateNames?: string[];
+  candidateScores?: Array<{ itemName: string; score: number }>;
   visualEvidence?: string;
   visibleText?: string;
+  /** Normalized 0..1 bounding box when the model can localize the slot. */
+  box?: { x: number; y: number; width: number; height: number };
   slot?: number;
 };
 
@@ -61,7 +69,20 @@ export type NichVisionApiResponse = {
   imageType?: NichVisionImageType;
   items?: NichVisionVerifiedItem[];
   localPrompt?: string;
+  tradeSession?: NichTradeSession;
   message: string;
+  runId?: string;
+  recognitionVersion?: string;
+  promptVersion?: string;
+  catalogVersion?: string;
+  cacheStatus?: "HIT" | "MISS" | "SESSION_HIT";
+  image?: { width: number; height: number; bytes: number; mimeType: string };
+  debug?: {
+    model: string;
+    layoutConfidence: number;
+    uncertainSlots: string[];
+    focusedRecheckUsed: boolean;
+  };
   usage?: {
     promptTokens?: number;
     outputTokens?: number;
@@ -178,7 +199,7 @@ export function verifyVisionItem(raw: NichVisionRawItem): NichVisionVerifiedItem
       ? 1
       : similarity(rawName, best.NAME)
     : 0;
-  const aiConfidence = clampConfidence(raw.confidence);
+  const aiConfidence = clampConfidence(raw.itemConfidence ?? raw.confidence);
   const textConfirmed = exact ? visibleTextConfirmsExactName(raw, exact.NAME) : false;
 
   const collisionGuardNames = VISION_EXACT_NAME_COLLISION_GUARDS[normalizeName(rawName)] ?? [];
@@ -197,7 +218,14 @@ export function verifyVisionItem(raw: NichVisionRawItem): NichVisionVerifiedItem
   );
 
   const modelAlternatives = modelCandidateItems.filter((item) => item.ID !== best?.ID);
-  const modelExpressedAmbiguity = modelAlternatives.length > 0;
+  const scoredCandidates = (raw.candidateScores ?? [])
+    .map((entry) => ({ name: normalizeName(entry.itemName), score: clampConfidence(entry.score) }))
+    .sort((a, b) => b.score - a.score);
+  const topScore = scoredCandidates[0]?.score ?? aiConfidence;
+  const secondScore = scoredCandidates[1]?.score ?? (modelAlternatives.length ? Math.max(0, aiConfidence - 0.08) : 0);
+  const modelExpressedAmbiguity = modelAlternatives.length > 0 && (
+    scoredCandidates.length < 2 || secondScore >= 0.3 || topScore - secondScore < 0.35
+  );
   const categoryMismatch = Boolean(rawExact && !exact);
 
   // Screenshot recognition is deliberately conservative. A wrong exact pet name
@@ -244,6 +272,9 @@ export function verifyVisionItem(raw: NichVisionRawItem): NichVisionVerifiedItem
     ...raw,
     rawName,
     confidence: aiConfidence,
+    itemConfidence: aiConfidence,
+    variantConfidence: clampConfidence(raw.variantConfidence ?? raw.confidence),
+    sideConfidence: clampConfidence(raw.sideConfidence ?? raw.confidence),
     quantity: Math.max(1, Math.min(18, Math.floor(Number(raw.quantity) || 1))),
     ...(best
       ? {

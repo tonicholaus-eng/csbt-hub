@@ -2,6 +2,7 @@ import type {
   NichBrainInput,
   NichPotionStatus,
   NichResponse,
+  NichTradeComparison,
   NichTradeItem,
   NichValueSource,
 } from "./types";
@@ -13,7 +14,15 @@ import {
   analyzeNichMessage,
   type NichMessageAnalysis,
 } from "./messageAnalysis";
-import { compareTrade, parseTradeMessageLenient, type ParsedTradeItem } from "../tools/tradeComparison";
+import {
+  comparePreparedTradeItems,
+  compareTrade,
+  createCanonicalTradeItem,
+  parseTradeMessageLenient,
+  type ParsedTradeItem,
+} from "../tools/tradeComparison";
+import { getItemById } from "../../../../lib/search";
+import type { NichTradeSession, NichTradeSlot } from "../../../../lib/nich/tradeSession";
 import { formatNumber, uniqueBy } from "./language";
 
 const verdictEmoji = {
@@ -258,6 +267,139 @@ function createIncompleteTradeClarification(
   };
 }
 
+function slotPotionStatus(slot: NichTradeSlot): NichPotionStatus {
+  if (slot.fly && slot.ride) return "flyRide";
+  if (slot.fly) return "flyOnly";
+  if (slot.ride) return "rideOnly";
+  return "unspecified";
+}
+
+function slotVariant(slot: NichTradeSlot): "normal" | "neon" | "mega" {
+  return slot.mega ? "mega" : slot.neon ? "neon" : "normal";
+}
+
+function slotCode(slot: NichTradeSlot) {
+  const prefix = slot.mega ? "M" : slot.neon ? "N" : "";
+  const potion = slot.fly && slot.ride ? "FR" : slot.fly ? "F" : slot.ride ? "R" : "";
+  return `${prefix}${potion}` || (slot.category === "PET" ? "NP" : "Item");
+}
+
+function prepareSessionSide(slots: NichTradeSlot[], source: NichValueSource) {
+  const prepared: NichTradeItem[] = [];
+  for (const slot of slots) {
+    if (slot.status !== "CONFIRMED" || !slot.canonicalItemId) return null;
+    const item = getItemById(slot.canonicalItemId);
+    if (!item) return null;
+    const tradeItem = createCanonicalTradeItem(
+      item,
+      {
+        variant: slotVariant(slot),
+        potionStatus: slotPotionStatus(slot),
+        code: slotCode(slot),
+        hasNoPotionWarning: slot.category === "PET" && !slot.fly && !slot.ride,
+      },
+      source,
+    );
+    if (!tradeItem) return null;
+    const quantity = Math.max(1, Math.min(9, slot.quantity || 1));
+    for (let count = 0; count < quantity; count += 1) prepared.push({ ...tradeItem });
+  }
+  return prepared;
+}
+
+function createComparisonResponseFromPrepared(
+  input: NichBrainInput,
+  comparison: NichTradeComparison,
+): NichResponse {
+  const source = comparison.valueSource as NichValueSource;
+  const difference = Math.abs(comparison.difference);
+  const wantsDetails = userAskedForTradeAdviceOrDetails(input.message);
+  const explanation = wantsDetails
+    ? buildVerdictExplanation(
+        comparison.verdict,
+        comparison.difference,
+        comparison.differencePercent,
+      )
+    : [];
+  const allItems = [...comparison.offeredItems, ...comparison.requestedItems];
+  const lastItem = comparison.requestedItems.at(-1)!;
+  const yourOfferMessage = formatTradeSideForMessage(comparison.offeredItems);
+  const theirOfferMessage = formatTradeSideForMessage(comparison.requestedItems);
+  const suggestions = [
+    {
+      id: "trade-swap-sides",
+      label: "Swap the sides",
+      message: `WFL me ${theirOfferMessage} them ${yourOfferMessage} using ${source === "ELVE" ? "Elve Shark" : "GCash"}`,
+    },
+    {
+      id: "trade-check-all-values",
+      label: "Check all values",
+      message: `${allItems.map((item) => `${item.petCode} ${item.petName}`).join(", ")} using ${source === "ELVE" ? "Elve Shark" : "GCash"}`,
+    },
+  ];
+
+  if (difference > 0) {
+    suggestions.splice(1, 0, {
+      id: "trade-find-adds",
+      label: "Find possible adds",
+      message: `Find pets around ${formatNumber(difference)} value using ${source === "ELVE" ? "Elve Shark" : "GCash"}`,
+    });
+  }
+
+  return {
+    text: [
+      `${verdictEmoji[comparison.verdict]} ${verdictText[comparison.verdict]}`,
+      "",
+      ...createTradeSideBlock("Your Offer", comparison.offeredItems, comparison.offeredValue),
+      "",
+      ...createTradeSideBlock("Their Offer", comparison.requestedItems, comparison.requestedValue),
+      ...(wantsDetails
+        ? [
+            "",
+            ...explanation,
+            ...createNoPotionWarning(comparison.offeredItems, comparison.requestedItems, source),
+            "",
+            `Source: ${VALUE_SOURCE_LABELS[source]}.`,
+          ]
+        : []),
+    ].join("\n"),
+    intent: "tradeComparison",
+    localConfidence: 0.99,
+    aiEligible: false,
+    reaction:
+      comparison.verdict === "win"
+        ? "celebrate"
+        : comparison.verdict === "fair"
+          ? "calculator"
+          : "searchEmpty",
+    typingDuration: Math.min(700 + allItems.length * 80, 1_400),
+    tradeComparison: comparison,
+    context: {
+      lastIntent: "tradeComparison",
+      lastTradeComparison: comparison,
+      lastPetName: lastItem.petName,
+      lastVariant: lastItem.variant,
+      lastNumericValue: lastItem.value,
+      recentPets: createRecentPets(allItems),
+      lastValueSource: source,
+    },
+    suggestions: wantsDetails ? suggestions.slice(0, 3) : [],
+  };
+}
+
+export function createTradeSessionComparisonResponse(
+  input: NichBrainInput,
+  session: NichTradeSession,
+): NichResponse | null {
+  if (session.unresolvedSlots.length || !session.userSide.length || !session.theirSide.length) return null;
+  const source = session.valueSystem;
+  const offeredItems = prepareSessionSide(session.userSide, source);
+  const requestedItems = prepareSessionSide(session.theirSide, source);
+  if (!offeredItems?.length || !requestedItems?.length) return null;
+  const comparison = comparePreparedTradeItems(offeredItems, requestedItems, source);
+  return comparison ? createComparisonResponseFromPrepared(input, comparison) : null;
+}
+
 export function createTradeComparisonResponse(
   input: NichBrainInput,
   providedAnalysis?: NichMessageAnalysis,
@@ -305,91 +447,7 @@ export function createTradeComparisonResponse(
     };
   }
 
-  const difference = Math.abs(comparison.difference);
-  const wantsDetails = userAskedForTradeAdviceOrDetails(input.message);
-  const explanation = wantsDetails
-    ? buildVerdictExplanation(
-        comparison.verdict,
-        comparison.difference,
-        comparison.differencePercent,
-      )
-    : [];
-  const allItems = [...comparison.offeredItems, ...comparison.requestedItems];
-  const lastItem = comparison.requestedItems.at(-1)!;
-  const yourOfferMessage = formatTradeSideForMessage(comparison.offeredItems);
-  const theirOfferMessage = formatTradeSideForMessage(comparison.requestedItems);
-  const suggestions = [
-    {
-      id: "trade-swap-sides",
-      label: "Swap the sides",
-      message: `WFL me ${theirOfferMessage} them ${yourOfferMessage} using ${source === "ELVE" ? "Elve Shark" : "GCash"}`,
-    },
-    {
-      id: "trade-check-all-values",
-      label: "Check all values",
-      message: `${allItems.map((item) => `${item.petCode} ${item.petName}`).join(", ")} using ${source === "ELVE" ? "Elve Shark" : "GCash"}` ,
-    },
-  ];
-
-  if (difference > 0) {
-    suggestions.splice(1, 0, {
-      id: "trade-find-adds",
-      label: "Find possible adds",
-      message: `Find pets around ${formatNumber(difference)} value using ${source === "ELVE" ? "Elve Shark" : "GCash"}`,
-    });
-  }
-
-  return {
-    text: [
-      `${verdictEmoji[comparison.verdict]} ${verdictText[comparison.verdict]}`,
-      "",
-      ...createTradeSideBlock(
-        "Your Offer",
-        comparison.offeredItems,
-        comparison.offeredValue,
-      ),
-      "",
-      ...createTradeSideBlock(
-        "Their Offer",
-        comparison.requestedItems,
-        comparison.requestedValue,
-      ),
-      ...(wantsDetails
-        ? [
-            "",
-            ...explanation,
-            ...createNoPotionWarning(
-              comparison.offeredItems,
-              comparison.requestedItems,
-              source,
-            ),
-            "",
-            `Source: ${VALUE_SOURCE_LABELS[source]}.`,
-          ]
-        : []),
-    ].join("\n"),
-    intent: "tradeComparison",
-    localConfidence: 0.99,
-    aiEligible: false,
-    reaction:
-      comparison.verdict === "win"
-        ? "celebrate"
-        : comparison.verdict === "fair"
-          ? "calculator"
-          : "searchEmpty",
-    typingDuration: Math.min(700 + allItems.length * 80, 1_400),
-    tradeComparison: comparison,
-    context: {
-      lastIntent: "tradeComparison",
-      lastTradeComparison: comparison,
-      lastPetName: lastItem.petName,
-      lastVariant: lastItem.variant,
-      lastNumericValue: lastItem.value,
-      recentPets: createRecentPets(allItems),
-      lastValueSource: source,
-    },
-    suggestions: wantsDetails ? suggestions.slice(0, 3) : [],
-  };
+  return createComparisonResponseFromPrepared(input, comparison);
 }
 
 export default createTradeComparisonResponse;

@@ -12,6 +12,7 @@ const excelPath = path.join(projectRoot, "source-data", "trading-data.xlsx");
 const elveSnapshotPath = path.join(projectRoot, "source-data", "elve-shark-values.json");
 const outputPath = path.join(projectRoot, "src", "data", "tradingItems.json");
 const clientIndexPath = path.join(projectRoot, "src", "data", "tradingItemsIndex.json");
+const petImageIndexPath = path.join(projectRoot, "src", "data", "petImageIndex.json");
 const sourceMetadataPath = path.join(projectRoot, "src", "data", "valueSources.json");
 const tradingMetaPath = path.join(projectRoot, "src", "data", "tradingMeta.json");
 const validationReportPath = path.join(projectRoot, "source-data", "trading-data-validation.json");
@@ -546,6 +547,14 @@ function generateTradingItems() {
   ]);
   fs.writeFileSync(clientIndexPath, `${JSON.stringify(clientIndex)}\n`, "utf8");
 
+  // The demand API only needs PET names and images. Keeping a dedicated tiny
+  // index prevents that Worker route from importing the full 600+ KB client
+  // catalog (or the 1.6+ MB full trading database) on every cold isolate.
+  const petImageIndex = tradingItems
+    .filter((item) => item.CATEGORY === "PET" && item.NAME && item.IMAGE)
+    .map((item) => [item.NAME, item.IMAGE]);
+  fs.writeFileSync(petImageIndexPath, `${JSON.stringify(petImageIndex)}\n`, "utf8");
+
   const sourceMetadata = {
     defaultSource: "GCASH",
     sources: {
@@ -611,6 +620,7 @@ function generateTradingItems() {
   console.log(`Total: ${tradingItems.length}`);
   console.log(`Created: ${outputPath}`);
   console.log(`Client search index: ${clientIndexPath}`);
+  console.log(`PET image index: ${petImageIndexPath}`);
   console.log(`Value-source metadata: ${sourceMetadataPath}`);
   console.log(`Homepage metadata: ${tradingMetaPath}`);
   console.log(`Warnings: ${warnings.length}`);

@@ -1,0 +1,821 @@
+import { detectValueSource } from "../../../../lib/valueSystem";
+import { resolveNichItem } from "../../../../lib/nich/itemResolver";
+import {
+  cloneTradeSession,
+  createCanonicalTradeSlot,
+  createCorrectionEvent,
+  findTradeSlot,
+  formatTradeSessionForCalculation,
+  getTradeSlots,
+  getUnresolvedTradeSlots,
+  moveTradeSlot,
+  pushTradeHistory,
+  refreshTradeSession,
+  restorePreviousTradeState,
+  type NichTradeSession,
+  type NichTradeSide,
+  type NichTradeSlot,
+  type NichUserMemory,
+} from "../../../../lib/nich/tradeSession";
+import createTradeComparisonResponse, { createTradeSessionComparisonResponse } from "./tradeComparison";
+import type { NichBrainInput, NichResponse } from "./types";
+
+function normalize(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[’']/g, "'")
+    .replace(/[^a-z0-9'\s-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function slotLabel(slot: NichTradeSlot) {
+  const side = slot.side === "YOU" ? "your" : "their";
+  const position = slot.gridPosition;
+  return `${side} slot ${position}`;
+}
+
+function slotVariantLabel(slot: NichTradeSlot) {
+  if (slot.mega) return `${slot.fly ? "F" : ""}${slot.ride ? "R" : ""}` ? `M${slot.fly ? "F" : ""}${slot.ride ? "R" : ""}` : "M";
+  if (slot.neon) return `N${slot.fly ? "F" : ""}${slot.ride ? "R" : ""}`;
+  if (slot.fly || slot.ride) return `${slot.fly ? "F" : ""}${slot.ride ? "R" : ""}`;
+  return "NP";
+}
+
+function recalcSlotStatus(slot: NichTradeSlot): NichTradeSlot {
+  const isPet = (slot.category ?? "PET") === "PET";
+  const identityReady = Boolean(slot.canonicalItemId && slot.canonicalName);
+  const variantReady = slot.neon !== null && slot.mega !== null && (!isPet || (slot.fly !== null && slot.ride !== null));
+  const overall = Math.min(
+    slot.confidence.item,
+    slot.confidence.variant || 0.35,
+    slot.confidence.side,
+  );
+  const status = identityReady && variantReady && overall >= 0.72
+    ? "CONFIRMED"
+    : identityReady
+      ? "UNCERTAIN"
+      : "UNRESOLVED";
+  return {
+    ...slot,
+    status,
+    confidence: {
+      ...slot.confidence,
+      overall,
+      level: status === "CONFIRMED" ? (overall >= 0.88 ? "HIGH" : "MEDIUM") : status === "UNCERTAIN" ? "LOW" : "UNRESOLVED",
+    },
+  };
+}
+
+function replaceSlot(session: NichTradeSession, slotId: string, updated: NichTradeSlot) {
+  return refreshTradeSession({
+    ...session,
+    userSide: session.userSide.map((slot) => slot.slotId === slotId ? updated : slot),
+    theirSide: session.theirSide.map((slot) => slot.slotId === slotId ? updated : slot),
+  });
+}
+
+function withHistory(session: NichTradeSession, reason: string) {
+  return pushTradeHistory(session, reason);
+}
+
+function applyItemCorrection(
+  session: NichTradeSession,
+  slot: NichTradeSlot,
+  itemName: string,
+  message: string,
+  memory?: NichUserMemory,
+  recordHistory = true,
+) {
+  const resolution = resolveNichItem(itemName, {
+    userMemory: memory,
+    contextualSlots: [slot],
+    category: slot.category === "PET" ? "PET" : undefined,
+  });
+  if (resolution.status !== "resolved" || !resolution.item) return null;
+
+  const historical = recordHistory
+    ? withHistory(session, `Correct ${slotLabel(slot)} to ${resolution.item.NAME}`)
+    : session;
+  const event = createCorrectionEvent({
+    tradeSessionId: session.id,
+    slotId: slot.slotId,
+    originalPrediction: slot.canonicalName ?? slot.rawName,
+    correctedItem: resolution.item.NAME,
+    confidenceBefore: slot.confidence.item,
+    source: "user",
+    message,
+  });
+  const updated = recalcSlotStatus({
+    ...slot,
+    canonicalItemId: resolution.item.ID,
+    canonicalName: resolution.item.NAME,
+    category: String(resolution.item.CATEGORY ?? slot.category ?? "OTHER"),
+    rawName: resolution.item.NAME,
+    alternatives: [],
+    source: "CONFIRMED_BY_USER",
+    correctedByUser: true,
+    confidence: { ...slot.confidence, item: 1, overall: Math.min(1, slot.confidence.variant, slot.confidence.side) },
+    correctionHistory: [...slot.correctionHistory, event].slice(-20),
+  });
+  const next = replaceSlot(historical, slot.slotId, updated);
+  return {
+    session: { ...next, correctionLedger: [...next.correctionLedger, event].slice(-60) },
+    itemName: resolution.item.NAME,
+  };
+}
+
+function parseVariantPhrase(message: string) {
+  const text = normalize(message);
+  const codeMatch = text.match(/\b(mfr|nfr|mf|mr|nf|nr|fr|np|mega|neon|fly ride|fly|ride|normal)\b/i);
+  if (!codeMatch) return null;
+  const code = codeMatch[1].toLowerCase();
+  if (code === "mfr") return { mega: true, neon: false, fly: true, ride: true, label: "MFR" };
+  if (code === "nfr") return { mega: false, neon: true, fly: true, ride: true, label: "NFR" };
+  if (code === "mf") return { mega: true, neon: false, fly: true, ride: false, label: "MF" };
+  if (code === "mr") return { mega: true, neon: false, fly: false, ride: true, label: "MR" };
+  if (code === "nf") return { mega: false, neon: true, fly: true, ride: false, label: "NF" };
+  if (code === "nr") return { mega: false, neon: true, fly: false, ride: true, label: "NR" };
+  if (code === "fr" || code === "fly ride") return { fly: true, ride: true, label: "FR" };
+  if (code === "np" || code === "normal") return { mega: false, neon: false, fly: false, ride: false, label: "NP" };
+  if (code === "mega") return { mega: true, neon: false, label: "Mega" };
+  if (code === "neon") return { mega: false, neon: true, label: "Neon" };
+  if (code === "fly") return { fly: true, label: "Fly" };
+  if (code === "ride") return { ride: true, label: "Ride" };
+  return null;
+}
+
+function findSlotsByItemText(session: NichTradeSession, text: string, memory?: NichUserMemory) {
+  const slots = getTradeSlots(session);
+  const normalizedText = normalize(text);
+  const direct = slots.filter((slot) => {
+    const name = normalize(slot.canonicalName ?? slot.rawName ?? "");
+    if (!name) return false;
+    return normalizedText.includes(name) || name.split(" ").some((token) => token.length >= 4 && normalizedText.includes(token));
+  });
+  if (direct.length === 1) return direct;
+
+  const variantStripped = normalizedText
+    .replace(/\b(?:mfr|nfr|mf|mr|nf|nr|fr|np|mega|neon|fly ride|fly|ride|normal|is|are|actually|instead|not|the|pet|one|mine|my|their|theirs|them|his|her)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!variantStripped) return direct;
+  const resolution = resolveNichItem(variantStripped, { userMemory: memory, contextualSlots: slots });
+  if (resolution.item) {
+    const byId = slots.filter((slot) => slot.canonicalItemId === resolution.item!.ID);
+    if (byId.length) return byId;
+  }
+  return direct;
+}
+
+function applyVariantChange(session: NichTradeSession, slot: NichTradeSlot, message: string) {
+  const parsed = parseVariantPhrase(message);
+  if (!parsed) return null;
+  const historical = withHistory(session, `Change ${slot.canonicalName ?? slotLabel(slot)} variant`);
+  const event = createCorrectionEvent({
+    tradeSessionId: session.id,
+    slotId: slot.slotId,
+    originalVariant: slotVariantLabel(slot),
+    correctedVariant: parsed.label,
+    confidenceBefore: slot.confidence.variant,
+    source: "user",
+    message,
+  });
+  const updated = recalcSlotStatus({
+    ...slot,
+    ...(parsed.mega !== undefined ? { mega: parsed.mega } : {}),
+    ...(parsed.neon !== undefined ? { neon: parsed.neon } : {}),
+    ...(parsed.fly !== undefined ? { fly: parsed.fly } : {}),
+    ...(parsed.ride !== undefined ? { ride: parsed.ride } : {}),
+    source: "CONFIRMED_BY_USER",
+    correctedByUser: true,
+    confidence: { ...slot.confidence, variant: 1 },
+    correctionHistory: [...slot.correctionHistory, event].slice(-20),
+  });
+  const next = replaceSlot(historical, slot.slotId, updated);
+  return {
+    session: { ...next, correctionLedger: [...next.correctionLedger, event].slice(-60) },
+    label: parsed.label,
+  };
+}
+
+function isUndo(message: string) {
+  return /^(?:undo|undo that|go back|revert(?: that)?|actually never ?mind|nevermind)$/i.test(normalize(message));
+}
+
+function getOrdinalIndex(token: string, count: number) {
+  if (token === "last") return Math.max(0, count - 1);
+  return { first: 0, second: 1, third: 2, fourth: 3, fifth: 4, sixth: 5, seventh: 6, eighth: 7, ninth: 8 }[token as "first"] ?? -1;
+}
+
+function cleanCorrectionFragment(value: string) {
+  return normalize(value)
+    .replace(/^(?:and\s+)?(?:yes|yeah|yep|correct|right|no|nah|wait|actually)\s+/i, "")
+    .replace(/^(?:wrong|incorrect)\s+(?:it(?:'s| is)?\s+)?(?:a\s+|an\s+)?/i, "")
+    .replace(/^(?:the\s+)?(?:other|last|previous)\s+(?:one|pet|item)\s*(?:is|=|:)?\s*/i, "")
+    .replace(/^(?:that(?:'s| is)?|it(?:'s| is)?|this is|one is|pet is)\s+(?:a\s+|an\s+)?/i, "")
+    .replace(/^(?:is|=|:|a|an)\s+/i, "")
+    .replace(/\b(?:confirmed|correct)\b$/i, "")
+    .trim();
+}
+
+function resolveCorrectionFragment(fragment: string, session: NichTradeSession, slot: NichTradeSlot, memory?: NichUserMemory) {
+  const cleaned = cleanCorrectionFragment(fragment);
+  if (!cleaned) return null;
+  const resolution = resolveNichItem(cleaned, {
+    userMemory: memory,
+    contextualSlots: [slot],
+    category: slot.category === "PET" ? "PET" : undefined,
+  });
+  return resolution.status === "resolved" && resolution.item ? resolution.item.NAME : null;
+}
+
+function parseOrdinalCorrections(message: string, session: NichTradeSession, memory?: NichUserMemory) {
+  const unresolved = getUnresolvedTradeSlots(session);
+  if (!unresolved.length) return [] as Array<{ slot: NichTradeSlot; itemName: string }>;
+  const text = normalize(message);
+  const regex = /\b(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|last)(?:\s+(?:one|pet|item))?\s*(?:is|=|:)?\s*/g;
+  const matches = [...text.matchAll(regex)];
+  if (!matches.length) return [];
+  const updates: Array<{ slot: NichTradeSlot; itemName: string }> = [];
+  for (let index = 0; index < matches.length; index += 1) {
+    const match = matches[index];
+    const ordinal = match[1];
+    const slotIndex = getOrdinalIndex(ordinal, unresolved.length);
+    const slot = unresolved[slotIndex];
+    if (!slot) continue;
+    const start = (match.index ?? 0) + match[0].length;
+    const end = matches[index + 1]?.index ?? text.length;
+    const fragment = text.slice(start, end).replace(/\band\s*$/i, "").trim();
+    const itemName = resolveCorrectionFragment(fragment, session, slot, memory);
+    if (itemName) updates.push({ slot, itemName });
+  }
+  return updates;
+}
+
+function parseNamedPredictionCorrection(message: string, session: NichTradeSession, memory?: NichUserMemory) {
+  const match = normalize(message).match(/(?:the\s+)?(?:one|pet|item)\s+(?:you\s+)?(?:called|said|thought|guessed)\s+(.+?)\s+(?:is|was|=)\s+(.+)$/i);
+  if (!match) return null;
+  const before = normalize(match[1]);
+  const slot = getUnresolvedTradeSlots(session).find((entry) => {
+    const names = [entry.rawName, entry.canonicalName, ...entry.alternatives.map((candidate) => candidate.itemName)].filter(Boolean).map((name) => normalize(String(name)));
+    return names.some((name) => name === before || name.includes(before) || before.includes(name));
+  });
+  if (!slot) return null;
+  const itemName = resolveCorrectionFragment(match[2], session, slot, memory);
+  return itemName ? { slot, itemName } : null;
+}
+
+function parseSequentialCorrections(message: string, session: NichTradeSession, memory?: NichUserMemory) {
+  const unresolved = getUnresolvedTradeSlots(session);
+  if (!unresolved.length) return [] as Array<{ slot: NichTradeSlot; itemName: string }>;
+  const normalized = normalize(message);
+  const parts = normalized
+    .split(/\s*(?:,|;|\band\b)\s*/i)
+    .map(cleanCorrectionFragment)
+    .filter(Boolean);
+  if (!parts.length) return [];
+
+  const updates: Array<{ slot: NichTradeSlot; itemName: string }> = [];
+  for (let index = 0; index < Math.min(parts.length, unresolved.length); index += 1) {
+    const slot = unresolved[index];
+    const itemName = resolveCorrectionFragment(parts[index], session, slot, memory);
+    if (itemName) updates.push({ slot, itemName });
+  }
+
+  if (!updates.length && unresolved.length === 1) {
+    const itemName = resolveCorrectionFragment(normalized, session, unresolved[0], memory);
+    if (itemName) updates.push({ slot: unresolved[0], itemName });
+  }
+
+  // When there are exactly two unresolved slots and the sentence contains two
+  // clear canonical/alias resolutions, conversational ordering is intentional.
+  if (updates.length < 2 && unresolved.length >= 2) {
+    const candidatePhrases = normalized
+      .replace(/\b(?:that's|that is|yes|yeah|yep|a|an|the|correct|confirmed)\b/g, " ")
+      .split(/\band\b|,|;/)
+      .map((part) => part.trim())
+      .filter(Boolean);
+    const repaired: Array<{ slot: NichTradeSlot; itemName: string }> = [];
+    for (let index = 0; index < Math.min(candidatePhrases.length, unresolved.length); index += 1) {
+      const itemName = resolveCorrectionFragment(candidatePhrases[index], session, unresolved[index], memory);
+      if (itemName) repaired.push({ slot: unresolved[index], itemName });
+    }
+    if (repaired.length > updates.length) return repaired;
+  }
+  return updates;
+}
+
+function applyItemUpdates(
+  session: NichTradeSession,
+  updates: Array<{ slot: NichTradeSlot; itemName: string }>,
+  message: string,
+  memory?: NichUserMemory,
+) {
+  // One natural-language turn is one undoable mutation, even when it resolves
+  // multiple slots (for example: "first is Cabbit, second is Tuxedo Cat").
+  let next = withHistory(session, "Apply recognition correction");
+  const names: string[] = [];
+  const seen = new Set<string>();
+  for (const update of updates) {
+    if (seen.has(update.slot.slotId)) continue;
+    const currentSlot = findTradeSlot(next, update.slot.slotId);
+    if (!currentSlot) continue;
+    const applied = applyItemCorrection(next, currentSlot, update.itemName, message, memory, false);
+    if (!applied) continue;
+    next = applied.session;
+    names.push(applied.itemName);
+    seen.add(update.slot.slotId);
+  }
+  return names.length ? { session: next, names } : null;
+}
+
+function targetSideFromMessage(message: string): NichTradeSide | null {
+  const text = normalize(message);
+  if (/\b(?:my side|mine|my offer|i have|i get|to me|for me)\b/.test(text)) return "YOU";
+  if (/\b(?:their side|theirs|their offer|they have|they add|them|to them|his side|her side)\b/.test(text)) return "THEM";
+  return null;
+}
+
+const GRID_POSITION_ALIASES: Array<{ pattern: RegExp; position: number }> = [
+  { pattern: /\btop[ -]?left\b/, position: 1 },
+  { pattern: /\btop(?:[ -]?middle|[ -]?center)\b/, position: 2 },
+  { pattern: /\btop[ -]?right\b/, position: 3 },
+  { pattern: /\b(?:middle|center)[ -]?left\b/, position: 4 },
+  { pattern: /\b(?:middle|center)(?: one| pet| item)?\b/, position: 5 },
+  { pattern: /\b(?:middle|center)[ -]?right\b/, position: 6 },
+  { pattern: /\bbottom[ -]?left\b/, position: 7 },
+  { pattern: /\bbottom(?:[ -]?middle|[ -]?center)\b/, position: 8 },
+  { pattern: /\bbottom[ -]?right\b/, position: 9 },
+];
+
+function parseDirectSlotCorrection(message: string, session: NichTradeSession, memory?: NichUserMemory) {
+  const text = normalize(message);
+  const side = targetSideFromMessage(message)
+    ?? (/\b(?:your offer|your side)\b/.test(text) ? "YOU" : null);
+
+  const explicit = text.match(/\b(?:my|your|their|his|her)?\s*(?:side\s+)?slot\s*([1-9])\s*(?:is|=|:|was|actually)?\s*(.+)$/i);
+  if (explicit) {
+    const inferredSide: NichTradeSide = /\b(?:their|his|her)\b/.test(text) ? "THEM" : side ?? "YOU";
+    const position = Number(explicit[1]);
+    const slot = getTradeSlots(session).find((entry) => entry.side === inferredSide && entry.gridPosition === position);
+    if (!slot) return null;
+    const itemName = resolveCorrectionFragment(explicit[2], session, slot, memory);
+    return itemName ? { slot, itemName } : null;
+  }
+
+  const location = GRID_POSITION_ALIASES.find((entry) => entry.pattern.test(text));
+  if (!location || !side) return null;
+  const slot = getTradeSlots(session).find((entry) => entry.side === side && entry.gridPosition === location.position);
+  if (!slot) return null;
+  const afterLocation = text.replace(location.pattern, " ")
+    .replace(/\b(?:on|in|at|from|my|your|their|his|her|side|offer|the|pet|item|one)\b/g, " ")
+    .replace(/\b(?:is|was|actually|=|:)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const itemName = resolveCorrectionFragment(afterLocation, session, slot, memory);
+  return itemName ? { slot, itemName } : null;
+}
+
+function parseUserAliasMemory(message: string, memory?: NichUserMemory) {
+  const match = normalize(message).match(/^(?:whenever i say|when i say|remember that)\s+([a-z0-9-]{1,40})\s+(?:i mean|means|=|is)\s+(.+)$/i);
+  if (!match) return null;
+  const resolution = resolveNichItem(match[2], { userMemory: memory });
+  if (resolution.status !== "resolved" || !resolution.item) return null;
+  const alias = normalize(match[1]);
+  return {
+    alias,
+    itemName: resolution.item.NAME,
+    memory: {
+      ...(memory ?? {}),
+      aliases: { ...(memory?.aliases ?? {}), [alias]: resolution.item.NAME },
+      updatedAt: Date.now(),
+    } satisfies NichUserMemory,
+  };
+}
+
+function latestCorrectedSlot(session: NichTradeSession) {
+  const latest = session.correctionLedger.at(-1);
+  return latest ? findTradeSlot(session, latest.slotId) : undefined;
+}
+
+function parseContradictionCorrection(message: string, session: NichTradeSession, memory?: NichUserMemory) {
+  const text = normalize(message);
+  const match = text.match(/^(?:wait\s+)?(?:no|nah|nope)\s+(?:it(?:'s| is)|its|that(?:'s| is))\s+(.+)$/i)
+    ?? text.match(/^actually\s+(?:it(?:'s| is)|its|that(?:'s| is))\s+(.+)$/i);
+  if (!match) return null;
+  const slot = latestCorrectedSlot(session);
+  if (!slot) return null;
+  const itemName = resolveCorrectionFragment(match[1], session, slot, memory);
+  return itemName ? { slot, itemName } : null;
+}
+
+function confirmationTarget(session: NichTradeSession, message: string) {
+  if (!/^(?:yes|yeah|yep|correct|right|exactly|that'?s right)$/i.test(normalize(message))) return null;
+  const unresolved = getUnresolvedTradeSlots(session);
+  if (unresolved.length !== 1) return null;
+  return unresolved[0].canonicalName ? unresolved[0] : null;
+}
+
+const QUANTITY_WORDS: Record<string, number> = {
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9,
+  ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18,
+};
+
+function parseQuantityCommand(session: NichTradeSession, message: string, memory?: NichUserMemory) {
+  const text = normalize(message);
+  const match = text.match(/^(?:i\s+have|i\s+got|they\s+have|they\s+got|make\s+it)\s+(\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen)\s+(.+)$/i);
+  if (!match) return null;
+  const quantity = Math.max(1, Math.min(18, Number(match[1]) || QUANTITY_WORDS[match[1]] || 1));
+  const slots = findSlotsByItemText(session, match[2], memory);
+  const side = /^(?:they\s+have|they\s+got)/.test(text) ? "THEM" : /^(?:i\s+have|i\s+got)/.test(text) ? "YOU" : null;
+  const narrowed = side ? slots.filter((slot) => slot.side === side) : slots;
+  if (narrowed.length !== 1) return null;
+  const historical = withHistory(session, `Set ${narrowed[0].canonicalName ?? slotLabel(narrowed[0])} quantity to ${quantity}`);
+  const updated = { ...narrowed[0], quantity, source: "CONFIRMED_BY_USER" as const, correctedByUser: true };
+  return {
+    session: replaceSlot(historical, narrowed[0].slotId, updated),
+    label: `${narrowed[0].canonicalName ?? "Item"} quantity set to ${quantity}.`,
+  };
+}
+
+function unresolvedClarification(session: NichTradeSession, acknowledgement?: string): NichResponse {
+  const unresolved = getUnresolvedTradeSlots(session);
+  const first = unresolved[0];
+  const candidateText = first?.alternatives.slice(0, 3).map((candidate) => candidate.itemName).join(" / ");
+  const missing = first
+    ? first.canonicalName && (first.fly === null || first.ride === null || first.neon === null || first.mega === null)
+      ? `I only need the variant/potion for ${first.canonicalName} in ${slotLabel(first)}.`
+      : `I only need ${slotLabel(first)} confirmed${candidateText ? ` (${candidateText})` : ""}.`
+    : "I still need one trade detail confirmed.";
+  return {
+    text: [acknowledgement, missing].filter(Boolean).join("\n\n"),
+    intent: "tradeComparison",
+    reaction: "search",
+    localConfidence: 1,
+    aiEligible: false,
+    typingDuration: 240,
+    tradeSession: session,
+    context: {
+      activeTrade: session,
+      lastIntent: "tradeComparison",
+      lastValueSource: session.valueSystem,
+    },
+  };
+}
+
+function calculateSession(
+  session: NichTradeSession,
+  input: NichBrainInput,
+  acknowledgement?: string,
+  options: { hypothetical?: boolean } = {},
+): NichResponse {
+  const prompt = formatTradeSessionForCalculation(session);
+  if (!prompt) return unresolvedClarification(session, acknowledgement);
+  // Structured TradeSession is the source of truth. Calculate directly from canonical
+  // slot IDs first; keep the text parser only as a backward-compatible fallback.
+  const calculationInput = {
+    ...input,
+    context: { ...input.context, lastValueSource: session.valueSystem },
+  };
+  const calculated = createTradeSessionComparisonResponse(calculationInput, session)
+    ?? createTradeComparisonResponse({ ...calculationInput, message: prompt });
+  if (!calculated) return unresolvedClarification(session, acknowledgement);
+
+  if (options.hypothetical) {
+    return {
+      ...calculated,
+      text: ["Hypothetical:", calculated.text].join("\n"),
+      aiEligible: false,
+      context: {
+        ...calculated.context,
+        activeTrade: input.context.activeTrade,
+      },
+      tradeSession: undefined,
+    };
+  }
+
+  const calculatedSession = { ...session, conversationState: "CALCULATED" as const, updatedAt: Date.now() };
+  return {
+    ...calculated,
+    text: [acknowledgement, calculated.text].filter(Boolean).join("\n\n"),
+    aiEligible: false,
+    tradeSession: calculatedSession,
+    context: {
+      ...calculated.context,
+      activeTrade: calculatedSession,
+      lastValueSource: calculatedSession.valueSystem,
+    },
+  };
+}
+
+function applyMoveCommand(session: NichTradeSession, message: string, memory?: NichUserMemory) {
+  const side = targetSideFromMessage(message);
+  if (!side || !/\b(?:move|i have|mine|my side|their side|they have|not them|not mine)\b/i.test(normalize(message))) return null;
+  const slots = findSlotsByItemText(session, message, memory);
+  if (slots.length !== 1) return null;
+  const historical = withHistory(session, `Move ${slots[0].canonicalName ?? slots[0].slotId} to ${side}`);
+  const event = createCorrectionEvent({
+    tradeSessionId: session.id,
+    slotId: slots[0].slotId,
+    originalPrediction: slots[0].canonicalName,
+    correctedSide: side,
+    confidenceBefore: slots[0].confidence.side,
+    source: "user",
+    message,
+  });
+  const moved = moveTradeSlot(historical, slots[0].slotId, side);
+  return {
+    session: { ...moved, correctionLedger: [...moved.correctionLedger, event].slice(-60) },
+    label: `${slots[0].canonicalName ?? "Item"} moved to ${side === "YOU" ? "your" : "their"} side.`,
+  };
+}
+
+function applyRemoveCommand(session: NichTradeSession, message: string, memory?: NichUserMemory) {
+  if (!/^\s*(?:remove|delete|take out)\b/i.test(message)) return null;
+  const slots = findSlotsByItemText(session, message, memory);
+  if (slots.length !== 1) return null;
+  const slot = slots[0];
+  const historical = withHistory(session, `Remove ${slot.canonicalName ?? slot.slotId}`);
+  return {
+    session: refreshTradeSession({
+      ...historical,
+      userSide: historical.userSide.filter((entry) => entry.slotId !== slot.slotId),
+      theirSide: historical.theirSide.filter((entry) => entry.slotId !== slot.slotId),
+    }),
+    label: `${slot.canonicalName ?? "Item"} removed.`,
+  };
+}
+
+function nextGridPosition(session: NichTradeSession, side: NichTradeSide) {
+  const slots = side === "YOU" ? session.userSide : session.theirSide;
+  const used = new Set(slots.map((slot) => slot.gridPosition));
+  for (let index = 1; index <= 18; index += 1) if (!used.has(index)) return index;
+  return 18;
+}
+
+function extractAddItemText(message: string) {
+  return normalize(message)
+    .replace(/^what if\s+/i, "")
+    .replace(/^(?:they|them|he|she|i|me)?\s*(?:add|adds|added|give|gives|put|puts)\s+(?:another\s+|a\s+|an\s+)?/i, "")
+    .replace(/\s+(?:to|on)\s+(?:my side|mine|me|their side|them|theirs).*$/i, "")
+    .trim();
+}
+
+function applyAddCommand(session: NichTradeSession, message: string, memory?: NichUserMemory) {
+  const text = normalize(message);
+  if (!/\b(?:add|adds|added|give|gives|put|puts)\b/.test(text)) return null;
+  const side = targetSideFromMessage(message) ?? (/^(?:they|them|he|she)\b/.test(text) ? "THEM" : "YOU");
+  const itemText = extractAddItemText(message);
+  const resolution = resolveNichItem(itemText, { userMemory: memory, contextualSlots: getTradeSlots(session) });
+  if (resolution.status !== "resolved" || !resolution.item) return null;
+  const historical = withHistory(session, `Add ${resolution.item.NAME} to ${side}`);
+  const slot = createCanonicalTradeSlot({
+    itemName: resolution.item.NAME,
+    side,
+    gridPosition: nextGridPosition(historical, side),
+    source: "CONFIRMED_BY_USER",
+  });
+  if (!slot) return null;
+  const next = refreshTradeSession({
+    ...historical,
+    userSide: side === "YOU" ? [...historical.userSide, slot] : historical.userSide,
+    theirSide: side === "THEM" ? [...historical.theirSide, slot] : historical.theirSide,
+  });
+  return { session: next, label: `${resolution.item.NAME} added to ${side === "YOU" ? "your" : "their"} side.` };
+}
+
+function applyReplaceCommand(session: NichTradeSession, message: string, memory?: NichUserMemory) {
+  const match = normalize(message).match(/^replace\s+(.+?)\s+with\s+(.+)$/i);
+  if (!match) return null;
+  const oldSlots = findSlotsByItemText(session, match[1], memory);
+  if (oldSlots.length !== 1) return null;
+  const resolution = resolveNichItem(match[2], { userMemory: memory, contextualSlots: [oldSlots[0]] });
+  if (resolution.status !== "resolved" || !resolution.item) return null;
+  const applied = applyItemCorrection(session, oldSlots[0], resolution.item.NAME, message, memory);
+  return applied ? { session: applied.session, label: `${oldSlots[0].canonicalName ?? "Item"} replaced with ${applied.itemName}.` } : null;
+}
+
+function updateValueSystem(session: NichTradeSession, message: string) {
+  const detected = detectValueSource(message, session.valueSystem) as "GCASH" | "ELVE";
+  return detected === session.valueSystem ? session : { ...session, valueSystem: detected, updatedAt: Date.now() };
+}
+
+function handleWhatIf(input: NichBrainInput, message: string, memory?: NichUserMemory): NichResponse | null {
+  const original = input.context.activeTrade;
+  if (!original || !/^\s*(?:what if|how about|without)\b/i.test(message)) return null;
+  let branch = cloneTradeSession(original);
+  const normalized = normalize(message);
+  let label = "";
+
+  if (/^without\b/.test(normalized) || /\bwithout\b/.test(normalized)) {
+    const itemText = normalized.replace(/^what if\s+/, "").replace(/^how about\s+/, "").replace(/^without\s+/, "").replace(/.*\bwithout\s+/, "");
+    const slots = findSlotsByItemText(branch, itemText, memory);
+    if (slots.length !== 1) return null;
+    branch = refreshTradeSession({
+      ...branch,
+      userSide: branch.userSide.filter((slot) => slot.slotId !== slots[0].slotId),
+      theirSide: branch.theirSide.filter((slot) => slot.slotId !== slots[0].slotId),
+    });
+    label = `Without ${slots[0].canonicalName ?? "that item"}`;
+  } else {
+    const variant = parseVariantPhrase(message);
+    const slots = variant ? findSlotsByItemText(branch, message, memory) : [];
+    if (variant && slots.length === 1) {
+      const changed = applyVariantChange({ ...branch, history: [] }, slots[0], message);
+      if (!changed) return null;
+      branch = { ...changed.session, history: [] };
+      label = `${slots[0].canonicalName ?? "Item"} as ${variant.label}`;
+    } else {
+      const add = applyAddCommand({ ...branch, history: [] }, message, memory);
+      if (!add) return null;
+      branch = { ...add.session, history: [] };
+      label = add.label;
+    }
+  }
+
+  const result = calculateSession(branch, input, undefined, { hypothetical: true });
+  return { ...result, text: [`${label}:`, result.text].join("\n") };
+}
+
+export function handleActiveTradeMessage(input: NichBrainInput): NichResponse | null {
+  const active = input.context.activeTrade;
+  if (!active) return null;
+  const message = input.message.trim();
+  const memory = input.context.userMemory ?? input.localData?.nichMemory;
+
+  const aliasMemory = parseUserAliasMemory(message, memory);
+  if (aliasMemory) {
+    return {
+      text: `Got it — when you say “${aliasMemory.alias}”, I’ll treat it as ${aliasMemory.itemName}.`,
+      intent: "tradeComparison",
+      reaction: "celebrate",
+      localConfidence: 1,
+      aiEligible: false,
+      tradeSession: active,
+      context: { activeTrade: active, userMemory: aliasMemory.memory },
+    };
+  }
+
+  if (isUndo(message)) {
+    const restored = restorePreviousTradeState(active);
+    if (!restored) {
+      return {
+        text: "There isn’t a recent trade edit to undo.",
+        intent: "tradeComparison",
+        reaction: "searchEmpty",
+        localConfidence: 1,
+        aiEligible: false,
+        tradeSession: active,
+        context: { activeTrade: active },
+      };
+    }
+    return calculateSession(restored, input, "Undone — I restored the previous trade.");
+  }
+
+  const hypothetical = handleWhatIf(input, message, memory);
+  if (hypothetical) return hypothetical;
+
+  const session = updateValueSystem(active, message);
+
+  // Screenshot recognition and explicit follow-ups can ask to calculate the
+  // already-confirmed structured trade without converting it back into prose.
+  if (
+    !session.unresolvedSlots.length &&
+    /^(?:w\/?f\/?l|calculate|recalculate|analy[sz]e)(?:\s+(?:this|the|my|our))?(?:\s+trade)?$/i.test(normalize(message))
+  ) {
+    return calculateSession(session, input);
+  }
+
+  // A short answer such as "np" is enough when exactly one unresolved slot
+  // already has a known item and only its variant/potion is uncertain.
+  const unresolvedNow = getUnresolvedTradeSlots(session);
+  const shortVariant = parseVariantPhrase(message);
+  if (shortVariant && unresolvedNow.length === 1 && unresolvedNow[0].canonicalName && /^(?:mfr|nfr|mf|mr|nf|nr|fr|np|mega|neon|fly ride|fly|ride|normal)$/i.test(normalize(message))) {
+    const changed = applyVariantChange(session, unresolvedNow[0], message);
+    if (changed) {
+      const ack = `Got it — ${unresolvedNow[0].canonicalName} is ${changed.label}.`;
+      return changed.session.unresolvedSlots.length
+        ? unresolvedClarification(changed.session, ack)
+        : calculateSession(changed.session, input, ack);
+    }
+  }
+
+  const confirmed = confirmationTarget(session, message);
+  if (confirmed?.canonicalName) {
+    const applied = applyItemUpdates(session, [{ slot: confirmed, itemName: confirmed.canonicalName }], message, memory);
+    if (applied) {
+      const ack = `Got it — ${applied.names[0]} confirmed.`;
+      return applied.session.unresolvedSlots.length
+        ? unresolvedClarification(applied.session, ack)
+        : calculateSession(applied.session, input, ack);
+    }
+  }
+
+  const contradiction = parseContradictionCorrection(message, session, memory);
+  if (contradiction) {
+    const applied = applyItemUpdates(session, [contradiction], message, memory);
+    if (applied) {
+      const ack = `Updated — ${applied.names[0]} is now confirmed.`;
+      return applied.session.unresolvedSlots.length
+        ? unresolvedClarification(applied.session, ack)
+        : calculateSession(applied.session, input, ack);
+    }
+  }
+
+  const directSlot = parseDirectSlotCorrection(message, session, memory);
+  if (directSlot) {
+    const applied = applyItemUpdates(session, [directSlot], message, memory);
+    if (applied) {
+      const ack = `Got it — ${applied.names[0]} confirmed for ${slotLabel(directSlot.slot)}.`;
+      return applied.session.unresolvedSlots.length
+        ? unresolvedClarification(applied.session, ack)
+        : calculateSession(applied.session, input, ack);
+    }
+  }
+
+  const namedPrediction = parseNamedPredictionCorrection(message, session, memory);
+  if (namedPrediction) {
+    const applied = applyItemUpdates(session, [namedPrediction], message, memory);
+    if (applied) {
+      const ack = `Got it — ${applied.names[0]} confirmed.`;
+      return applied.session.unresolvedSlots.length
+        ? unresolvedClarification(applied.session, ack)
+        : calculateSession(applied.session, input, ack);
+    }
+  }
+
+  const ordinalUpdates = parseOrdinalCorrections(message, session, memory);
+  if (ordinalUpdates.length) {
+    const applied = applyItemUpdates(session, ordinalUpdates, message, memory);
+    if (applied) {
+      const ack = `Got it — ${applied.names.join(" and ")} confirmed.`;
+      return applied.session.unresolvedSlots.length
+        ? unresolvedClarification(applied.session, ack)
+        : calculateSession(applied.session, input, ack);
+    }
+  }
+
+  const quantity = parseQuantityCommand(session, message, memory);
+  if (quantity) return quantity.session.unresolvedSlots.length ? unresolvedClarification(quantity.session, quantity.label) : calculateSession(quantity.session, input, quantity.label);
+
+  // Side changes should be resolved before generic item corrections because
+  // "move Cabbit to my side" names a canonical item but does not rename it.
+  const move = applyMoveCommand(session, message, memory);
+  if (move) return move.session.unresolvedSlots.length ? unresolvedClarification(move.session, move.label) : calculateSession(move.session, input, move.label);
+
+  const replace = applyReplaceCommand(session, message, memory);
+  if (replace) return replace.session.unresolvedSlots.length ? unresolvedClarification(replace.session, replace.label) : calculateSession(replace.session, input, replace.label);
+
+  const remove = applyRemoveCommand(session, message, memory);
+  if (remove) return remove.session.unresolvedSlots.length ? unresolvedClarification(remove.session, remove.label) : calculateSession(remove.session, input, remove.label);
+
+  if (!/^\s*(?:what if|how about)\b/i.test(message)) {
+    const add = applyAddCommand(session, message, memory);
+    if (add) return add.session.unresolvedSlots.length ? unresolvedClarification(add.session, add.label) : calculateSession(add.session, input, add.label);
+  }
+
+  const variant = parseVariantPhrase(message);
+  if (variant && /\b(?:is|are|make|actually|instead|not|except|mine|their|theirs|my)\b/i.test(normalize(message))) {
+    const slots = findSlotsByItemText(session, message, memory);
+    const side = targetSideFromMessage(message);
+    let narrowed = side ? slots.filter((slot) => slot.side === side) : slots;
+    // Natural shorthand such as "mine is NFR" is unambiguous when that side
+    // contains only one item, so do not force the user to repeat its name.
+    if (!narrowed.length && side) {
+      const sideSlots = side === "YOU" ? session.userSide : session.theirSide;
+      if (sideSlots.length === 1) narrowed = sideSlots;
+    }
+    if (narrowed.length === 1) {
+      const changed = applyVariantChange(session, narrowed[0], message);
+      if (changed) {
+        const ack = `Got it — ${narrowed[0].canonicalName ?? "that item"} is ${changed.label}.`;
+        return changed.session.unresolvedSlots.length
+          ? unresolvedClarification(changed.session, ack)
+          : calculateSession(changed.session, input, ack);
+      }
+    }
+  }
+
+  const sequentialUpdates = parseSequentialCorrections(message, session, memory);
+  if (sequentialUpdates.length) {
+    const applied = applyItemUpdates(session, sequentialUpdates, message, memory);
+    if (applied) {
+      const ack = applied.names.length === 2
+        ? `Got it — ${applied.names[0]} for the first one, and ${applied.names[1]} confirmed for the second.`
+        : `Got it — ${applied.names.join(" and ")} confirmed.`;
+      return applied.session.unresolvedSlots.length
+        ? unresolvedClarification(applied.session, ack)
+        : calculateSession(applied.session, input, ack);
+    }
+  }
+
+  // Value-system-only follow-up should recalculate the exact same structured trade.
+  if (session.valueSystem !== active.valueSystem && !session.unresolvedSlots.length) {
+    return calculateSession(session, input, `Using ${session.valueSystem === "ELVE" ? "Elve Shark" : "GCash"} for this trade.`);
+  }
+
+  return null;
+}
+
+export default handleActiveTradeMessage;

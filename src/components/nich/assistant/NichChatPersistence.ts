@@ -1,5 +1,6 @@
 import type { NichVisionApiResponse } from "../../../lib/nich/vision";
 import type { NichConversationContext, NichIntent, NichSuggestion, NichTradeComparison, NichTradeItem, PetVariant } from "./brain/types";
+import { sanitizeNichTradeSession, sanitizeNichUserMemory, type NichTradeSession, type NichUserMemory } from "../../../lib/nich/tradeSession";
 import { resetNichContext } from "./memory/context";
 
 export type ChatMessage = {
@@ -10,17 +11,19 @@ export type ChatMessage = {
   suggestions?: NichSuggestion[];
   intent?: NichIntent;
   tradeComparison?: NichTradeComparison;
+  tradeSession?: NichTradeSession;
 };
 
 type PersistedNichChat = {
-  version: 1;
+  version: 2;
   savedAt: number;
   messages: ChatMessage[];
   context: NichConversationContext;
 };
 
 const NICH_CHAT_STORAGE_KEY =
-  "csbt-hub:nich-chat:v1";
+  "csbt-hub:nich-chat:v2";
+const NICH_USER_MEMORY_PREFIX = "csbt-hub:nich-memory:v1:";
 
 export function clearSavedChat() {
   if (typeof window === "undefined") return;
@@ -31,7 +34,7 @@ export function clearSavedChat() {
   }
 }
 
-const NICH_CHAT_STORAGE_VERSION = 1;
+const NICH_CHAT_STORAGE_VERSION = 2;
 const NICH_CHAT_EXPIRY_MS =
   30 * 60 * 1000;
 const MAX_SAVED_MESSAGES = 60;
@@ -182,6 +185,10 @@ function isChatMessage(
       value.tradeComparison,
     ) !== undefined;
 
+  const hasValidTradeSession =
+    value.tradeSession === undefined ||
+    sanitizeNichTradeSession(value.tradeSession) !== undefined;
+
   return (
     typeof value.id === "string" &&
     value.id.length > 0 &&
@@ -199,7 +206,8 @@ function isChatMessage(
     ) &&
     hasValidSuggestions &&
     hasValidIntent &&
-    hasValidTradeComparison
+    hasValidTradeComparison &&
+    hasValidTradeSession
   );
 }
 
@@ -390,6 +398,8 @@ function sanitizeConversationContext(
     sanitizeTradeComparison(
       value.lastTradeComparison,
     );
+  const activeTrade = sanitizeNichTradeSession(value.activeTrade);
+  const userMemory = sanitizeNichUserMemory(value.userMemory);
 
   const context:
     NichConversationContext = {
@@ -542,6 +552,14 @@ function sanitizeConversationContext(
       lastTradeComparison;
   }
 
+  if (activeTrade) {
+    context.activeTrade = activeTrade;
+  }
+
+  if (userMemory) {
+    context.userMemory = userMemory;
+  }
+
   if (
     validIntents.has(
       value.lastIntent as NichIntent,
@@ -646,6 +664,7 @@ export function readSavedChat():
             sanitizeTradeComparison(
               message.tradeComparison,
             ),
+          tradeSession: sanitizeNichTradeSession(message.tradeSession),
         }))
         .slice(-MAX_SAVED_MESSAGES);
 
@@ -699,6 +718,32 @@ export function saveChat(
      * or when the browser quota is full.
      * Nich should continue working normally.
      */
+  }
+}
+
+function memoryStorageKey(userId?: string) {
+  const suffix = userId?.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 100) || "guest";
+  return `${NICH_USER_MEMORY_PREFIX}${suffix}`;
+}
+
+export function readNichUserMemory(userId?: string): NichUserMemory | undefined {
+  if (typeof window === "undefined") return undefined;
+  try {
+    const raw = window.localStorage.getItem(memoryStorageKey(userId));
+    return raw ? sanitizeNichUserMemory(JSON.parse(raw)) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function saveNichUserMemory(memory: NichUserMemory | undefined, userId?: string) {
+  if (typeof window === "undefined" || !memory) return;
+  const sanitized = sanitizeNichUserMemory(memory);
+  if (!sanitized) return;
+  try {
+    window.localStorage.setItem(memoryStorageKey(userId), JSON.stringify(sanitized));
+  } catch {
+    // Memory is a convenience layer. The active trade/chat still works if storage is unavailable.
   }
 }
 

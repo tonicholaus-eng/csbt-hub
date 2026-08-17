@@ -3,7 +3,13 @@ import { notFound } from "next/navigation";
 
 import Navbar from "../../../components/Navbar";
 import PetDetails from "../../../components/PetDetails";
-import { getItemById } from "../../../lib/search";
+import { getItemById, itemList } from "../../../lib/search";
+
+export const dynamicParams = false;
+
+export function generateStaticParams() {
+  return itemList.map((item) => ({ id: item.ID }));
+}
 
 export async function generateMetadata({params}:{params:Promise<{id:string}>}):Promise<Metadata>{
   const{id}=await params; const item=getItemById(decodeURIComponent(id)); if(!item)return{title:"Item not found"};

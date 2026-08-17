@@ -42,16 +42,10 @@ const nextConfig: NextConfig = {
     if (process.env.NODE_ENV === "production") {
       securityHeaders.push({ key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" });
     }
-    const staticAssetCacheHeaders = [
-      { key: "Cache-Control", value: "public, max-age=604800, stale-while-revalidate=86400" },
-    ];
-
     return [
-      { source: "/logo.png", headers: staticAssetCacheHeaders },
-      { source: "/apple-touch-icon.png", headers: staticAssetCacheHeaders },
-      { source: "/favicon.ico", headers: staticAssetCacheHeaders },
-      { source: "/nich/:path*", headers: staticAssetCacheHeaders },
-      { source: "/about/:path*", headers: staticAssetCacheHeaders },
+      // Dynamic Next.js responses still receive the security headers here.
+      // Public/static asset caching is handled by public/_headers because
+      // Workers Static Assets bypass the Next.js headers() path.
       { source: "/:path*", headers: securityHeaders },
     ];
   },

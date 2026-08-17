@@ -3,7 +3,7 @@ import type {
   NichTradeComparison,
   NichTradeItem,
 } from "../brain/types";
-import type { ValueSource } from "../../../trade/types";
+import type { TradeItem, ValueSource } from "../../../trade/types";
 
 import {
   findPetInMessage,
@@ -992,6 +992,44 @@ function createTradeItem(
   };
 }
 
+export function createCanonicalTradeItem(
+  item: TradeItem,
+  details: {
+    variant: PetVariant;
+    potionStatus: NichPotionStatus;
+    code: string;
+    hasNoPotionWarning?: boolean;
+  },
+  source: ValueSource,
+): NichTradeItem | null {
+  const pet = { ...item, PETS: item.NAME } as PetRecord;
+  const normalizedDetails = normalizeDetailsForItem(pet, {
+    variant: details.variant,
+    potionStatus: details.potionStatus,
+    code: details.code,
+    hasNoPotionWarning: details.hasNoPotionWarning ?? details.potionStatus === "unspecified",
+  });
+  const rawValue = getRawPetVariantValue(pet, normalizedDetails.variant, source);
+  const baseValue = getNumericValue(rawValue);
+  if (baseValue === null) return null;
+  const potionAdjustment = isPetWearRecord(pet)
+    ? 0
+    : getPotionAdjustment(normalizedDetails.potionStatus, source);
+  const adjustedValue = Math.max(0, baseValue + potionAdjustment);
+  return {
+    petName: pet.PETS,
+    variant: normalizedDetails.variant,
+    petCode: normalizedDetails.code,
+    potionStatus: normalizedDetails.potionStatus,
+    baseValue,
+    baseDisplayValue: formatPetValue(rawValue),
+    potionAdjustment,
+    value: adjustedValue,
+    displayValue: formatNumericValue(adjustedValue),
+    hasNoPotionWarning: normalizedDetails.hasNoPotionWarning,
+  };
+}
+
 function createTradeItems(
   text: string,
   source: ValueSource,
@@ -1052,6 +1090,36 @@ function sumTradeItems(
   );
 }
 
+export function comparePreparedTradeItems(
+  offeredItems: NichTradeItem[],
+  requestedItems: NichTradeItem[],
+  source: ValueSource = "GCASH",
+): NichTradeComparison | null {
+  if (!offeredItems.length || !requestedItems.length) return null;
+
+  const offeredValue = sumTradeItems(offeredItems);
+  const requestedValue = sumTradeItems(requestedItems);
+  const difference = requestedValue - offeredValue;
+  const comparisonBase = Math.max(offeredValue, requestedValue, 1);
+  const differencePercent = (difference / comparisonBase) * 100;
+  const absolutePercent = Math.abs(differencePercent);
+  const verdict: NichTradeComparison["verdict"] =
+    absolutePercent <= 5 ? "fair" : difference > 0 ? "win" : "lose";
+
+  return {
+    offeredItems,
+    requestedItems,
+    offered: offeredItems[0],
+    requested: requestedItems[0],
+    offeredValue,
+    requestedValue,
+    difference,
+    differencePercent,
+    verdict,
+    valueSource: source,
+  };
+}
+
 export function compareTrade(
   offerText: string,
   requestText: string,
@@ -1069,71 +1137,8 @@ export function compareTrade(
       source,
     );
 
-  if (
-    !offeredItems?.length ||
-    !requestedItems?.length
-  ) {
-    return null;
-  }
-
-  const offeredValue =
-    sumTradeItems(
-      offeredItems,
-    );
-
-  const requestedValue =
-    sumTradeItems(
-      requestedItems,
-    );
-
-  const difference =
-    requestedValue -
-    offeredValue;
-
-  const comparisonBase =
-    Math.max(
-      offeredValue,
-      requestedValue,
-      1,
-    );
-
-  const differencePercent =
-    (difference /
-      comparisonBase) *
-    100;
-
-  const absolutePercent =
-    Math.abs(
-      differencePercent,
-    );
-
-  let verdict:
-    NichTradeComparison["verdict"];
-
-  if (absolutePercent <= 5) {
-    verdict = "fair";
-  } else if (difference > 0) {
-    verdict = "win";
-  } else {
-    verdict = "lose";
-  }
-
-  return {
-    offeredItems,
-    requestedItems,
-
-    // Keep these fields so older Nich code remains compatible.
-    offered: offeredItems[0],
-    requested:
-      requestedItems[0],
-
-    offeredValue,
-    requestedValue,
-    difference,
-    differencePercent,
-    verdict,
-    valueSource: source,
-  };
+  if (!offeredItems?.length || !requestedItems?.length) return null;
+  return comparePreparedTradeItems(offeredItems, requestedItems, source);
 }
 
 const tradeSeparators = [
