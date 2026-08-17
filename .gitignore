@@ -22,6 +22,7 @@
 
 # misc
 .DS_Store
+Thumbs.db
 *.pem
 
 # debug
@@ -30,7 +31,7 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files
+# environment files
 .env*
 !.env.example
 
@@ -41,14 +42,22 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# local archives and operating-system files
+# local archives
 *.zip
-Thumbs.db
 
-# OpenNext
-.open-next
+# OpenNext / Cloudflare build output
+.open-next/
 
-# wrangler files
-.wrangler
+# Wrangler local files
+.wrangler/
 .dev.vars*
 !.dev.vars.example
+
+# Supabase local CLI state
+supabase/.temp/
+
+# Local Supabase migration backups
+supabase/migrations_backup_*/
+
+# Supabase local branches/state if created
+supabase/.branches/
