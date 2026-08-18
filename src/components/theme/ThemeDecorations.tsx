@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 
-type Motif = "sparkle" | "diamond" | "trade" | "paw" | "coin" | "bubble" | "chart" | "box" | "moon" | "bat" | "ghost" | "pumpkin" | "web" | "cloud" | "heart" | "game" | "search" | "calculator";
+type Motif = "sparkle" | "diamond" | "trade" | "paw" | "coin" | "bubble" | "chart" | "box" | "moon" | "bat" | "ghost" | "pumpkin" | "web" | "cloud" | "heart" | "game" | "search" | "calculator" | "star" | "flower" | "trail" | "grass";
 
 type Deco = { motif: Motif; x: number; y: number; size: number; rotate: number; mobile?: boolean; large?: boolean };
 
@@ -25,12 +25,24 @@ const halloween: Deco[] = [
 ];
 
 const light: Deco[] = [
-  { motif: "cloud", x: 8, y: 13, size: 92, rotate: -4 },
-  { motif: "heart", x: 91, y: 18, size: 38, rotate: 10, mobile: true },
-  { motif: "game", x: 84, y: 64, size: 76, rotate: -7 },
-  { motif: "diamond", x: 13, y: 74, size: 48, rotate: 8, mobile: true },
-  { motif: "sparkle", x: 69, y: 88, size: 31, rotate: -10 },
-  { motif: "trade", x: 31, y: 9, size: 48, rotate: 3 },
+  { motif: "game", x: 8, y: 17, size: 66, rotate: -7, mobile: true },
+  { motif: "diamond", x: 90, y: 16, size: 42, rotate: 12, mobile: true },
+  { motif: "box", x: 83, y: 57, size: 72, rotate: -8 },
+  { motif: "trade", x: 13, y: 72, size: 56, rotate: 8 },
+  { motif: "sparkle", x: 71, y: 88, size: 34, rotate: -10 },
+  { motif: "star", x: 31, y: 10, size: 36, rotate: 4 },
+];
+
+
+const snoopy: Deco[] = [
+  { motif: "cloud", x: 12, y: 10, size: 104, rotate: -4 },
+  { motif: "star", x: 86, y: 13, size: 35, rotate: 8, mobile: true },
+  { motif: "flower", x: 9, y: 72, size: 52, rotate: -7 },
+  { motif: "paw", x: 89, y: 35, size: 46, rotate: 8 },
+  { motif: "sparkle", x: 91, y: 78, size: 54, rotate: 3 },
+  { motif: "trail", x: 24, y: 87, size: 102, rotate: -4 },
+  { motif: "grass", x: 64, y: 94, size: 72, rotate: 0 },
+  { motif: "heart", x: 71, y: 19, size: 28, rotate: -6, mobile: true },
 ];
 
 const pageMotifs: Record<string, Motif[]> = {
@@ -75,10 +87,14 @@ function MotifIcon({ motif }: { motif: Motif }) {
     case "game": return <svg {...commonProps}><path d="M17 21h30c8 0 13 20 10 27-3 7-11 4-17-4H24c-6 8-14 11-17 4-3-7 2-27 10-27Z"/><path d="M19 32h12M25 26v12"/><circle cx="44" cy="31" r="2" fill="currentColor"/><circle cx="50" cy="37" r="2" fill="currentColor"/></svg>;
     case "search": return <svg {...commonProps}><circle cx="28" cy="28" r="17"/><path d="m41 41 13 13"/></svg>;
     case "calculator": return <svg {...commonProps}><rect x="15" y="7" width="34" height="50" rx="6"/><path d="M22 16h20v10H22zM22 35h4m8 0h4m-16 9h4m8 0h4"/></svg>;
+    case "star": return <svg {...commonProps}><path d="m32 6 7 18 19 1-15 12 5 19-16-11-16 11 5-19L6 25l19-1 7-18Z"/></svg>;
+    case "flower": return <svg {...commonProps}><path d="M32 29c-8-15-25-9-22 4 2 8 10 9 17 5-7 8-4 18 5 19 9 0 13-8 9-16 8 7 18 3 18-6 0-8-7-12-14-9 8-7 4-17-6-17-8 1-12 10-7 20Z"/><circle cx="33" cy="32" r="6"/><path d="M33 39v19M32 49c-7-4-12-4-16-1M34 52c6-4 11-4 15-1"/></svg>;
+    case "trail": return <svg {...commonProps}><path strokeDasharray="3 7" d="M5 45c13-28 28 15 42-8 7-11 4-23 12-30"/><path d="m54 9 5-2-1 5"/></svg>;
+    case "grass": return <svg {...commonProps}><path d="M5 54h54M12 54c1-10 2-18 7-27M18 54c1-9 6-17 12-24M33 54c-1-11 1-21 7-31M43 54c3-11 8-18 14-24"/></svg>;
   }
 }
 
-function ThemeLayer({ kind, items }: { kind: "dark" | "halloween" | "light"; items: Deco[] }) {
+function ThemeLayer({ kind, items }: { kind: "dark" | "halloween" | "light" | "snoopy"; items: Deco[] }) {
   return <div className={`theme-decoration-layer theme-decoration-layer--${kind}`} aria-hidden="true">{items.map((item, index) => <span key={`${item.motif}-${index}`} className={`theme-sticker ${item.mobile ? "theme-sticker--mobile" : ""}`} style={{ left: `${item.x}%`, top: `${item.y}%`, width: item.size, height: item.size, transform: `translate(-50%,-50%) rotate(${item.rotate}deg)` }}><MotifIcon motif={item.motif} /></span>)}</div>;
 }
 
@@ -93,6 +109,7 @@ export default function ThemeDecorations() {
       <ThemeLayer kind="dark" items={[...common, ...contextItems]} />
       <ThemeLayer kind="halloween" items={[...halloween, ...contextItems]} />
       <ThemeLayer kind="light" items={[...light, ...contextItems]} />
+      <ThemeLayer kind="snoopy" items={[...snoopy, ...contextItems]} />
     </div>
   );
 }

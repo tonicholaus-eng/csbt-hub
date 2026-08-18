@@ -1,13 +1,18 @@
 "use client";
 
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import AuthCard from "../account/AuthCard";
 
 type NichIntroMascotProps = {
   open: boolean;
+  authRequired?: boolean;
+  supabase: SupabaseClient | null;
+  manualOpen?: boolean;
   onComplete: () => void;
   onSkip: () => void;
-  onDontShowAgain: () => void;
 };
 
 type TourStep = {
@@ -122,9 +127,11 @@ function getPointerDetails(rect: HighlightRect) {
 
 export default function NichIntroMascot({
   open,
+  authRequired = false,
+  supabase,
+  manualOpen = false,
   onComplete,
   onSkip,
-  onDontShowAgain,
 }: NichIntroMascotProps) {
   const shouldReduceMotion = useReducedMotion();
   const [stepIndex, setStepIndex] = useState(0);
@@ -151,21 +158,21 @@ export default function NichIntroMascot({
   const currentStep = steps[Math.min(stepIndex, steps.length - 1)];
 
   useEffect(() => {
-    if (!open || isDesktop) return;
+    if (!open || authRequired || isDesktop) return;
     const shouldOpenMore = currentStep?.target === "mobile-more-panel";
     window.dispatchEvent(new CustomEvent("csbt-tour-more", { detail: { open: shouldOpenMore } }));
     return () => { if (shouldOpenMore) window.dispatchEvent(new CustomEvent("csbt-tour-more", { detail: { open: false } })); };
-  }, [currentStep?.target, isDesktop, open]);
+  }, [authRequired, currentStep?.target, isDesktop, open]);
 
   useEffect(() => {
-    if (!open || !isDesktop) {
+    if (!open || authRequired || !isDesktop) {
       window.dispatchEvent(new CustomEvent("csbt-tour-sidebar-group", { detail: { action: "restore" } }));
       return;
     }
     if (currentStep?.target === "nav-exchange") window.dispatchEvent(new CustomEvent("csbt-tour-sidebar-group", { detail: { action: "open", groupId: "trade" } }));
     else window.dispatchEvent(new CustomEvent("csbt-tour-sidebar-group", { detail: { action: "restore" } }));
     return () => { if (currentStep?.target === "nav-exchange") window.dispatchEvent(new CustomEvent("csbt-tour-sidebar-group", { detail: { action: "restore" } })); };
-  }, [currentStep?.target, isDesktop, open]);
+  }, [authRequired, currentStep?.target, isDesktop, open]);
 
 
   useEffect(() => {
@@ -182,10 +189,10 @@ export default function NichIntroMascot({
     }
 
     queueMicrotask(() => setStepIndex(0));
-  }, [open, isDesktop]);
+  }, [authRequired, open, isDesktop]);
 
   useEffect(() => {
-    if (!open || !currentStep?.target) {
+    if (!open || authRequired || !currentStep?.target) {
       queueMicrotask(() => setHighlightRect(null));
       return;
     }
@@ -237,12 +244,14 @@ export default function NichIntroMascot({
       window.removeEventListener("scroll", handleViewportChange, true);
       observer.disconnect();
     };
-  }, [currentStep, open, shouldReduceMotion]);
+  }, [authRequired, currentStep, open, shouldReduceMotion]);
 
   useEffect(() => {
     if (!open) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Account creation/sign-in is a hard gate and cannot be escaped.
+      if (authRequired) return;
       if (event.key === "Escape") {
         onSkip();
       }
@@ -256,7 +265,16 @@ export default function NichIntroMascot({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onSkip, open, steps.length]);
+  }, [authRequired, onSkip, open, steps.length]);
+
+  useEffect(() => {
+    if (!open || !authRequired) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [authRequired, open]);
 
   if (!open || !currentStep) {
     return null;
@@ -265,22 +283,24 @@ export default function NichIntroMascot({
   const viewportWidth = window.innerWidth;
   const viewportHeight = window.innerHeight;
   const isLastStep = stepIndex === steps.length - 1;
-  const cardWidth = Math.min(isDesktop ? 390 : 340, viewportWidth - 32);
-  const estimatedCardHeight = isDesktop ? 330 : 360;
+  const desktopWidth = authRequired ? 680 : 600;
+  const cardWidth = Math.min(isDesktop ? desktopWidth : 430, viewportWidth - 24);
+  const estimatedCardHeight = authRequired ? (isDesktop ? 610 : 650) : (isDesktop ? 470 : 520);
 
-  let tooltipStyle: {
-    top?: number;
-    left?: number;
-    right?: number;
-    bottom?: number;
-    transform?: string;
-  } = {
-    left: 16,
-    right: 16,
-    bottom: 96,
+  let tooltipStyle: CSSProperties = {
+    left: "50%",
+    top: "50%",
+    // Use the standalone CSS translate property instead of transform. Framer
+    // Motion owns `transform` for the enter/exit animation, which previously
+    // replaced translate(-50%, -50%) and left the account card offset to the
+    // lower-right on desktop/in-app browsers.
+    translate: "-50% -50%",
   };
 
-  if (highlightRect) {
+  // On mobile we always keep the card centered in the visual viewport. This is
+  // much safer inside Facebook/Roblox in-app browsers than trying to pin it to
+  // highlighted controls near the edges.
+  if (isDesktop && highlightRect && !authRequired) {
     const centerX = highlightRect.left + highlightRect.width / 2;
     const centerY = highlightRect.top + highlightRect.height / 2;
     const spaceRight = viewportWidth - (highlightRect.left + highlightRect.width);
@@ -311,14 +331,14 @@ export default function NichIntroMascot({
     }
   } else {
     tooltipStyle = {
-      left: viewportWidth / 2,
-      top: viewportHeight / 2,
-      transform: "translate(-50%, -50%)",
+      left: "50%",
+      top: "50%",
+      translate: "-50% -50%",
     };
   }
 
-  const pointer = highlightRect ? getPointerDetails(highlightRect) : null;
-  const spotlightSize = highlightRect
+  const pointer = !authRequired && highlightRect ? getPointerDetails(highlightRect) : null;
+  const spotlightSize = !authRequired && highlightRect
     ? clamp(Math.min(highlightRect.width, highlightRect.height) * 0.9, 66, 150)
     : 0;
 
@@ -343,7 +363,7 @@ export default function NichIntroMascot({
         transition={{ duration: shouldReduceMotion ? 0 : 0.25 }}
         className="fixed inset-0 z-[120] overflow-hidden"
       >
-        {!highlightRect ? (
+        {!highlightRect || authRequired ? (
           <div className="absolute inset-0 bg-slate-950/78 backdrop-blur-[3px]" />
         ) : (
           <>
@@ -379,7 +399,7 @@ export default function NichIntroMascot({
 
         <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_50%_50%,rgba(251,191,36,.07),transparent_42%)]" />
 
-        {highlightRect && (
+        {!authRequired && highlightRect && (
           <>
             <div
               aria-hidden="true"
@@ -461,10 +481,10 @@ export default function NichIntroMascot({
             duration: shouldReduceMotion ? 0 : 0.3,
             ease: [0.22, 1, 0.36, 1],
           }}
-          className="csbt-tour-card fixed z-[130] max-h-[calc(100vh-24px)] overflow-y-auto rounded-[22px] border shadow-[var(--shadow-lg)] backdrop-blur-xl"
+          className="csbt-tour-card fixed z-[130] max-h-[calc(100dvh-24px)] overflow-y-auto rounded-[26px] border shadow-[var(--shadow-lg)] backdrop-blur-xl"
           style={{ ...tooltipStyle, width: cardWidth }}
         >
-          <div className="csbt-tour-header relative overflow-hidden border-b px-5 py-4">
+          <div className="csbt-tour-header relative overflow-hidden border-b px-5 py-4 sm:px-7 sm:py-5">
             <div className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full border border-amber-300/20" />
             <div className="flex items-center justify-between gap-3">
               <span className="csbt-tour-badge inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em]">
@@ -472,75 +492,103 @@ export default function NichIntroMascot({
                 CSBT Guide
               </span>
               <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--foreground-muted)]">
-                {stepIndex + 1}/{steps.length}
+                {authRequired ? "ACCOUNT" : `${stepIndex + 1}/${steps.length}`}
               </span>
             </div>
 
             <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--surface-3)]">
               <motion.div
                 className="csbt-tour-progress h-full rounded-full"
-                animate={{ width: `${((stepIndex + 1) / steps.length) * 100}%` }}
+                animate={{ width: authRequired ? "8%" : `${((stepIndex + 1) / steps.length) * 100}%` }}
                 transition={{ duration: shouldReduceMotion ? 0 : 0.3 }}
               />
             </div>
           </div>
 
-          <div className="p-5">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--brand-primary)]">
-              {currentStep.eyebrow}
-            </p>
-            <h2 className="mt-2 text-2xl font-black leading-tight tracking-tight text-[var(--foreground)]">
-              {currentStep.title}
-            </h2>
-            <p className="mt-3 text-sm font-semibold leading-6 text-[var(--foreground-muted)]">
-              {currentStep.description}
-            </p>
+          <div className="p-5 sm:p-7">
+            {authRequired ? (
+              <>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--brand-primary)]">
+                  Account required
+                </p>
+                <h2 className="mt-2 text-2xl font-black leading-tight tracking-tight text-[var(--foreground)] sm:text-3xl">
+                  Create your CSBT HUB account before you continue.
+                </h2>
+                <p className="mt-3 text-sm font-semibold leading-6 text-[var(--foreground-muted)] sm:text-[15px] sm:leading-7">
+                  Your account connects the features that need a trading identity — inventory, wishlist, alerts, Exchange, notifications, saved trades, and your profile. Sign in or create an account to unlock CSBT HUB.
+                </p>
 
-            <div className="mt-5 grid grid-cols-[auto_1fr] gap-2.5">
-              <button
-                type="button"
-                onClick={() => setStepIndex((current) => Math.max(current - 1, 0))}
-                disabled={stepIndex === 0}
-                className="inline-flex min-h-12 items-center justify-center rounded-[12px] border border-[var(--border-strong)] bg-[var(--surface-3)] px-4 text-sm font-black text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-30"
-              >
-                <span aria-hidden="true" className="mr-1.5">◀</span>
-                Back
-              </button>
+                {supabase ? (
+                  <div className="mt-5 overflow-hidden rounded-[24px] ring-1 ring-[var(--border)]">
+                    <AuthCard supabase={supabase} compact />
+                  </div>
+                ) : (
+                  <div className="mt-5 rounded-2xl border border-rose-400/30 bg-rose-500/10 p-4 text-sm font-bold text-rose-300">
+                    CSBT account services are unavailable right now. Please try again shortly.
+                  </div>
+                )}
 
-              <button
-                type="button"
-                onClick={goNext}
-                className="csbt-tour-primary inline-flex min-h-12 items-center justify-center rounded-[12px] border px-5 text-sm font-black shadow-[var(--shadow-gold)] transition hover:-translate-y-0.5 hover:brightness-105 active:scale-[.98]"
-              >
-                {isLastStep ? "Start exploring" : stepIndex === 0 ? "Start tour" : "Next"}
-                <span aria-hidden="true" className="ml-2">▶</span>
-              </button>
-            </div>
+                <div className="mt-5 flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-3)] p-4">
+                  <span aria-hidden="true" className="text-lg">🔒</span>
+                  <p className="text-xs font-bold leading-5 text-[var(--foreground-muted)]">
+                    Sign-in is required for new visitors and this step cannot be skipped. After you sign in, the one-time feature guide will continue automatically.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--brand-primary)]">
+                  {currentStep.eyebrow}
+                </p>
+                <h2 className="mt-2 text-2xl font-black leading-tight tracking-tight text-[var(--foreground)] sm:text-3xl">
+                  {currentStep.title}
+                </h2>
+                <p className="mt-3 text-sm font-semibold leading-6 text-[var(--foreground-muted)] sm:text-[15px] sm:leading-7">
+                  {currentStep.description}
+                </p>
 
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-[var(--border)] pt-4">
-              <button
-                type="button"
-                onClick={onSkip}
-                className="text-xs font-black text-[var(--foreground-muted)] underline decoration-[var(--border-strong)] underline-offset-4 transition hover:text-[var(--foreground)]"
-              >
-                Skip for now
-              </button>
+                <div className="mt-6 grid grid-cols-[auto_1fr] gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setStepIndex((current) => Math.max(current - 1, 0))}
+                    disabled={stepIndex === 0}
+                    className="inline-flex min-h-[52px] items-center justify-center rounded-[14px] border border-[var(--border-strong)] bg-[var(--surface-3)] px-5 text-sm font-black text-[var(--foreground)] transition hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-30"
+                  >
+                    <span aria-hidden="true" className="mr-1.5">◀</span>
+                    Back
+                  </button>
 
-              <button
-                type="button"
-                onClick={onDontShowAgain}
-                className="inline-flex items-center gap-1.5 text-xs font-black text-[var(--foreground-muted)] transition hover:text-[var(--rose)]"
-              >
-                <span aria-hidden="true">◉</span>
-                Don’t show again
-              </button>
-            </div>
+                  <button
+                    type="button"
+                    onClick={goNext}
+                    className="csbt-tour-primary inline-flex min-h-[52px] items-center justify-center rounded-[14px] border px-6 text-sm font-black shadow-[var(--shadow-gold)] transition hover:-translate-y-0.5 hover:brightness-105 active:scale-[.98]"
+                  >
+                    {isLastStep ? "Finish guide" : stepIndex === 0 ? "Start tour" : "Next"}
+                    <span aria-hidden="true" className="ml-2">▶</span>
+                  </button>
+                </div>
 
-            <p className="mt-3 text-center text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--foreground-muted)] opacity-60">
-              {isDesktop
-                ? "PC: ← → to navigate · Esc to skip"
-                : "Use Next / Back to move through the guide"}
-            </p>
+                <div className="mt-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-[var(--border)] pt-4">
+                  <button
+                    type="button"
+                    onClick={onSkip}
+                    className="text-xs font-black text-[var(--foreground-muted)] underline decoration-[var(--border-strong)] underline-offset-4 transition hover:text-[var(--foreground)]"
+                  >
+                    {manualOpen ? "Close guide" : "Skip guide"}
+                  </button>
+
+                  <span className="text-[10px] font-bold text-[var(--foreground-muted)] opacity-70">
+                    You can reopen this anytime from Profile → Guide.
+                  </span>
+                </div>
+
+                <p className="mt-3 text-center text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--foreground-muted)] opacity-60">
+                  {isDesktop
+                    ? "PC: ← → to navigate · Esc to close"
+                    : "Use Next / Back to move through the guide"}
+                </p>
+              </>
+            )}
           </div>
         </motion.div>
       </motion.div>

@@ -313,6 +313,13 @@ export default function ProfileDashboard() {
           <Link href="/trades" className="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-700 dark:bg-white/5 dark:text-slate-200">🧮 Saved trades</Link>
           <Link href="/trade-feed" className="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-700 dark:bg-white/5 dark:text-slate-200">⚖️ Trade voting</Link>
           <Link href="/feedback" className="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-700 dark:bg-white/5 dark:text-slate-200">💬 Send feedback</Link>
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent("csbt-open-guide"))}
+            className="col-span-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm font-black text-amber-800 transition hover:-translate-y-0.5 hover:bg-amber-100 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200 dark:hover:bg-amber-400/15 xl:col-span-1"
+          >
+            🧭 Open CSBT Guide
+          </button>
         </div>
       </aside>
 

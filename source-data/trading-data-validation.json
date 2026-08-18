@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-08-17T20:37:07.039Z",
+  "generatedAt": "2026-08-18T17:05:51.844Z",
   "categories": {
-    "PET": 766,
+    "PET": 767,
     "PETWEAR": 938,
     "EGG": 37,
     "VEHICLE": 268,
@@ -12,16 +12,16 @@
     "STICKER": 365,
     "OTHER": 28
   },
-  "total": 3381,
+  "total": 3382,
   "warnings": [
     "2023 Uplift Butterfly: no matching Elve Shark snapshot record; workbook fallback used.",
-    "Gila Monster Elve Shark Neon: invalid value \"1.05D\"; stored as null.",
     "Pet Rock: no matching Elve Shark snapshot record; workbook fallback used.",
     "Pet Rock: skipped because neither GCash nor Elve has a regular value.",
     "Firework Wings: skipped because neither GCash nor Elve has a regular value.",
     "Princess Botties: skipped because neither GCash nor Elve has a regular value.",
     "Sea Monster Friend: skipped because neither GCash nor Elve has a regular value.",
     "Tutorial Graduation Cap: skipped because neither GCash nor Elve has a regular value.",
+    "nan: ignored Elve helper/placeholder record.",
     "Add: ignored Elve helper/placeholder record.",
     "Add Big: ignored Elve helper/placeholder record.",
     "Add Small: ignored Elve helper/placeholder record.",

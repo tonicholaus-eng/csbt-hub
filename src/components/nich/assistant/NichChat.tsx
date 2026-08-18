@@ -1117,7 +1117,7 @@ export default function NichChat({
             optimized,
             prepared.width,
             prepared.height,
-            "vision-v28-inline-review-mobile-20260818",
+            "vision-v29-cloudflare-inline-data-20260818",
             "primary",
             controller.signal,
           );
@@ -1131,7 +1131,7 @@ export default function NichChat({
               prepared.fallbackZoom.file,
               prepared.fallbackZoom.width,
               prepared.fallbackZoom.height,
-              "vision-v28-inline-review-mobile-20260818",
+              "vision-v29-cloudflare-inline-data-20260818",
               "trade-zoom-fallback",
               controller.signal,
             );

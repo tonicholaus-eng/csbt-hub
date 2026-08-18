@@ -11,16 +11,23 @@ export const CSBT_THEMES = {
   halloween: {
     id: "halloween",
     label: "CSBT Halloween",
-    description: "Spooky Seasonal Trading",
+    description: "Haunted Trading Carnival",
     icon: "🎃",
     swatches: ["#09070D", "#FF7A00", "#8B5CF6"],
   },
   light: {
     id: "light",
-    label: "CSBT Light",
-    description: "Roblox-Inspired",
-    icon: "☀️",
-    swatches: ["#FFFFFF", "#2E8BFF", "#FFC928"],
+    label: "CSBT Roblox",
+    description: "Playable Trading World",
+    icon: "🎮",
+    swatches: ["#E32620", "#67B9EE", "#55A63F"],
+  },
+  snoopy: {
+    id: "snoopy",
+    label: "Snoopy",
+    description: "Peanuts-Inspired Classic",
+    icon: "🐶",
+    swatches: ["#B51D1A", "#F4E4BD", "#E3B437"],
   },
 } as const;
 

@@ -1,3 +1,5 @@
+import { Buffer } from "node:buffer";
+
 import { NextRequest, NextResponse } from "next/server";
 
 import {
@@ -43,8 +45,8 @@ const CATEGORY_HINTS = new Set<NichVisionCategory>([
   "PET", "PETWEAR", "EGG", "VEHICLE", "FOOD", "GIFT", "STROLLER", "TOY", "STICKER", "OTHER", "UNKNOWN",
 ]);
 
-const VISION_PIPELINE_VERSION = "vision-v28-inline-review-mobile-20260818";
-const VISION_RELEASE = "csbt-nich-vision-v28-inline-review-mobile";
+const VISION_PIPELINE_VERSION = "vision-v29-cloudflare-inline-data-20260818";
+const VISION_RELEASE = "csbt-nich-vision-v29-cloudflare-inline-data";
 
 type ImageDimensions = { width: number; height: number };
 
@@ -511,13 +513,13 @@ export async function GET() {
       promptVersion: NICH_VISION_PROMPT_VERSION,
       catalogVersion: NICH_CATALOG_VERSION,
       focusedRecheck: process.env.NICH_GEMINI_VISION_FOCUSED_RECHECK_ENABLED?.trim().toLowerCase() !== "false",
-      transport: "gemini-files-stream+interactions-v1beta-baseline",
+      transport: "gemini-inline-data+interactions-v1beta-baseline",
       freePlanOptimized: true,
       thinkingLevel: process.env.NICH_GEMINI_VISION_THINKING_LEVEL?.trim().toLowerCase() || "low",
       effectivePrimaryThinkingLevel: "model-default",
       fallbackModel: normalizeFallbackVisionModel(process.env.NICH_GEMINI_VISION_FAST_MODEL),
       mediaResolutionMode: "model-default-no-optional-config",
-      interactionRequestMode: "baseline-model-text-image-only",
+      interactionRequestMode: "baseline-model-text-inline-image",
       screenshotPrepMode: "preserve-original-or-auto-trade-zoom-fallback",
       visualDisambiguation: "confusion-family-targeted-audit-v2",
       dailySafetyLimit: Math.floor(parseNumberSetting(process.env.NICH_GEMINI_VISION_DAILY_LIMIT, DEFAULT_DAILY_LIMIT, 1, 100_000)),
@@ -583,79 +585,34 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, runId, message: dailyQuotaError } satisfies NichVisionApiResponse, { status: 429 });
   }
 
-  type GeminiFilePayload = {
-    file?: { name?: string; uri?: string; mimeType?: string; state?: string };
-    error?: { message?: string };
-  };
+  // v29 uses inline image data for the normal screenshot path. Google recommends
+  // inline data for small, transient media, which matches NICH's browser-compressed
+  // screenshots and avoids the Gemini Files upload endpoint that can reject
+  // Cloudflare egress with FAILED_PRECONDITION / unsupported location.
+  let imageBytes: ArrayBuffer;
+  try {
+    imageBytes = await request.arrayBuffer();
+  } catch {
+    return NextResponse.json({ ok: false, runId, model, message: "The screenshot body could not be read." } satisfies NichVisionApiResponse, { status: 400 });
+  }
 
-  let uploadedFileName: string | undefined;
-  let uploadedFileUri: string | undefined;
+  const actualBytes = imageBytes.byteLength;
+  if (actualBytes <= 0) {
+    return NextResponse.json({ ok: false, runId, model, message: "The screenshot upload was empty." } satisfies NichVisionApiResponse, { status: 400 });
+  }
+  if (actualBytes > maxBytes) {
+    return NextResponse.json({ ok: false, runId, model, message: `Screenshot is too large after browser preparation. Keep it under ${Math.ceil(maxBytes / 1024 / 1024)} MB.` } satisfies NichVisionApiResponse, { status: 413 });
+  }
 
-  const cleanupUploadedFile = async () => {
-    if (!uploadedFileName) return;
-    try {
-      await fetch(`https://generativelanguage.googleapis.com/v1beta/${uploadedFileName}`, {
-        method: "DELETE",
-        headers: { "x-goog-api-key": apiKey },
-      });
-    } catch {
-      // Gemini Files automatically expire after 48 hours. Cleanup is best-effort
-      // and never allowed to turn a valid recognition into an error.
-    }
-  };
+  // The client already compresses screenshots before upload. At the configured 2 MB
+  // ceiling, base64 remains comfortably inside Gemini's inline-input limit while
+  // removing the extra resumable-upload round trip entirely.
+  const inlineImageBase64 = Buffer.from(imageBytes).toString("base64");
 
   try {
-    // v20 deliberately streams the browser-prepared image to Gemini Files instead
-    // of Buffer -> SHA256 -> base64 -> JSON.stringify inside the Worker. Network
-    // waiting does not count toward Cloudflare CPU time, while those old transforms
-    // did. This is the main Free-plan CPU fix.
-    const startUpload = await fetch("https://generativelanguage.googleapis.com/upload/v1beta/files", {
-      method: "POST",
-      headers: {
-        "x-goog-api-key": apiKey,
-        "X-Goog-Upload-Protocol": "resumable",
-        "X-Goog-Upload-Command": "start",
-        "X-Goog-Upload-Header-Content-Length": String(declaredBytes),
-        "X-Goog-Upload-Header-Content-Type": mimeType,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ file: { displayName: `nich-${runId}` } }),
-    });
-    if (!startUpload.ok) {
-      const detail = (await startUpload.text()).slice(0, 300);
-      throw new Error(`Gemini file upload could not start (${startUpload.status}): ${detail}`);
-    }
-    const uploadUrl = startUpload.headers.get("x-goog-upload-url");
-    if (!uploadUrl) throw new Error("Gemini file upload did not return an upload URL.");
-
-    // Node/Undici (used by `next dev`) requires `duplex: "half"` when a
-    // ReadableStream is used as a fetch request body. Cloudflare's fetch ignores
-    // the extra dictionary member, so this preserves the production zero-copy
-    // stream while making local development use the same Gemini Files path.
-    const uploadInit = {
-      method: "POST",
-      headers: {
-        "X-Goog-Upload-Offset": "0",
-        "X-Goog-Upload-Command": "upload, finalize",
-        "Content-Type": mimeType,
-        "Content-Length": String(declaredBytes),
-      },
-      body: request.body,
-      duplex: "half",
-    } as RequestInit & { duplex: "half" };
-    const uploadResponse = await fetch(uploadUrl, uploadInit);
-    let uploadPayload: GeminiFilePayload = {};
-    try { uploadPayload = await uploadResponse.json() as GeminiFilePayload; } catch { /* handled below */ }
-    if (!uploadResponse.ok || !uploadPayload.file?.uri || !uploadPayload.file?.name) {
-      throw new Error(uploadPayload.error?.message || `Gemini file upload failed with status ${uploadResponse.status}.`);
-    }
-    uploadedFileName = uploadPayload.file.name;
-    uploadedFileUri = uploadPayload.file.uri;
-
-    // Stability-first local path: use the exact minimal Interactions request
-    // documented by Google (model + text + uploaded image URI). v25 proved the
-    // image/File URI path reaches Gemini, while optional response_format /
-    // generation_config combinations are currently rejected by this backend.
+    // Stability-first path: the exact minimal Interactions request is model + text
+    // + inline image data. Do not add optional response-format/generation settings
+    // here unless the deployed backend is verified to accept them.
     const callGemini = async (
       prompt: string,
       modelOverride: string,
@@ -675,7 +632,7 @@ export async function POST(request: NextRequest) {
             model: modelOverride,
             input: [
               { type: "text", text: plainJsonPrompt(prompt) },
-              { type: "image", uri: uploadedFileUri, mime_type: mimeType },
+              { type: "image", data: inlineImageBase64, mime_type: mimeType },
             ],
           }),
         });
@@ -941,7 +898,7 @@ export async function POST(request: NextRequest) {
       promptVersion: NICH_VISION_PROMPT_VERSION,
       catalogVersion: NICH_CATALOG_VERSION,
       cacheStatus: "MISS" as const,
-      image: { width: dimensions.width, height: dimensions.height, bytes: declaredBytes, mimeType, detailIncluded: false, recoveryZoomsIncluded: false },
+      image: { width: dimensions.width, height: dimensions.height, bytes: actualBytes, mimeType, detailIncluded: false, recoveryZoomsIncluded: false },
       ...(safeDebugEnabled() ? {
         debug: {
           model,
@@ -957,7 +914,7 @@ export async function POST(request: NextRequest) {
       usage: sumUsage(...payloads),
     } satisfies NichVisionApiResponse;
 
-    console.info(`[NICH Vision ${runId}] type=${modelResult.imageType} items=${items.length} unresolved=${tradeSession?.unresolvedSlots.length ?? uncertainIdentityCount} recheck=${focusedRecheckUsed ? "yes" : "no"} transport=files-stream`);
+    console.info(`[NICH Vision ${runId}] type=${modelResult.imageType} items=${items.length} unresolved=${tradeSession?.unresolvedSlots.length ?? uncertainIdentityCount} recheck=${focusedRecheckUsed ? "yes" : "no"} transport=inline-data`);
     return NextResponse.json(responseBody);
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
@@ -968,7 +925,5 @@ export async function POST(request: NextRequest) {
         ? `Local vision error: ${detail.slice(0, 420)}`
         : "Nich couldn’t analyze that screenshot right now. Your current chat is still intact; try again or type the trade manually.";
     return NextResponse.json({ ok: false, runId, model, message: timeoutMessage } satisfies NichVisionApiResponse, { status: 502 });
-  } finally {
-    await cleanupUploadedFile();
   }
 }

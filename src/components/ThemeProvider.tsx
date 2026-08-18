@@ -33,7 +33,7 @@ function applyTheme(theme: CSBTTheme) {
   root.dataset.theme = theme;
   root.classList.toggle("dark", theme === "dark" || theme === "halloween");
   root.classList.add("theme-ready");
-  root.style.colorScheme = theme === "light" ? "light" : "dark";
+  root.style.colorScheme = theme === "light" || theme === "snoopy" ? "light" : "dark";
 }
 
 export default function ThemeProvider({ children }: { children: React.ReactNode }) {

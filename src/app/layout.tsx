@@ -100,11 +100,11 @@ const themeInitScript = `
 (function () {
   try {
     var saved = localStorage.getItem("csbt-theme");
-    var theme = saved === "halloween" || saved === "light" || saved === "dark" ? saved : "dark";
+    var theme = saved === "halloween" || saved === "light" || saved === "snoopy" || saved === "dark" ? saved : "dark";
     var root = document.documentElement;
     root.dataset.theme = theme;
     root.classList.toggle("dark", theme === "dark" || theme === "halloween");
-    root.style.colorScheme = theme === "light" ? "light" : "dark";
+    root.style.colorScheme = theme === "light" || theme === "snoopy" ? "light" : "dark";
   } catch (_) {
     document.documentElement.dataset.theme = "dark";
     document.documentElement.classList.add("dark");

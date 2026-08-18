@@ -1,63 +1,17 @@
 {
-  "fetchedAt": "2026-08-16T09:23:48.520Z",
-  "sourceVersion": 503,
+  "fetchedAt": "2026-08-18T17:05:47.948Z",
+  "sourceVersion": 516,
   "categoryCounts": {
     "EGG": 37,
     "FOOD": 92,
     "GIFT": 67,
     "OTHER": 32,
-    "PET": 765,
+    "PET": 766,
     "PETWEAR": 943,
     "STICKER": 365,
     "STROLLER": 102,
     "TOY": 718,
     "VEHICLE": 268
   },
-  "network": [
-    {
-      "url": "https://www.elvebredd.com/api/user-self",
-      "status": 401,
-      "resourceType": "fetch",
-      "contentType": "application/json; charset=utf-8",
-      "fallbackCategory": "VEHICLE",
-      "parsedAsJson": true,
-      "candidateItems": 0
-    },
-    {
-      "url": "https://www.elvebredd.com/?_rsc=OY4dXFDlHMABqseM",
-      "status": 200,
-      "resourceType": "fetch",
-      "contentType": "text/x-component",
-      "fallbackCategory": "VEHICLE",
-      "parsedAsJson": false,
-      "candidateItems": 0
-    },
-    {
-      "url": "https://www.elvebredd.com/adopt-me-calculator?_rsc=Ti8RETlN8z0rWPcV",
-      "status": 200,
-      "resourceType": "fetch",
-      "contentType": "text/x-component",
-      "fallbackCategory": "VEHICLE",
-      "parsedAsJson": false,
-      "candidateItems": 0
-    },
-    {
-      "url": "https://www.elvebredd.com/trade-center?_rsc=OY4dXFDlHMABqseM",
-      "status": 200,
-      "resourceType": "fetch",
-      "contentType": "text/x-component",
-      "fallbackCategory": "VEHICLE",
-      "parsedAsJson": false,
-      "candidateItems": 0
-    },
-    {
-      "url": "https://www.elvebredd.com/adopt-me-calculator?_rsc=sS-OyFykMUtbCV7z",
-      "status": 200,
-      "resourceType": "fetch",
-      "contentType": "text/x-component",
-      "fallbackCategory": "VEHICLE",
-      "parsedAsJson": false,
-      "candidateItems": 0
-    }
-  ]
+  "network": []
 }

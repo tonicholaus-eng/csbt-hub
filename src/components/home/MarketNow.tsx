@@ -50,28 +50,29 @@ export default function MarketNow({ generatedAt }: { generatedAt: string }) {
     : new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(generatedAt));
 
   return (
-    <section className="csbt-feature-panel p-5 sm:p-6" aria-labelledby="market-now-title">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <section className="market-now-panel csbt-feature-panel snoopy-market-panel p-5 sm:p-6" aria-labelledby="market-now-title">
+      <div className="market-now-header snoopy-market-header flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--brand-primary)]">Market now</p>
+          <p className="snoopy-market-caption text-xs font-black uppercase tracking-[0.16em] text-[var(--brand-primary)]">Market now</p>
           <h2 id="market-now-title" className="mt-1 text-2xl font-black text-[var(--foreground)]">What&apos;s happening on CSBT</h2>
+          <p className="snoopy-market-bubble">Fresh from the market board — live listings, trade activity, and what traders want most.</p>
         </div>
-        <Link href="/exchange?tab=market" className="text-xs font-black text-[var(--brand-primary)] hover:underline">Open market view →</Link>
+        <Link href="/exchange?tab=market" className="snoopy-market-link text-xs font-black text-[var(--brand-primary)] hover:underline">Open market view →</Link>
       </div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MarketStat label="Open Exchange listings" value={snapshot?.listings == null ? "Unavailable" : snapshot.listings.toLocaleString()} />
-        <MarketStat label="Completed trades · 7d" value={snapshot?.completed7d == null ? "Unavailable" : snapshot.completed7d.toLocaleString()} />
-        <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-1)] p-4">
+      <div className="market-now-grid snoopy-market-grid mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MarketStat label="Open Exchange listings" value={snapshot?.listings == null ? "Unavailable" : snapshot.listings.toLocaleString()} tone="red" />
+        <MarketStat label="Completed trades · 7d" value={snapshot?.completed7d == null ? "Unavailable" : snapshot.completed7d.toLocaleString()} tone="yellow" />
+        <div className="market-now-stat snoopy-market-stat snoopy-market-stat--blue rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-1)] p-4">
           <p className="text-xs font-bold text-[var(--foreground-muted)]">Most wanted · 24h</p>
           {snapshot?.topWanted ? <Link href={`/values/${encodeURIComponent(snapshot.topWanted.id)}`} className="mt-1 block truncate text-lg font-black text-[var(--foreground)] hover:text-[var(--brand-primary)]">{snapshot.topWanted.name}</Link> : <p className="mt-1 text-lg font-black text-[var(--foreground)]">Collecting data</p>}
         </div>
-        <MarketStat label="Catalog refreshed" value={refreshed} small />
+        <MarketStat label="Catalog refreshed" value={refreshed} small tone="cream" />
       </div>
       <p className="mt-3 text-xs font-semibold text-[var(--foreground-muted)]">Only real CSBT data is shown. Missing activity stays unavailable instead of being estimated.</p>
     </section>
   );
 }
 
-function MarketStat({ label, value, small = false }: { label: string; value: string; small?: boolean }) {
-  return <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-1)] p-4"><p className="text-xs font-bold text-[var(--foreground-muted)]">{label}</p><p className={`mt-1 font-black text-[var(--foreground)] ${small ? "text-sm leading-6" : "text-xl"}`}>{value}</p></div>;
+function MarketStat({ label, value, small = false, tone = "cream" }: { label: string; value: string; small?: boolean; tone?: "red" | "yellow" | "blue" | "cream" }) {
+  return <div className={`market-now-stat snoopy-market-stat snoopy-market-stat--${tone} rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-1)] p-4`}><p className="text-xs font-bold text-[var(--foreground-muted)]">{label}</p><p className={`mt-1 font-black text-[var(--foreground)] ${small ? "text-sm leading-6" : "text-xl"}`}>{value}</p></div>;
 }
