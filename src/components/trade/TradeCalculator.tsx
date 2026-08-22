@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useMemo, useState } from "react";
 import {
   motion,
   useReducedMotion,
@@ -11,7 +9,6 @@ import {
 import AddPetModal from "./AddPetModal";
 import TradeSide from "./TradeSide";
 import TradeSummary from "./TradeSummary";
-import SaveTradeButton from "./SaveTradeButton";
 import {
   SelectedTradeItem,
   TradeItem,
@@ -19,8 +16,6 @@ import {
   ValueType,
 } from "./types";
 import { getItemValue, parseTradeValue } from "../../lib/valueSystem";
-import { getItemById } from "../../lib/search";
-import { buildTradeContextParams, decodeTradeRows, selectedItemsToRows } from "../../lib/tradeContext";
 
 type TradeSideType = "your" | "their";
 
@@ -86,9 +81,8 @@ function createSelectedItem(
 }
 
 export default function TradeCalculator() {
-  const shouldReduceMotion = useReducedMotion();
-  const searchParams = useSearchParams();
-  const initialItemHandled = useRef(false);
+  const shouldReduceMotion =
+    useReducedMotion();
 
   const [modalOpen, setModalOpen] =
     useState(false);
@@ -226,7 +220,6 @@ export default function TradeCalculator() {
     };
   }, [yourTotal, theirTotal]);
 
-
   function openAddItemModal(
     side: TradeSideType,
   ) {
@@ -362,37 +355,6 @@ export default function TradeCalculator() {
     setYourItems([]);
     setTheirItems([]);
   }
-
-  useEffect(() => {
-    if (initialItemHandled.current) return;
-    const requestedSource: ValueSource = searchParams.get("source") === "ELVE" ? "ELVE" : "GCASH";
-    const yourContext = decodeTradeRows(searchParams.get("your"));
-    const theirContext = decodeTradeRows(searchParams.get("their"));
-    const expandRows = (rows: ReturnType<typeof decodeTradeRows>) => rows.flatMap((row) => {
-      const item = getItemById(row.itemId);
-      if (!item) return [];
-      const valueType = getStartingValueType(item, row.valueType, requestedSource);
-      return Array.from({ length: row.quantity }, () => ({ id: crypto.randomUUID(), item, valueType }));
-    });
-
-    if (yourContext.length || theirContext.length) {
-      initialItemHandled.current = true;
-      queueMicrotask(() => {
-        setValueSource(requestedSource);
-        setYourItems(expandRows(yourContext));
-        setTheirItems(expandRows(theirContext));
-      });
-      return;
-    }
-
-    const itemId = searchParams.get("add");
-    if (!itemId) return;
-    const item = getItemById(itemId);
-    initialItemHandled.current = true;
-    if (!item) return;
-    queueMicrotask(() => setValueSource(requestedSource));
-    queueMicrotask(() => setYourItems((current) => [...current, createSelectedItem(item, defaultValueType, requestedSource)]));
-  }, [defaultValueType, searchParams]);
 
   return (
     <>
@@ -581,49 +543,64 @@ export default function TradeCalculator() {
         />
       </div>
 
-      <SaveTradeButton
-        yourItems={yourItems}
-        theirItems={theirItems}
-        yourTotal={yourTotal}
-        theirTotal={theirTotal}
-        valueSource={valueSource}
-      />
-
-      {!tradeIsEmpty && (() => {
-        const context = buildTradeContextParams(selectedItemsToRows(yourItems), selectedItemsToRows(theirItems), valueSource);
-        const contextString = context.toString();
-        const prompt = [
-          "Explain this CSBT Trade Calculator result using the deterministic totals below. Do not invent or recalculate values.",
-          `Value source: ${valueSource}. Your total: ${yourTotal}. Their total: ${theirTotal}.`,
-          `You give: ${yourItems.map((row) => `${row.valueType} ${row.item.NAME}`).join(", ") || "nothing"}.`,
-          `They give: ${theirItems.map((row) => `${row.valueType} ${row.item.NAME}`).join(", ") || "nothing"}.`,
-        ].join(" ");
-        const opinion = new URLSearchParams(context);
-        const exchange = new URLSearchParams(context);
-        exchange.set("tab", "browse");
-        const target = theirItems[0]?.item.NAME ?? yourItems[0]?.item.NAME;
-        if (target) exchange.set("q", target);
-        return <div className="mt-5 rounded-[22px] border border-[var(--border)] bg-[var(--surface-raised)] p-4"><p className="text-xs font-black uppercase tracking-[.12em] text-[var(--brand-primary)]">Next step</p><h3 className="mt-1 text-lg font-black text-[var(--foreground)]">Turn the result into an action.</h3><div className="mt-3 flex flex-wrap gap-2"><Link href={`/nich?prompt=${encodeURIComponent(prompt)}`} className="csbt-btn-secondary min-h-11 px-4 py-2.5 text-xs font-black">Explain with NICH</Link><Link href={`/exchange?${exchange.toString()}`} className="csbt-btn-primary min-h-11 px-4 py-2.5 text-xs font-black">Find Traders</Link><Link href={`/trade-feed?${opinion.toString()}`} className="csbt-btn-secondary min-h-11 px-4 py-2.5 text-xs font-black">Get Opinions</Link><button type="button" onClick={() => void navigator.clipboard.writeText(`${window.location.origin}/calculator?${contextString}`)} className="csbt-btn-quiet min-h-11 px-4 py-2.5 text-xs font-black">Copy Trade Link</button></div></div>;
-      })()}
-
     </div>
   </motion.section>
 
   {!modalOpen && !tradeIsEmpty && (
     <motion.aside
       aria-live="polite"
-      initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 12 }}
+      initial={{
+        opacity: 0,
+        y: shouldReduceMotion ? 0 : 80,
+      }}
       animate={{ opacity: 1, y: 0 }}
-      className={`mx-3 mt-4 overflow-hidden rounded-2xl bg-gradient-to-r p-3 text-white shadow-lg lg:hidden ${mobileResult.color}`}
+      transition={{
+        duration: shouldReduceMotion ? 0 : 0.25,
+      }}
+      className={`pointer-events-none fixed inset-x-3 bottom-3 z-50 overflow-hidden rounded-2xl bg-gradient-to-r p-3 text-white shadow-[0_18px_45px_rgba(0,0,0,.35)] lg:hidden ${mobileResult.color}`}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-2"><span className="text-2xl">{mobileResult.emoji}</span><p className="text-xl font-black">{mobileResult.title}</p></div>
-          <p className="mt-0.5 text-xs font-semibold text-white/85">{mobileResult.message}</p>
+          <div className="flex items-center gap-2">
+            <span
+              aria-hidden="true"
+              className="text-2xl"
+            >
+              {mobileResult.emoji}
+            </span>
+
+            <p className="text-xl font-black tracking-tight">
+              {mobileResult.title}
+            </p>
+          </div>
+
+          <p className="mt-0.5 truncate text-xs font-semibold text-white/85">
+            {mobileResult.message}
+          </p>
         </div>
-        <div className="grid shrink-0 grid-cols-2 gap-1 rounded-xl border border-white/15 bg-black/15 p-2 text-center">
-          <div className="min-w-14 px-1"><p className="text-[9px] font-black uppercase text-white/70">You</p><p className="text-sm font-black tabular-nums">{yourTotal.toLocaleString("en-US", { maximumFractionDigits: 2 })}</p></div>
-          <div className="min-w-14 border-l border-white/15 px-1"><p className="text-[9px] font-black uppercase text-white/70">Them</p><p className="text-sm font-black tabular-nums">{theirTotal.toLocaleString("en-US", { maximumFractionDigits: 2 })}</p></div>
+
+        <div className="grid shrink-0 grid-cols-2 gap-1 rounded-xl border border-white/15 bg-black/15 p-2 text-center backdrop-blur">
+          <div className="min-w-14 px-1">
+            <p className="text-[9px] font-black uppercase tracking-wider text-white/70">
+              You
+            </p>
+            <p className="mt-0.5 text-sm font-black tabular-nums">
+              {yourTotal.toLocaleString("en-US", {
+                maximumFractionDigits: 2,
+              })}
+            </p>
+          </div>
+
+          <div className="min-w-14 border-l border-white/15 px-1">
+            <p className="text-[9px] font-black uppercase tracking-wider text-white/70">
+              Them
+            </p>
+            <p className="mt-0.5 text-sm font-black tabular-nums">
+              {theirTotal.toLocaleString("en-US", {
+                maximumFractionDigits: 2,
+              })}
+            </p>
+          </div>
         </div>
       </div>
     </motion.aside>

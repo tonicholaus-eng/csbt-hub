@@ -15,7 +15,6 @@ import {
   getItemValue,
   hasItemValue,
 } from "../../lib/valueSystem";
-import { getItemCategoryDetails } from "../../lib/itemCategory";
 
 type Props = {
   selectedItem: SelectedTradeItem;
@@ -47,15 +46,13 @@ function ItemImage({
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    queueMicrotask(() => setFailed(false));
+    setFailed(false);
   }, [src]);
 
   if (!src || failed) {
-    const categoryDetails = getItemCategoryDetails(category);
-
     return (
       <div className="flex h-11 w-11 items-center justify-center text-2xl sm:h-[72px] sm:w-[72px] sm:text-4xl">
-        {categoryDetails.icon}
+        {category === "PETWEAR" ? "🎩" : "🐾"}
         <span className="sr-only">
           Image unavailable for {name}
         </span>
@@ -84,7 +81,6 @@ export default function TradePetCard({
 }: Props) {
   const shouldReduceMotion = useReducedMotion();
   const { item, valueType } = selectedItem;
-  const categoryDetails = getItemCategoryDetails(item.CATEGORY);
 
   return (
     <motion.article
@@ -131,11 +127,15 @@ export default function TradePetCard({
 
           <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:mt-1 sm:text-xs">
             <span className="sm:hidden">
-              {categoryDetails.label}
+              {item.CATEGORY === "PET"
+                ? "Pet"
+                : "Pet Wear"}
             </span>
 
             <span className="hidden sm:inline">
-              {categoryDetails.label}{" "}
+              {item.CATEGORY === "PET"
+                ? "Pet"
+                : "Pet Wear"}{" "}
               • {VALUE_SOURCE_SHORT_LABELS[valueSource]} Value
             </span>
           </p>
