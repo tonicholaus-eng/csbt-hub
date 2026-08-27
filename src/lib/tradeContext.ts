@@ -21,8 +21,31 @@ export function decodeTradeRows(value: string | null | undefined, maxRows = 18):
   }
   return rows;
 }
+/**
+ * Collapse selected items into rows, merging duplicates into a quantity.
+ *
+ * The Adopt Me calculator models a x3 trade as three separate rows, so this used
+ * to emit `quantity: 1` three times. Grouping keeps the exported trade lossless
+ * (Exchange and Trade Opinions both read quantity) and makes the URL shorter,
+ * while hydrating back to the same three rows.
+ */
 export function selectedItemsToRows(items: SelectedTradeItem[]): TradeContextRow[] {
-  return items.map((selected) => ({ itemId: selected.item.ID, valueType: selected.valueType, quantity: 1 }));
+  const rows: TradeContextRow[] = [];
+  const index = new Map<string, TradeContextRow>();
+
+  for (const selected of items) {
+    const key = `${selected.item.ID}~${selected.valueType}`;
+    const existing = index.get(key);
+    if (existing) {
+      existing.quantity = Math.min(99, existing.quantity + 1);
+      continue;
+    }
+    const row: TradeContextRow = { itemId: selected.item.ID, valueType: selected.valueType, quantity: 1 };
+    index.set(key, row);
+    rows.push(row);
+  }
+
+  return rows;
 }
 export function buildTradeContextParams(your: TradeContextRow[], their: TradeContextRow[], source: ValueSource) {
   const params = new URLSearchParams();

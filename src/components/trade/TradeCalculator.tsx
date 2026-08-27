@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   motion,
   useReducedMotion,
@@ -18,7 +19,8 @@ import {
 } from "./types";
 import { VALUE_SOURCE_SHORT_LABELS, getItemValue, parseTradeValue } from "../../lib/valueSystem";
 import { getTradeVerdict } from "../../lib/trade/verdict";
-import { buildTradeContextParams, selectedItemsToRows } from "../../lib/tradeContext";
+import { buildTradeContextParams, decodeTradeRows, selectedItemsToRows } from "../../lib/tradeContext";
+import { getItemById } from "../../lib/search";
 
 type TradeSideType = "your" | "their";
 
@@ -109,9 +111,51 @@ function createSelectedItem(
   };
 }
 
+/**
+ * Rebuild selected items from a decoded URL trade.
+ *
+ * Adopt Me models quantity as repeated rows, so a row with quantity 3 expands
+ * into three selected items - the inverse of selectedItemsToRows().
+ */
+function rowsToSelectedItems(
+  rows: ReturnType<typeof decodeTradeRows>,
+  valueSource: ValueSource,
+): SelectedTradeItem[] {
+  const selected: SelectedTradeItem[] = [];
+  for (const row of rows) {
+    const item = getItemById(row.itemId);
+    if (!item) continue;
+    for (let copy = 0; copy < Math.max(1, Math.min(99, row.quantity)); copy += 1) {
+      selected.push({
+        id: crypto.randomUUID(),
+        item,
+        valueType: getStartingValueType(item, row.valueType, valueSource),
+      });
+    }
+  }
+  return selected;
+}
+
 export default function TradeCalculator() {
   const shouldReduceMotion =
     useReducedMotion();
+
+  // Hydrate from ?source=&your=&their= so "Open in Calculator" from Trade
+  // Opinions, and the Inventory row links, actually carry the trade across.
+  // Previously the calculator ignored these entirely and opened empty.
+  const searchParams = useSearchParams();
+  const initialTrade = useMemo(() => {
+    const requested = searchParams.get("source");
+    const source: ValueSource = requested === "ELVE" ? "ELVE" : "GCASH";
+    return {
+      source,
+      your: rowsToSelectedItems(decodeTradeRows(searchParams.get("your")), source),
+      their: rowsToSelectedItems(decodeTradeRows(searchParams.get("their")), source),
+    };
+    // Read once on mount: the calculator is an editor, so later URL changes must
+    // not wipe out what the user has since built.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [modalOpen, setModalOpen] =
     useState(false);
@@ -127,21 +171,21 @@ export default function TradeCalculator() {
   );
 
   const [valueSource, setValueSource] =
-    useState<ValueSource>("GCASH");
+    useState<ValueSource>(initialTrade.source);
 
   const [
     yourItems,
     setYourItems,
   ] = useState<
     SelectedTradeItem[]
-  >([]);
+  >(initialTrade.your);
 
   const [
     theirItems,
     setTheirItems,
   ] = useState<
     SelectedTradeItem[]
-  >([]);
+  >(initialTrade.their);
 
   const yourTotal = useMemo(
     () =>
