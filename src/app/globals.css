@@ -5125,3 +5125,41 @@ body::before {
   .mm2-plate,
   .mm2-plate-img { transition: none !important; }
 }
+
+/* --- Shared community engines: MM2 accent containment -------------------
+   CSBTLounge ships a hard-coded rainbow of channel accents (indigo/violet,
+   fuchsia, lime, pink, amber) as Tailwind gradient utilities rather than
+   tokens, so the token bridge above cannot reach them and MM2 rendered indigo
+   avatars and a violet primary. These rules are scoped to `.mm2-social-mode`,
+   so Adopt Me keeps every one of those accents exactly as authored. */
+.mm2-social-mode .csbt-lounge [class*="bg-gradient-to-br"] {
+  background-image: linear-gradient(145deg, rgba(143, 18, 36, .85), rgba(194, 37, 57, .55)) !important;
+  color: #ffd7dc;
+}
+
+/* Emerald is deliberately left alone: in the Lounge it marks presence and
+   live status, which is a state colour rather than an Adopt Me brand accent,
+   and it means the same thing in both games. */
+.mm2-social-mode .csbt-lounge [class*="text-violet-"],
+.mm2-social-mode .csbt-lounge [class*="text-indigo-"] { color: var(--mm2-crimson-text) !important; }
+.mm2-social-mode .csbt-lounge [class*="bg-violet-"],
+.mm2-social-mode .csbt-lounge [class*="bg-indigo-"] { background-color: rgba(226, 52, 74, .12) !important; }
+.mm2-social-mode .csbt-lounge [class*="border-violet-"],
+.mm2-social-mode .csbt-lounge [class*="border-indigo-"] { border-color: var(--mm2-edge-lit) !important; }
+
+/* Adopt Me's brand accents appear as raw utilities in several shared exchange
+   and community components. Inside MM2 they read as another game's product, so
+   they are folded onto MM2's own accent here. Scoped to `.mm2-social-mode`;
+   Adopt Me renders every one of them unchanged. */
+.mm2-social-mode [class*="text-amber-"],
+.mm2-social-mode [class*="text-yellow-"] { color: var(--mm2-crimson-text) !important; }
+.mm2-social-mode [class*="text-cyan-"],
+.mm2-social-mode [class*="text-sky-"] { color: #a3c6d5 !important; }
+.mm2-social-mode [class*="text-violet-"],
+.mm2-social-mode [class*="text-purple-"],
+.mm2-social-mode [class*="text-indigo-"] { color: var(--mm2-crimson-text) !important; }
+.mm2-social-mode [class*="bg-violet-6"],
+.mm2-social-mode [class*="bg-indigo-6"] {
+  background-color: transparent !important;
+  background-image: var(--primary-button) !important;
+}

@@ -277,7 +277,7 @@ export default function ExchangeHub({
           </div>
           <div className="mt-5 grid grid-cols-3 gap-2 sm:max-w-xl lg:mt-7 lg:gap-3 lg:max-w-2xl">
             <Stat value={String(listings.length)} label="Live Listings" />
-            <Stat value={gameId === "adopt-me" ? String(strongMatchCount) : String(adapter.items.length)} label={gameId === "adopt-me" ? "Strong Matches" : "Database Items"} />
+            <Stat value={gameId === "adopt-me" ? String(strongMatchCount) : adapter.items.length.toLocaleString()} label={gameId === "adopt-me" ? "Strong Matches" : "Database Items"} />
             <Stat value={String(pendingIncoming)} label="Offers Waiting" />
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-emerald-200/70 bg-emerald-50/70 px-4 py-3 text-[10px] font-black text-emerald-800 dark:border-emerald-400/15 dark:bg-emerald-400/[0.05] dark:text-emerald-200"><span>🛡 Keep the agreed offer inside CSBT</span><span>🔒 Check the locked Trade Room snapshot</span><Link href="/community-guidelines" className="underline underline-offset-2">Safety rules →</Link></div>
@@ -354,10 +354,10 @@ export default function ExchangeHub({
         ) : (
           <>
             <section className="rounded-[var(--radius-card)] border border-red-400/20 bg-red-500/[0.045] p-4 lg:p-5">
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-red-500 dark:text-red-300">MM2 Exchange</p>
+              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-red-500 dark:text-[#f0919b]">MM2 Exchange</p>
               <h3 className="mt-1 text-lg font-black text-slate-950 dark:text-white">Shared engine, MM2 database</h3>
               <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">{adapter.items.length.toLocaleString()} MM2 weapons are available to listing and offer builders. No Adopt Me inventory rules are applied.</p>
-              <Link href="/mm2/calculator" className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-2xl bg-red-600 text-xs font-black text-white">Open MM2 Calculator</Link>
+              <Link href="/mm2/calculator" className="mt-3.5 inline-flex min-h-11 w-full items-center justify-center rounded-[12px] border border-[var(--mm2-edge-lit)] bg-[linear-gradient(135deg,rgba(143,18,36,.92),rgba(194,37,57,.78))] text-[13px] font-black text-[#fff4f5] transition hover:brightness-115">Open MM2 Calculator</Link>
             </section>
             <section className="rounded-[var(--radius-card)] border border-white/10 bg-[var(--surface-1)] p-4 lg:p-5">
               <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Community Loop</p>
