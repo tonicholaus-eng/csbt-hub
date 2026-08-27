@@ -1,0 +1,15 @@
+CSBT MM2 Values Page Update
+
+Added:
+src/app/mm2/values/page.tsx
+
+Features:
+- MM2 values route
+- Supreme Values category structure
+- GCash + Supreme value display
+- MM2 themed layout
+- Uses MM2 master database
+- Ready for live search/filter expansion
+
+Next:
+Connect real Supreme fetcher and upgrade cards to match Adopt Me values components.
