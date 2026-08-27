@@ -4978,11 +4978,12 @@ body::before {
 .mm2-control-rail {
   scrollbar-width: thin;
   scrollbar-color: rgba(154, 26, 45, .72) transparent;
-  border-right-color: rgba(226, 45, 67, .08);
+  border-right-color: rgba(226, 45, 67, .12);
   box-shadow:
-    34px 0 98px rgba(0, 0, 0, .58),
-    inset -28px 0 60px rgba(116, 10, 28, .05),
-    inset -1px 0 0 rgba(235, 51, 73, .038);
+    40px 0 120px rgba(0, 0, 0, .72),
+    18px 0 44px rgba(0, 0, 0, .5),
+    inset -34px 0 74px rgba(122, 11, 29, .075),
+    inset -1px 0 0 rgba(235, 51, 73, .07);
 }
 
 .mm2-control-rail::-webkit-scrollbar { width: 7px; }
@@ -5004,8 +5005,8 @@ body::before {
   right: 0;
   width: 1px;
   pointer-events: none;
-  background: linear-gradient(180deg, transparent, rgba(228, 43, 66, .18) 18%, rgba(228, 43, 66, .05) 58%, transparent);
-  box-shadow: 8px 0 24px rgba(161, 13, 35, .08);
+  background: linear-gradient(180deg, transparent, rgba(228, 43, 66, .30) 18%, rgba(228, 43, 66, .08) 58%, transparent);
+  box-shadow: 10px 0 30px rgba(161, 13, 35, .14);
 }
 
 .mm2-control-rail::before {
