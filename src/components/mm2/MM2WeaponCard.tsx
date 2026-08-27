@@ -101,7 +101,7 @@ export default function MM2WeaponCard({ item }: { item: Item }) {
 
             <Link
               href={`/mm2/demand?q=${encodeURIComponent(item.NAME)}`}
-              className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[.05em] transition hover:brightness-125 ${demandTone(item.DEMAND)}`}
+              className={`inline-flex min-h-8 shrink-0 items-center rounded-full border px-2.5 text-[11px] font-black uppercase tracking-[.05em] transition hover:brightness-125 ${demandTone(item.DEMAND)}`}
               title="Open this weapon in Demand Intelligence"
             >
               {demand === null ? "Unrated" : `${demand}/10`}

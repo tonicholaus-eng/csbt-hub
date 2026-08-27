@@ -9,8 +9,10 @@ import mm2Items from "../../data/mm2Items.json";
  * must stay nullable so callers are forced to handle "unpriced" rather than
  * silently treating it as zero.
  *
- * CSBT_VALUE and GCASH_VALUE are currently null for every row; they exist
- * because the master workbook reserves those columns for manual curation.
+ * CSBT_VALUE is null for every row; it exists because the master workbook
+ * reserves that column for manual curation. GCASH_VALUE was also empty when
+ * this comment was first written, but the current dataset prices 939 of the
+ * 1,099 weapons with it, so callers must treat it as real data.
  */
 export type MM2CatalogItem = {
   ID: string;

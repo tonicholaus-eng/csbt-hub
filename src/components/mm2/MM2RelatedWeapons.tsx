@@ -47,7 +47,7 @@ export default function MM2RelatedWeapons({ weapons }: { weapons: MM2Item[] }) {
 
         <Link
           href="/mm2/values"
-          className="text-xs font-black text-red-300 transition hover:text-red-200"
+          className="inline-flex min-h-11 shrink-0 items-center rounded-[11px] border border-[var(--mm2-edge-strong)] px-4 text-[13px] font-black text-[#f0919b] transition hover:border-[var(--mm2-edge-lit)] hover:bg-[rgba(226,52,74,.07)] hover:text-white"
         >
           Browse all →
         </Link>
