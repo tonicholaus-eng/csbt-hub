@@ -205,6 +205,17 @@ export default function MM2TradeCalculator({ items }: { items: MM2Item[] }) {
     setTheirItems([]);
   }
 
+  /* eslint-disable react-hooks/set-state-in-effect --
+     Both effects below hydrate state from browser-only APIs (localStorage and
+     window.location), neither of which exists during SSR. Moving either into a
+     useState initializer would make the server render empty and the client
+     render populated, producing a hydration mismatch. An effect is the correct
+     place for this; the rule cannot express the SSR constraint.
+     TODO(phase-d): the URL effect can drop the effect entirely by switching to
+     Next's useSearchParams() plus a lazy initializer, once /mm2/calculator wraps
+     this component in <Suspense> the way /calculator already does.
+     TODO(phase-e): recentTrades can move to useSyncExternalStore, matching the
+     house pattern in ThemeProvider and useBirthdayEventActive. */
   useEffect(() => {
     setRecentTrades(loadRecentTrades());
   }, []);
@@ -242,6 +253,7 @@ export default function MM2TradeCalculator({ items }: { items: MM2Item[] }) {
     setValueSource(source);
     setYourItems([createSelectedItem(item)]);
   }, [items]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   async function copyTradeLink() {
     try {

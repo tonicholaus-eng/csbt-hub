@@ -1,1 +1,0 @@
-export default function MM2TradePanel(){return <section className="rounded-3xl border border-white/10 bg-white/5 p-6"><h2 className="font-black">⚖️ Trade Intelligence</h2><p className="text-sm text-slate-400 mt-2">Trade calculator foundation. Item comparison and W/F/L scoring will connect here.</p></section>}

@@ -1,0 +1,74 @@
+name: CI
+
+# VALIDATION ONLY — this workflow must never deploy.
+#
+# Deployment of CSBT HUB is a deliberate manual action (`npm run deploy`, which
+# runs `opennextjs-cloudflare deploy`). No workflow in this repository is
+# permitted to publish anything. In particular this job must never run:
+#   npm run deploy | deploy:raw | upload | preview | refresh:deploy
+#   wrangler deploy | opennextjs-cloudflare deploy
+# and must never push, merge, or tag.
+#
+# `npm run build` below produces a LOCAL build artifact only, purely to prove the
+# project compiles and type-checks. Nothing is uploaded.
+
+on:
+  push:
+    branches-ignore:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+# Read-only. Prevents this workflow from pushing commits, tags or releases.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Typecheck · Lint · Test · Data · Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # --- Correctness gates: each must pass on its own ---
+
+      - name: Typecheck
+        run: npx tsc --noEmit -p tsconfig.json
+
+      - name: Lint
+        run: npx eslint .
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Validate Adopt Me trading data
+        run: npm run data:validate
+
+      - name: Validate MM2 trading data
+        run: npm run data:validate:mm2
+
+      # Build last: it is the slowest gate and the previous steps give clearer
+      # failure messages for the problems they cover.
+      - name: Production build (local artifact only — NOT deployed)
+        run: npm run build
+        env:
+          # Build-time placeholders. Real values live in Cloudflare Worker
+          # secrets and are never needed to prove the project compiles.
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key

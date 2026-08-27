@@ -1,12 +1,13 @@
 import Link from "next/link";
 
+// Nullable value/demand fields match the generated mm2Items.json shape.
 type Item = {
   ID?: string;
   NAME: string;
   CATEGORY?: string;
-  SOURCE_VALUE?: number;
+  SOURCE_VALUE?: number | null;
   GCASH_VALUE?: number | null;
-  DEMAND?: number | string;
+  DEMAND?: number | string | null;
   IMAGE?: string;
 };
 

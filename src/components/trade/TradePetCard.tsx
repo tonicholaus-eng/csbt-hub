@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
 import {
@@ -43,11 +43,11 @@ function ItemImage({
   name,
   category,
 }: ItemImageProps) {
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    setFailed(false);
-  }, [src]);
+  // Track WHICH src failed rather than a boolean that an effect has to reset.
+  // This removes the reset effect entirely (no cascading render) and is more
+  // precise: a new src is never treated as failed just because a previous one was.
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const failed = failedSrc !== null && failedSrc === src;
 
   if (!src || failed) {
     return (
@@ -67,7 +67,7 @@ function ItemImage({
       width={72}
       height={72}
       unoptimized
-      onError={() => setFailed(true)}
+      onError={() => setFailedSrc(src)}
       className="h-11 w-11 object-contain transition-transform duration-300 group-hover/card:scale-110 sm:h-[72px] sm:w-[72px]"
     />
   );

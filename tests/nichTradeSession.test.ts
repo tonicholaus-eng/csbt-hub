@@ -9,6 +9,7 @@ import {
   getTradeSlots,
   refreshTradeSession,
   type NichTradeSession,
+  type NichTradeSlot,
   type VisionTradeItemLike,
 } from "../src/lib/nich/tradeSession";
 import { getItem } from "../src/lib/search";
@@ -320,7 +321,9 @@ test("screenshot shorthand applies FR/R/FR/FR to left slots and MFR to the right
   ] as const;
 
   for (let index = 0; index < expected.length; index += 1) {
-    const slot = after.userSide[index];
+    // Annotated explicitly: without it the indexed access into the recursive
+    // NichTradeSession type resolves circularly and falls back to any (TS7022).
+    const slot: NichTradeSlot = after.userSide[index];
     const [name, neon, mega, fly, ride] = expected[index];
     assert.equal(slot.canonicalName, name);
     assert.equal(slot.neon, neon);

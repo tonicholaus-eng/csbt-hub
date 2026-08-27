@@ -23,6 +23,22 @@ export function getDemandScore(tier: string | null | undefined) {
   return getKnownDemandScore(tier) ?? 60;
 }
 
+/**
+ * This whole module is Adopt-Me-only: it resolves items through the Adopt Me
+ * catalog (getItemById) and prices them through the Adopt Me value system,
+ * which only understands GCASH and ELVE.
+ *
+ * A listing carries the wider CSBTValueSource (which also includes MM2's
+ * SUPREME), so narrow it explicitly at the boundary rather than widening the
+ * Adopt Me value system. Callers already gate on game:
+ *   ExchangeHub.tsx:154      gameId === "adopt-me" ? rankListingMatches(...) : basicMatches(...)
+ *   ListingDetail.tsx:111    listing.game_id === "adopt-me" ? scoreListingMatch(...) : null
+ * so SUPREME is unreachable here; GCASH is the Adopt Me default if that ever changes.
+ */
+function adoptValueSource(source: ExchangeListing["value_source"]): ValueSource {
+  return source === "ELVE" ? "ELVE" : "GCASH";
+}
+
 export const DEFAULT_MARKETPLACE_PREFERENCES: MarketplacePreferences = {
   value_source: "GCASH",
   prefer_upgrades: true,
@@ -106,16 +122,18 @@ export function scoreListingMatch(
     ? Math.round((matchedRequestedUnits / requestedUnits) * 100)
     : 72;
 
+  const listingValueSource = adoptValueSource(listing.value_source);
+
   const targetValue = sumExchangeItems(effectiveHave);
   const estimatedInventoryValue = inventory.reduce(
-    (sum, row) => sum + inventoryValue(row, listing.value_source),
+    (sum, row) => sum + inventoryValue(row, listingValueSource),
     0,
   );
 
   // A member should not be penalized simply because their whole inventory is much larger than
   // the listing. Estimate whether Exchange can actually assemble a close offer from what they own.
   const builtForTarget = targetValue > 0
-    ? buildOptimizedOffer(inventory, listing.value_source, targetValue, {
+    ? buildOptimizedOffer(inventory, listingValueSource, targetValue, {
         highDemandOnly: preferences.prefer_high_demand && preferences.avoid_hard_to_trade,
         maxItems: preferences.avoid_randoms ? 7 : 10,
         maxOverpayPercent: preferences.prefer_overpays ? 0.12 : 0.07,

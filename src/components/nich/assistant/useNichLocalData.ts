@@ -171,6 +171,9 @@ function normalizeListing(value: RawListing): ExchangeListing | null {
 
   return {
     id,
+    // Legacy Adopt Me rows predate multi-game scoping and have no game_id.
+    // Mirrors the fallback used by useExchangeData.normalizeListing.
+    game_id: value.game_id === "mm2" ? "mm2" : "adopt-me",
     user_id: userId,
     display_name: String(value.display_name ?? "CSBT Member"),
     value_source: value.value_source === "ELVE" ? "ELVE" : "GCASH",

@@ -73,7 +73,7 @@ function NavIcon({ name }: { name: IconName }) {
 function activeFor(pathname: string, href: string) {
   if (href === "/mm2") return pathname === "/mm2";
   if (href === "/mm2/values") {
-    return pathname.startsWith("/mm2/values") || pathname.startsWith("/mm2/item") || pathname.startsWith("/mm2/demand");
+    return pathname.startsWith("/mm2/values") || pathname.startsWith("/mm2/demand");
   }
   return pathname.startsWith(href);
 }

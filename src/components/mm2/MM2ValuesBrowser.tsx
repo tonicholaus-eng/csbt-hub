@@ -5,13 +5,16 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import MM2WeaponCard from "./MM2WeaponCard";
 
+// Mirrors the generated shape of src/data/mm2Items.json. 189 of the 1,099
+// weapons legitimately have no Supreme value or demand (untradables, EVO
+// variants), so those fields are nullable and must not be typed as required.
 type Item = {
   ID?: string;
-  NAME?: string;
+  NAME: string;
   CATEGORY?: string;
-  SOURCE_VALUE?: number;
+  SOURCE_VALUE?: number | null;
   GCASH_VALUE?: number | null;
-  DEMAND?: number | string;
+  DEMAND?: number | string | null;
   IMAGE?: string;
   UPDATED_AT?: string;
 };
@@ -211,7 +214,7 @@ export default function MM2ValuesBrowser({ items }: { items: Item[] }) {
         <>
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {visibleItems.map((item, index) => (
-              <MM2WeaponCard key={item.ID || `${item.NAME}-${index}`} item={item as any} />
+              <MM2WeaponCard key={item.ID || `${item.NAME}-${index}`} item={item} />
             ))}
           </section>
 

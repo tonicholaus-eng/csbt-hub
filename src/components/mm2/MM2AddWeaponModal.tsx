@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import type { MM2Item, MM2ValueSource } from "./MM2TradeTypes";
+import type { MM2Item, MM2SelectedTradeItem, MM2ValueSource } from "./MM2TradeTypes";
 
 const ITEMS_PER_PAGE = 30;
 

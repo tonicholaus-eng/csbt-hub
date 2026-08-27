@@ -49,6 +49,7 @@ const localData: NichLocalProfileData = {
   preferences: { ...DEFAULT_MARKETPLACE_PREFERENCES, value_source: "GCASH" },
   exchangeListings: [{
     id: "listing-owl",
+    game_id: "adopt-me",
     user_id: "other-user",
     display_name: "Trader",
     value_source: "GCASH",

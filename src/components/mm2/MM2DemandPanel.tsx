@@ -1,1 +1,0 @@
-export default function MM2DemandPanel({item}:any){return <section className="rounded-3xl border border-white/10 bg-white/5 p-6"><h2 className="font-black">📈 Demand Analysis</h2><p className="mt-2 text-slate-300">Current demand score: {item.DEMAND??"N/A"}</p><p className="text-sm text-slate-400">Historical tracking architecture ready.</p></section>}
