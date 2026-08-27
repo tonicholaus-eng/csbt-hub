@@ -336,25 +336,43 @@ export function useExchangeData({
     const client = supabase;
     if (!client) return;
 
+    /**
+     * True when an INSERT/UPDATE payload clearly belongs to a different game.
+     *
+     * These subscriptions are unfiltered (see the note on the channel below), so
+     * every client used to fire a `refresh*` round-trip for every write in every
+     * game - O(users x writes) reads. Checking game_id on the payload first
+     * collapses that to only the writes this hub actually displays.
+     *
+     * Returns false when game_id is absent, which covers both legacy pre-
+     * multi-game rows and DELETE payloads (which carry only the primary key).
+     * Those fall through to the existing behaviour rather than being dropped.
+     */
+    const otherGame = (payload: RealtimePayload) => {
+      if (payload.eventType === "DELETE") return false;
+      const raw = payload.new?.game_id;
+      return typeof raw === "string" && raw !== gameId;
+    };
+
     const listingChange = (payload: RealtimePayload) => {
       const id = payloadId(payload);
       if (!id) return;
       if (payload.eventType === "DELETE") {
         setListings((current) => current.filter((row) => row.id !== id));
         setOwnedListings((current) => current.filter((row) => row.id !== id));
-      } else void refreshListing(id);
+      } else if (!otherGame(payload)) void refreshListing(id);
     };
     const offerChange = (payload: RealtimePayload) => {
       const id = payloadId(payload);
       if (!id || !user) return;
       if (payload.eventType === "DELETE") setOffers((current) => current.filter((row) => row.id !== id));
-      else void refreshOffer(id);
+      else if (!otherGame(payload)) void refreshOffer(id);
     };
     const roomChange = (payload: RealtimePayload) => {
       const id = payloadId(payload);
       if (!id || !user) return;
       if (payload.eventType === "DELETE") setRooms((current) => current.filter((row) => row.id !== id));
-      else void refreshRoom(id);
+      else if (!otherGame(payload)) void refreshRoom(id);
     };
 
     const channel = client
@@ -372,6 +390,12 @@ export function useExchangeData({
         if (offerId && user) void refreshOffer(offerId);
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "trade_rooms" }, roomChange)
+      // Deliberately NOT using a server-side `filter: game_id=eq.<gameId>` here.
+      // A DELETE payload carries only the replica identity (the primary key), so
+      // game_id is absent and a server filter would silently drop every delete,
+      // leaving removed listings stranded in the UI. The game check happens in
+      // the handlers instead (see otherGame below), which is what actually
+      // removes the expensive per-event refetch.
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "marketplace_events" }, (payload) => {
         if (!loadMarketEvents) return;
         const raw = payload.new as ExchangeMarketEvent & { game_id?: CSBTGameId };

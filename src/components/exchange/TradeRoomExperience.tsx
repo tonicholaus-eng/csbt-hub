@@ -8,17 +8,19 @@ import type { ExchangeItem } from "../../lib/exchange/types";
 import { useTradeRoomData } from "../../hooks/useTradeRoomData";
 import { formatTradeValue } from "../../lib/valueSystem";
 import AccessibleDialog from "../ui/AccessibleDialog";
-import { sourceSymbol } from "../../games/registry";
-import type { CSBTValueSource } from "../../games/types";
+import { getGameAdapter, sourceSymbol } from "../../games/registry";
+import type { CSBTGameId, CSBTValueSource } from "../../games/types";
 
 const quickMessages = ["Hi! Is this still good?", "I’m ready to trade.", "Add me on Roblox.", "I’ll join you.", "Join me when ready.", "Give me a minute.", "Please check the locked offer again.", "Sorry, I need to cancel."];
 
 export default function TradeRoomExperience({
   roomId,
   exchangeBasePath = "/exchange",
+  expectedGameId,
 }: {
   roomId: string;
   exchangeBasePath?: string;
+  expectedGameId?: CSBTGameId;
 }) {
   const { supabase, user, loading: authLoading } = useAuthSession();
   const { room, profiles, trust, messages, events, middlemen, mmRequest, staffRole, error, setError, refreshRoom, refreshRequest } = useTradeRoomData({ supabase, user, authLoading, roomId });
@@ -91,6 +93,16 @@ export default function TradeRoomExperience({
   if (!user) return <div className="rounded-[28px] bg-white/80 p-6 text-center dark:bg-white/5"><p className="font-black">Sign in to open this trade room.</p><Link href="/profile" className="mt-3 inline-flex rounded-xl bg-amber-400 px-4 py-2 text-xs font-black text-white">Sign in</Link></div>;
   if (error && !room) return <p className="rounded-2xl bg-rose-50 p-5 font-bold text-rose-700">{error}</p>;
   if (!room) return <div className="min-h-80 animate-pulse rounded-[30px] bg-white/60 dark:bg-white/5" />;
+
+  // A room belongs to exactly one game. Opening an MM2 room on the Adopt Me
+  // route (or vice versa) used to render the wrong shell with no warning.
+  if (expectedGameId && room.game_id !== expectedGameId) {
+    return (
+      <p className="rounded-2xl bg-amber-50 p-5 font-bold text-amber-800 dark:bg-amber-400/10 dark:text-amber-200">
+        This trade room belongs to {getGameAdapter(room.game_id).shortName}, not the current {getGameAdapter(expectedGameId).shortName} mode.
+      </p>
+    );
+  }
 
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_330px]">

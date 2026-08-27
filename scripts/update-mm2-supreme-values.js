@@ -14,12 +14,6 @@ const SOURCE_OUT = path.join(
   "mm2-source-values.json"
 );
 
-const ITEMS_OUT = path.join(
-  ROOT,
-  "src",
-  "data",
-  "mm2Items.json"
-);
 
 const BASE = "https://supremevalues.com";
 
@@ -588,12 +582,6 @@ async function main(){
 
 
 
-  fs.mkdirSync(
-    path.dirname(ITEMS_OUT),
-    {
-      recursive:true
-    }
-  );
 
 
 
@@ -611,15 +599,12 @@ async function main(){
   );
 
 
-
-  fs.writeFileSync(
-    ITEMS_OUT,
-    JSON.stringify(
-      all,
-      null,
-      2
-    )
-  );
+  // NOTE: this scraper deliberately does NOT write src/data/mm2Items.json.
+  // That file is generated from the master workbook by generate-mm2-items.js.
+  // Writing it here too gave the app dataset two writers, and running this
+  // script on its own silently replaced the curated catalog with raw scrape
+  // output - bypassing the manual CSBT/GCash/NOTES columns the workbook sync
+  // preserves. See docs/audit/08_DATA_PIPELINES.md D-01.
 
 
 
