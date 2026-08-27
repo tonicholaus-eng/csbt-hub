@@ -1,4 +1,17 @@
-import tradingItems from "../data/tradingItems.json";
+// Uses the COMPACT client index, not the full tradingItems.json.
+//
+// The full dataset is 1.7 MB and was being pulled into every client chunk that
+// touches the game registry - Exchange, Trade Opinions and the Lounge, for both
+// games. clientItemIndex is the tuple-encoded 629 KB projection that already
+// backs lib/search.ts, so this also stops a second copy of the Adopt Me catalog
+// being bundled alongside it.
+//
+// Verified value-equivalent for everything this module reads: the compact index
+// omits the legacy aliases NORMAL/NEON/MEGA and INGAME_VALUE, and across all
+// 3,382 items there are 0 rows where a canonical GCASH_*/ELVE_* value is null
+// while its legacy alias is present, and 0 rows where ELVE_NORMAL and
+// INGAME_VALUE disagree. See tests/gameRegistry.test.ts.
+import { clientItemList } from "../lib/clientItemIndex";
 import mm2Items from "../data/mm2Items.json";
 import type { TradeItem } from "../components/trade/types";
 import type {
@@ -30,7 +43,7 @@ function mm2ImageUrl(image?: string | null) {
   return `https://supremevalues.com${clean}`;
 }
 
-const adoptRaw = tradingItems as TradeItem[];
+const adoptRaw = clientItemList;
 const adoptItems: CSBTGameItem[] = adoptRaw.map((item) => ({
   id: item.ID,
   name: item.NAME,
