@@ -61,7 +61,7 @@ export default function MM2TradeWeaponCard({
         type="button"
         onClick={onRemove}
         aria-label={`Remove ${selectedItem.item.NAME} from trade`}
-        className="absolute right-2 top-2 z-20 flex h-7 w-7 items-center justify-center rounded-full border border-red-300/15 bg-red-500 text-[10px] font-black text-white shadow-lg transition hover:scale-105 hover:bg-red-400 sm:h-8 sm:w-8"
+        className="absolute right-2 top-2 z-20 flex h-7 w-7 items-center justify-center rounded-full border border-red-300/15 bg-red-500 text-[12px] font-black text-white shadow-lg transition hover:scale-105 hover:bg-red-400 sm:h-8 sm:w-8"
       >
         ✕
       </button>
@@ -79,7 +79,7 @@ export default function MM2TradeWeaponCard({
         </div>
 
         <div className="min-w-0 flex-1">
-          <span className="block truncate text-[8px] font-black uppercase tracking-[.12em] text-red-300/80">
+          <span className="block truncate text-[11px] font-black uppercase tracking-[.12em] text-red-300/80">
             {selectedItem.item.CATEGORY ?? "Weapon"}
           </span>
 
@@ -89,13 +89,13 @@ export default function MM2TradeWeaponCard({
 
           <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
             <span
-              className={`text-[10px] font-black ${
+              className={`text-[12px] font-black ${
                 value === null ? "text-amber-300" : "text-zinc-200"
               }`}
             >
               {valueSource}: {formatValue(value)}
             </span>
-            <span className="text-[9px] font-bold text-zinc-600">
+            <span className="text-[11.5px] font-bold text-[var(--mm2-ink-3)]">
               Demand {selectedItem.item.DEMAND ?? 0}/10
             </span>
           </div>
@@ -107,13 +107,13 @@ export default function MM2TradeWeaponCard({
                 onClick={() =>
                   onQuantityChange(Math.max(1, selectedItem.quantity - 1))
                 }
-                className="flex h-7 w-7 items-center justify-center rounded-lg text-xs font-black text-zinc-500 transition hover:bg-white/[0.06] hover:text-white"
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-xs font-black text-[var(--mm2-ink-2)] transition hover:bg-white/[0.06] hover:text-white"
                 aria-label={`Decrease ${selectedItem.item.NAME} quantity`}
               >
                 −
               </button>
 
-              <span className="min-w-7 text-center text-[10px] font-black text-zinc-200">
+              <span className="min-w-7 text-center text-[12px] font-black text-zinc-200">
                 {selectedItem.quantity}
               </span>
 
@@ -122,7 +122,7 @@ export default function MM2TradeWeaponCard({
                 onClick={() =>
                   onQuantityChange(Math.min(99, selectedItem.quantity + 1))
                 }
-                className="flex h-7 w-7 items-center justify-center rounded-lg text-xs font-black text-zinc-500 transition hover:bg-white/[0.06] hover:text-white"
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-xs font-black text-[var(--mm2-ink-2)] transition hover:bg-white/[0.06] hover:text-white"
                 aria-label={`Increase ${selectedItem.item.NAME} quantity`}
               >
                 +
@@ -130,11 +130,11 @@ export default function MM2TradeWeaponCard({
             </div>
 
             <div className="min-w-0 text-right">
-              <span className="block text-[8px] font-black uppercase tracking-[.09em] text-zinc-700">
+              <span className="block text-[11px] font-black uppercase tracking-[.09em] text-[var(--mm2-ink-3)]">
                 Subtotal
               </span>
               <strong
-                className={`block truncate text-[10px] font-black ${
+                className={`block truncate text-[12px] font-black ${
                   subtotal === null ? "text-amber-300" : "text-zinc-300"
                 }`}
               >

@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import MM2AddWeaponModal from "./MM2AddWeaponModal";
 import MM2TradeSide from "./MM2TradeSide";
-import MM2TradeSummary, { getMM2TradeResult } from "./MM2TradeSummary";
+import MM2TradeSummary, { getMM2TradeResult, VerdictIcon } from "./MM2TradeSummary";
 import MM2TradeBreakdown from "./MM2TradeBreakdown";
 import MM2TradeBalanceFinder from "./MM2TradeBalanceFinder";
 import styles from "./MM2TradeCalculator.module.css";
@@ -371,8 +371,8 @@ export default function MM2TradeCalculator({ items }: { items: MM2Item[] }) {
         <div className="relative">
           {/* Mirrors the Adopt Me calculator's centered title + compact control row. */}
           <div className="text-center">
-            <span className="inline-flex items-center gap-2 rounded-full border border-red-400/20 bg-red-500/[0.08] px-4 py-2 text-[10px] font-black uppercase tracking-[.14em] text-red-200 sm:px-5 sm:text-xs">
-              <span>⚖</span>
+            <span className="inline-flex items-center gap-2.5 rounded-full border border-[var(--mm2-edge-lit)] bg-[rgba(226,52,74,.08)] px-4 py-2 text-[11px] font-black uppercase tracking-[.16em] text-[#f0919b] sm:px-5">
+              <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[var(--mm2-crimson)]" />
               MM2 Trade Calculator
             </span>
 
@@ -383,7 +383,7 @@ export default function MM2TradeCalculator({ items }: { items: MM2Item[] }) {
               Calculate Your Trade
             </h1>
 
-            <p className="mx-auto mt-3 max-w-2xl text-sm font-medium leading-6 text-zinc-500 sm:text-base">
+            <p className="mx-auto mt-3 max-w-2xl text-[15px] font-medium leading-[1.6] text-[var(--mm2-ink-3)] sm:text-base">
               Compare both MM2 offers using Supreme or GCash values before you trade.
             </p>
           </div>
@@ -395,13 +395,13 @@ export default function MM2TradeCalculator({ items }: { items: MM2Item[] }) {
                 setValueSource(event.target.value as MM2ValueSource)
               }
               aria-label="MM2 value source"
-              className="min-h-12 cursor-pointer rounded-2xl border-2 border-cyan-400/35 bg-[#0f131b] px-4 py-2.5 text-sm font-black text-zinc-100 shadow-sm outline-none transition hover:border-cyan-300/60 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-400/10 sm:min-h-14 sm:px-5 sm:text-base"
+              className="min-h-12 cursor-pointer rounded-[13px] border border-[var(--mm2-edge-strong)] bg-[#090c12] px-4 py-2.5 text-[14px] font-black text-white outline-none transition hover:border-[var(--mm2-edge-lit)] focus:border-[var(--mm2-crimson)] focus:ring-2 focus:ring-[rgba(226,52,74,.18)] sm:min-h-[52px] sm:px-5"
             >
-              <option value="SUPREME" className="bg-[#0f131b] text-zinc-100">
-                💎 Supreme Values
+              <option value="SUPREME" className="bg-[#090c12] text-white">
+                Supreme Values
               </option>
-              <option value="GCASH" className="bg-[#0f131b] text-zinc-100">
-                💸 GCash Values
+              <option value="GCASH" className="bg-[#090c12] text-white">
+                GCash Values
               </option>
             </select>
 
@@ -409,20 +409,20 @@ export default function MM2TradeCalculator({ items }: { items: MM2Item[] }) {
               type="button"
               onClick={swapSides}
               disabled={tradeIsEmpty}
-              whileHover={shouldReduceMotion ? undefined : { y: -2 }}
-              className="min-h-12 rounded-2xl bg-gradient-to-r from-blue-500 to-cyan-500 px-5 text-sm font-black text-white shadow-[0_12px_30px_rgba(6,182,212,.15)] transition disabled:cursor-not-allowed disabled:opacity-35 sm:min-h-14 sm:px-6 sm:text-base"
+              whileHover={shouldReduceMotion ? undefined : { y: -1 }}
+              className="min-h-12 rounded-[13px] border border-[var(--mm2-edge-strong)] bg-[var(--mm2-riser)] px-5 text-[14px] font-black text-[var(--mm2-ink-2)] transition hover:border-[var(--mm2-edge-lit)] hover:bg-[var(--mm2-lift)] hover:text-white disabled:cursor-not-allowed disabled:opacity-35 sm:min-h-[52px] sm:px-6"
             >
-              🔄 Swap Offers
+              Swap Offers
             </motion.button>
 
             <motion.button
               type="button"
               onClick={clearTrade}
               disabled={tradeIsEmpty}
-              whileHover={shouldReduceMotion ? undefined : { y: -2 }}
-              className="min-h-12 rounded-2xl bg-gradient-to-r from-red-500 to-pink-500 px-5 text-sm font-black text-white shadow-[0_12px_30px_rgba(244,63,94,.15)] transition disabled:cursor-not-allowed disabled:opacity-35 sm:min-h-14 sm:px-6 sm:text-base"
+              whileHover={shouldReduceMotion ? undefined : { y: -1 }}
+              className="min-h-12 rounded-[13px] border border-[rgba(226,52,74,.30)] bg-[rgba(226,52,74,.07)] px-5 text-[14px] font-black text-[#f0919b] transition hover:bg-[rgba(226,52,74,.13)] hover:text-white disabled:cursor-not-allowed disabled:opacity-35 sm:min-h-[52px] sm:px-6"
             >
-              🗑 Clear Trade
+              Clear Trade
             </motion.button>
           </div>
 
@@ -434,7 +434,7 @@ export default function MM2TradeCalculator({ items }: { items: MM2Item[] }) {
               <MM2TradeSide
                 title="Your Offer"
                 subtitle="Weapons you give"
-                color="amber"
+                color="give"
                 items={yourItems}
                 total={yourTotal}
                 missingCount={yourMissing}
@@ -447,23 +447,22 @@ export default function MM2TradeCalculator({ items }: { items: MM2Item[] }) {
               />
             </div>
 
+            {/* A machined divider between the two bays, not a glowing badge.
+                It also no longer pulses forever. */}
             <div className={styles.vsColumn}>
-              <motion.div
-                animate={
-                  shouldReduceMotion ? undefined : { scale: [1, 1.055, 1] }
-                }
-                transition={{ duration: 3, repeat: Infinity }}
-                className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-yellow-400 via-orange-500 to-orange-600 text-2xl font-black text-white shadow-[0_16px_38px_rgba(249,115,22,.24)] ring-4 ring-orange-400/10 2xl:h-24 2xl:w-24 2xl:text-3xl"
+              <span
+                aria-hidden="true"
+                className="flex h-[68px] w-[68px] items-center justify-center rounded-full border border-[var(--mm2-edge-strong)] bg-[linear-gradient(145deg,#161b25,#0a0d13)] text-[15px] font-black tracking-[.08em] text-[var(--mm2-ink-3)] shadow-[inset_0_1px_0_rgba(255,255,255,.05),0_14px_30px_rgba(0,0,0,.4)] 2xl:h-20 2xl:w-20 2xl:text-[17px]"
               >
                 VS
-              </motion.div>
+              </span>
             </div>
 
             <div className="min-w-0">
               <MM2TradeSide
                 title="Their Offer"
                 subtitle="Weapons you receive"
-                color="cyan"
+                color="receive"
                 items={theirItems}
                 total={theirTotal}
                 missingCount={theirMissing}
@@ -510,13 +509,13 @@ export default function MM2TradeCalculator({ items }: { items: MM2Item[] }) {
           <section className="mt-5 rounded-[22px] border border-white/[0.08] bg-white/[0.025] p-4 sm:mt-6 sm:p-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-[9px] font-black uppercase tracking-[.16em] text-red-300">
+                <p className="text-[11px] font-black uppercase tracking-[.16em] text-[#f0919b]">
                   Trade Tools
                 </p>
                 <h2 className="mt-1 text-lg font-black text-white">
                   Save it or send it.
                 </h2>
-                <p className="mt-1 text-xs font-semibold text-zinc-600">
+                <p className="mt-1 text-[13px] font-semibold text-[var(--mm2-ink-3)]">
                   Shared links reopen the same value source, weapons, and quantities.
                 </p>
               </div>
@@ -525,52 +524,52 @@ export default function MM2TradeCalculator({ items }: { items: MM2Item[] }) {
                 <Link
                   href={tradeIsEmpty ? "/mm2/exchange" : `/mm2/exchange?${socialTradeQuery}`}
                   aria-disabled={tradeIsEmpty}
-                  className={`min-h-11 rounded-2xl border px-4 py-3 text-xs font-black transition ${tradeIsEmpty ? "pointer-events-none border-white/[0.06] text-zinc-700" : "border-cyan-400/15 bg-cyan-400/[0.07] text-cyan-200 hover:bg-cyan-400/[0.11]"}`}
+                  className={`inline-flex min-h-11 items-center rounded-[12px] border px-4 text-[13px] font-black transition ${tradeIsEmpty ? "pointer-events-none border-[var(--mm2-edge)] text-[var(--mm2-ink-4)]" : "border-[var(--mm2-edge-strong)] bg-white/[0.045] text-[var(--mm2-ink-2)] hover:border-[var(--mm2-edge-lit)] hover:bg-white/[0.075] hover:text-white"}`}
                 >
-                  ⇄ Find Trades
+                  Find Trades
                 </Link>
 
                 <Link
                   href={tradeIsEmpty ? "/mm2/trade-opinions" : `/mm2/trade-opinions?${socialTradeQuery}`}
                   aria-disabled={tradeIsEmpty}
-                  className={`min-h-11 rounded-2xl border px-4 py-3 text-xs font-black transition ${tradeIsEmpty ? "pointer-events-none border-white/[0.06] text-zinc-700" : "border-violet-400/15 bg-violet-400/[0.07] text-violet-200 hover:bg-violet-400/[0.11]"}`}
+                  className={`inline-flex min-h-11 items-center rounded-[12px] border px-4 text-[13px] font-black transition ${tradeIsEmpty ? "pointer-events-none border-[var(--mm2-edge)] text-[var(--mm2-ink-4)]" : "border-[var(--mm2-edge-strong)] bg-white/[0.045] text-[var(--mm2-ink-2)] hover:border-[var(--mm2-edge-lit)] hover:bg-white/[0.075] hover:text-white"}`}
                 >
-                  🗳 Ask Trade Opinions
+                  Ask Trade Opinions
                 </Link>
 
                 <button
                   type="button"
                   onClick={copyTradeSummary}
                   disabled={tradeIsEmpty}
-                  className="min-h-11 rounded-2xl border border-white/[0.09] bg-white/[0.045] px-4 text-xs font-black text-zinc-200 transition hover:border-red-400/15 hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-35"
+                  className="min-h-11 rounded-[12px] border border-[var(--mm2-edge-strong)] bg-white/[0.045] px-4 text-[13px] font-black text-[var(--mm2-ink-2)] transition hover:border-[var(--mm2-edge-lit)] hover:bg-white/[0.075] hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
                 >
                   {summaryCopyState === "copied"
                     ? "✓ Summary Copied"
                     : summaryCopyState === "error"
                       ? "Copy Failed"
-                      : "📋 Copy Trade Summary"}
+                      : "Copy Trade Summary"}
                 </button>
 
                 <button
                   type="button"
                   onClick={copyTradeLink}
                   disabled={tradeIsEmpty}
-                  className="min-h-11 rounded-2xl border border-cyan-400/15 bg-cyan-400/[0.07] px-4 text-xs font-black text-cyan-200 transition hover:bg-cyan-400/[0.11] disabled:cursor-not-allowed disabled:opacity-35"
+                  className="min-h-11 rounded-[12px] border border-[rgba(226,52,74,.28)] bg-[rgba(226,52,74,.07)] px-4 text-[13px] font-black text-[#f0919b] transition hover:bg-[rgba(226,52,74,.13)] hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
                 >
                   {copyState === "copied"
                     ? "✓ Link Copied"
                     : copyState === "error"
                       ? "Copy Failed"
-                      : "🔗 Copy Trade Link"}
+                      : "Copy Trade Link"}
                 </button>
 
                 <button
                   type="button"
                   onClick={saveTradeLocally}
                   disabled={tradeIsEmpty}
-                  className="min-h-11 rounded-2xl border border-amber-400/15 bg-amber-400/[0.07] px-4 text-xs font-black text-amber-200 transition hover:bg-amber-400/[0.11] disabled:cursor-not-allowed disabled:opacity-35"
+                  className="min-h-11 rounded-[12px] border border-[var(--mm2-edge-strong)] bg-white/[0.045] px-4 text-[13px] font-black text-[var(--mm2-ink-2)] transition hover:border-[var(--mm2-edge-lit)] hover:bg-white/[0.075] hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
                 >
-                  {saveState === "saved" ? "✓ Saved" : "💾 Save Trade"}
+                  {saveState === "saved" ? "Saved" : "Save Trade"}
                 </button>
               </div>
             </div>
@@ -580,14 +579,14 @@ export default function MM2TradeCalculator({ items }: { items: MM2Item[] }) {
             <section className="mt-5 rounded-[22px] border border-white/[0.08] bg-black/20 p-4 sm:p-5">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-[9px] font-black uppercase tracking-[.16em] text-zinc-600">
+                  <p className="text-[11px] font-black uppercase tracking-[.16em] text-[var(--mm2-ink-3)]">
                     Recent Trades
                   </p>
                   <h2 className="mt-1 text-lg font-black text-white">
                     Pick up where you left off.
                   </h2>
                 </div>
-                <span className="rounded-full border border-white/[0.07] bg-white/[0.03] px-3 py-1.5 text-[9px] font-black text-zinc-500">
+                <span className="rounded-full border border-white/[0.07] bg-white/[0.03] px-3 py-1.5 text-[11px] font-black text-[var(--mm2-ink-3)]">
                   Saved on this device
                 </span>
               </div>
@@ -610,13 +609,13 @@ export default function MM2TradeCalculator({ items }: { items: MM2Item[] }) {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <span className="text-[8px] font-black uppercase tracking-[.12em] text-red-300">
+                          <span className="text-[11px] font-black uppercase tracking-[.1em] text-[#f0919b]">
                             {trade.valueSource}
                           </span>
                           <strong className="mt-1 block text-sm font-black text-white">
                             {yourCount} vs {theirCount} weapons
                           </strong>
-                          <span className="mt-1 block text-[10px] font-semibold text-zinc-600">
+                          <span className="mt-1 block text-[12px] font-semibold text-[var(--mm2-ink-3)]">
                             {new Date(trade.createdAt).toLocaleString()}
                           </span>
                         </div>
@@ -624,7 +623,7 @@ export default function MM2TradeCalculator({ items }: { items: MM2Item[] }) {
                         <button
                           type="button"
                           onClick={() => deleteSavedTrade(trade.id)}
-                          className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/[0.06] text-xs font-black text-zinc-600 transition hover:border-red-400/15 hover:text-red-300"
+                          className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/[0.06] text-[13px] font-black text-[var(--mm2-ink-3)] transition hover:border-[var(--mm2-edge-lit)] hover:text-red-300"
                           aria-label="Delete saved trade"
                         >
                           ×
@@ -652,12 +651,14 @@ export default function MM2TradeCalculator({ items }: { items: MM2Item[] }) {
           aria-live="polite"
           initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 18 }}
           animate={{ opacity: 1, y: 0 }}
-          className={`fixed inset-x-3 bottom-3 z-50 overflow-hidden rounded-2xl bg-gradient-to-r p-3 text-white shadow-[0_18px_45px_rgba(0,0,0,.42)] lg:hidden ${mobileResult.color}`}
+          className={`fixed inset-x-3 bottom-3 z-50 overflow-hidden rounded-[16px] border border-[var(--mm2-edge-strong)] bg-gradient-to-br p-3 text-white shadow-[var(--mm2-shadow-lift)] lg:hidden ${mobileResult.color}`}
         >
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-2xl">{mobileResult.emoji}</span>
+                <span className="flex h-8 w-8 items-center justify-center rounded-[10px] border border-white/20 bg-black/25">
+                  <VerdictIcon verdict={mobileResult.title} className="h-5 w-5" />
+                </span>
                 <p className="text-xl font-black">{mobileResult.title}</p>
               </div>
               <p className="mt-0.5 truncate text-xs font-semibold text-white/85">

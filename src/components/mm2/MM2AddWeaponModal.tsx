@@ -157,7 +157,7 @@ export default function MM2AddWeaponModal({
             <div className="relative z-10 border-b border-white/[0.07] bg-[#080a10] p-4 sm:p-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <span className="text-[9px] font-black uppercase tracking-[.18em] text-red-400">
+                  <span className="text-[11.5px] font-black uppercase tracking-[.18em] text-red-400">
                     {sideLabel}
                   </span>
                   <h2
@@ -166,7 +166,7 @@ export default function MM2AddWeaponModal({
                   >
                     Add MM2 Weapon
                   </h2>
-                  <p className="mt-2 text-xs font-semibold text-zinc-500 sm:text-sm">
+                  <p className="mt-2 text-xs font-semibold text-[var(--mm2-ink-2)] sm:text-sm">
                     Add as many weapons as you want. This picker stays open until you press X.
                   </p>
                 </div>
@@ -174,7 +174,7 @@ export default function MM2AddWeaponModal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.04] text-lg font-black text-zinc-400 transition hover:bg-white/[0.08] hover:text-white sm:h-12 sm:w-12 sm:rounded-2xl"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.04] text-lg font-black text-[var(--mm2-ink-2)] transition hover:bg-white/[0.08] hover:text-white sm:h-12 sm:w-12 sm:rounded-2xl"
                 >
                   ✕
                 </button>
@@ -196,7 +196,7 @@ export default function MM2AddWeaponModal({
               </div>
 
               <div className="relative mt-5 sm:mt-6">
-                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-xl text-zinc-600">
+                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-xl text-[var(--mm2-ink-3)]">
                   🔍
                 </span>
                 <input
@@ -207,14 +207,14 @@ export default function MM2AddWeaponModal({
                   placeholder="Search weapons, categories, or types..."
                   autoComplete="off"
                   spellCheck={false}
-                  className="w-full rounded-2xl border-2 border-red-400/15 bg-[#0f121a] py-4 pl-14 pr-16 text-lg font-semibold text-white outline-none transition-all placeholder:text-zinc-700 focus:border-red-400/45 focus:ring-4 focus:ring-red-500/10"
+                  className="w-full rounded-2xl border-2 border-red-400/15 bg-[#0f121a] py-4 pl-14 pr-16 text-lg font-semibold text-white outline-none transition-all placeholder:text-[var(--mm2-ink-3)] focus:border-red-400/45 focus:ring-4 focus:ring-red-500/10"
                 />
 
                 {search ? (
                   <button
                     type="button"
                     onClick={() => setSearch("")}
-                    className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-xl bg-white/[0.06] font-black text-zinc-400 hover:bg-red-500/10 hover:text-red-300"
+                    className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-xl bg-white/[0.06] font-black text-[var(--mm2-ink-2)] hover:bg-red-500/10 hover:text-red-300"
                   >
                     ✕
                   </button>
@@ -224,13 +224,13 @@ export default function MM2AddWeaponModal({
 
             {filteredItems.length === 0 ? (
               <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-4 py-10 text-center">
-                <div className="text-6xl text-zinc-700 sm:text-8xl" aria-hidden="true">
+                <div className="text-6xl text-[var(--mm2-ink-3)] sm:text-8xl" aria-hidden="true">
                   🔍
                 </div>
                 <h3 className="mt-5 text-2xl font-black text-zinc-200 sm:mt-6 sm:text-3xl">
                   No Weapons Found
                 </h3>
-                <p className="mt-2 max-w-md text-sm text-zinc-500 sm:mt-3 sm:text-base">
+                <p className="mt-2 max-w-md text-sm text-[var(--mm2-ink-2)] sm:mt-3 sm:text-base">
                   Try another spelling, category, or switch the calculator value source.
                 </p>
               </div>
@@ -261,12 +261,12 @@ export default function MM2AddWeaponModal({
                         <div className="pointer-events-none absolute -right-16 -top-16 h-36 w-36 rounded-full bg-red-500/10 opacity-0 blur-3xl transition-opacity duration-300 group-hover/card:opacity-100" />
 
                         {inOfferQuantity > 0 ? (
-                          <div className="absolute right-2 top-2 z-20 rounded-full border border-cyan-300/15 bg-cyan-500/15 px-2 py-1 text-[8px] font-black text-cyan-200 shadow-sm sm:right-3 sm:top-3 sm:text-[9px]">
+                          <div className="absolute right-2 top-2 z-20 rounded-full border border-cyan-300/15 bg-cyan-500/15 px-2 py-1 text-[11px] font-black text-cyan-200 shadow-sm sm:right-3 sm:top-3 sm:text-[11.5px]">
                             IN OFFER ×{inOfferQuantity}
                           </div>
                         ) : null}
 
-                        <div className="absolute left-2 top-2 z-20 rounded-full border border-white/[0.08] bg-black/45 px-2 py-1 text-[9px] font-black uppercase tracking-wide text-zinc-300 shadow-sm backdrop-blur sm:left-3 sm:top-3 sm:text-[10px]">
+                        <div className="absolute left-2 top-2 z-20 rounded-full border border-white/[0.08] bg-black/45 px-2 py-1 text-[11.5px] font-black uppercase tracking-wide text-zinc-300 shadow-sm backdrop-blur sm:left-3 sm:top-3 sm:text-[12px]">
                           {item.CATEGORY ?? "Weapon"}
                         </div>
 
@@ -289,11 +289,11 @@ export default function MM2AddWeaponModal({
                           {item.NAME}
                         </h3>
 
-                        <p className="relative z-10 mt-1 text-center text-[10px] font-black uppercase tracking-wide text-zinc-600 sm:text-xs">
+                        <p className="relative z-10 mt-1 text-center text-[12px] font-black uppercase tracking-wide text-[var(--mm2-ink-3)] sm:text-xs">
                           Demand {item.DEMAND ?? 0}/10
                         </p>
 
-                        <div className="relative z-10 mt-2 w-full space-y-2 text-[10px] font-bold sm:mt-3 sm:text-xs">
+                        <div className="relative z-10 mt-2 w-full space-y-2 text-[12px] font-bold sm:mt-3 sm:text-xs">
                           <div className="flex items-center justify-between gap-2 rounded-lg bg-red-500/10 px-2 py-2 text-red-200 sm:rounded-xl sm:px-3">
                             <span>{valueSource === "SUPREME" ? "Supreme" : "GCash"}</span>
                             <span className="min-w-0 truncate text-right font-black">
@@ -301,7 +301,7 @@ export default function MM2AddWeaponModal({
                             </span>
                           </div>
 
-                          <div className="flex items-center justify-between gap-2 rounded-lg bg-white/[0.045] px-2 py-2 text-zinc-400 sm:rounded-xl sm:px-3">
+                          <div className="flex items-center justify-between gap-2 rounded-lg bg-white/[0.045] px-2 py-2 text-[var(--mm2-ink-2)] sm:rounded-xl sm:px-3">
                             <span>{otherLabel}</span>
                             <span className="min-w-0 truncate text-right font-black">
                               {formatValue(otherValue)}
@@ -309,7 +309,7 @@ export default function MM2AddWeaponModal({
                           </div>
                         </div>
 
-                        <span className="relative z-10 mt-auto flex w-full items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.055] px-3 py-2.5 text-center text-[10px] font-black text-zinc-200 transition group-hover/card:border-red-400/20 group-hover/card:bg-red-500/12 group-hover/card:text-red-100 sm:text-[11px]">
+                        <span className="relative z-10 mt-auto flex w-full items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.055] px-3 py-2.5 text-center text-[12px] font-black text-zinc-200 transition group-hover/card:border-red-400/20 group-hover/card:bg-red-500/12 group-hover/card:text-red-100 sm:text-[11px]">
                           {inOfferQuantity > 0
                             ? `+ Add Another (×${inOfferQuantity})`
                             : "+ Add Weapon"}
@@ -352,10 +352,10 @@ function FilterButton({
     <button
       type="button"
       onClick={onClick}
-      className={`shrink-0 rounded-full border px-3 py-2 text-[10px] font-black transition sm:px-4 sm:text-xs ${
+      className={`shrink-0 rounded-full border px-3 py-2 text-[12px] font-black transition sm:px-4 sm:text-xs ${
         active
           ? "border-red-400/30 bg-red-500/12 text-red-200"
-          : "border-white/[0.08] bg-white/[0.035] text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200"
+          : "border-white/[0.08] bg-white/[0.035] text-[var(--mm2-ink-2)] hover:bg-white/[0.06] hover:text-zinc-200"
       }`}
     >
       {children}

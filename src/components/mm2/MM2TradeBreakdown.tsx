@@ -85,19 +85,19 @@ export default function MM2TradeBreakdown({
     <section className="mt-5 rounded-[24px] border border-white/[0.08] bg-[#090d14] p-4 sm:mt-6 sm:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[9px] font-black uppercase tracking-[.17em] text-red-300">
+          <p className="text-[11.5px] font-black uppercase tracking-[.17em] text-red-300">
             Deterministic breakdown
           </p>
           <h2 className="mt-1 text-xl font-black tracking-[-.03em] text-white">
             See exactly what makes up the trade.
           </h2>
-          <p className="mt-1 max-w-2xl text-xs font-semibold leading-5 text-zinc-600">
+          <p className="mt-1 max-w-2xl text-xs font-semibold leading-5 text-[var(--mm2-ink-3)]">
             Values, quantities, and demand come directly from the selected MM2
             weapons. Demand is context only and never changes W/F/L.
           </p>
         </div>
 
-        <span className="w-fit rounded-full border border-white/[0.07] bg-white/[0.03] px-3 py-1.5 text-[9px] font-black uppercase tracking-[.11em] text-zinc-500">
+        <span className="w-fit rounded-full border border-white/[0.07] bg-white/[0.03] px-3 py-1.5 text-[11.5px] font-black uppercase tracking-[.11em] text-[var(--mm2-ink-2)]">
           {valueSource} breakdown
         </span>
       </div>
@@ -114,7 +114,7 @@ export default function MM2TradeBreakdown({
         />
 
         <div className="rounded-[20px] border border-white/[0.07] bg-black/20 p-4">
-          <p className="text-center text-[9px] font-black uppercase tracking-[.14em] text-zinc-600">
+          <p className="text-center text-[11.5px] font-black uppercase tracking-[.14em] text-[var(--mm2-ink-3)]">
             Trade Context
           </p>
 
@@ -136,7 +136,7 @@ export default function MM2TradeBreakdown({
           </div>
 
           <div className="mt-3 rounded-2xl border border-white/[0.06] bg-white/[0.025] p-3 text-center">
-            <span className="block text-[8px] font-black uppercase tracking-[.12em] text-zinc-700">
+            <span className="block text-[11px] font-black uppercase tracking-[.12em] text-[var(--mm2-ink-3)]">
               Higher demand side
             </span>
             <strong className="mt-1 block text-xs font-black text-zinc-300">
@@ -192,14 +192,14 @@ function BreakdownSide({
       <div className="flex items-start justify-between gap-3 border-b border-white/[0.06] pb-3">
         <div>
           <h3 className="text-sm font-black text-white">{title}</h3>
-          <p className="mt-1 text-[9px] font-bold text-zinc-600">
+          <p className="mt-1 text-[11.5px] font-bold text-[var(--mm2-ink-3)]">
             Avg demand{" "}
             {averageDemand === null ? "N/A" : `${averageDemand.toFixed(1)}/10`}
           </p>
         </div>
 
         <div className="text-right">
-          <span className="block text-[8px] font-black uppercase tracking-[.1em] text-zinc-700">
+          <span className="block text-[11px] font-black uppercase tracking-[.1em] text-[var(--mm2-ink-3)]">
             Total
           </span>
           <strong className="mt-1 block text-sm font-black text-white">
@@ -226,14 +226,14 @@ function BreakdownSide({
                   <strong className="block truncate text-[11px] font-black text-zinc-200">
                     {selected.quantity}× {selected.item.NAME}
                   </strong>
-                  <span className="mt-0.5 block truncate text-[9px] font-bold text-zinc-600">
+                  <span className="mt-0.5 block truncate text-[11.5px] font-bold text-[var(--mm2-ink-3)]">
                     {formatValue(unit)} each · Demand{" "}
                     {selected.item.DEMAND ?? 0}/10
                   </span>
                 </div>
 
                 <strong
-                  className={`self-center text-[10px] font-black ${
+                  className={`self-center text-[12px] font-black ${
                     subtotal === null ? "text-amber-300" : "text-zinc-300"
                   }`}
                 >
@@ -244,7 +244,7 @@ function BreakdownSide({
           })
         ) : (
           <div className="flex min-h-[106px] items-center justify-center text-center">
-            <p className="text-[10px] font-semibold text-zinc-700">
+            <p className="text-[12px] font-semibold text-[var(--mm2-ink-3)]">
               No weapons on this side yet.
             </p>
           </div>
@@ -252,7 +252,7 @@ function BreakdownSide({
       </div>
 
       {missingQuantity > 0 ? (
-        <p className="mt-2 rounded-xl border border-orange-400/10 bg-orange-400/[0.04] px-3 py-2 text-[9px] font-bold text-orange-300">
+        <p className="mt-2 rounded-xl border border-orange-400/10 bg-orange-400/[0.04] px-3 py-2 text-[11.5px] font-bold text-orange-300">
           {missingQuantity} selected item
           {missingQuantity === 1 ? "" : "s"} missing {valueSource} value.
         </p>
@@ -270,8 +270,8 @@ function ContextMetric({
 }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl bg-white/[0.025] px-3 py-2.5">
-      <span className="text-[9px] font-bold text-zinc-600">{label}</span>
-      <strong className="text-[10px] font-black text-zinc-300">{value}</strong>
+      <span className="text-[11.5px] font-bold text-[var(--mm2-ink-3)]">{label}</span>
+      <strong className="text-[12px] font-black text-zinc-300">{value}</strong>
     </div>
   );
 }

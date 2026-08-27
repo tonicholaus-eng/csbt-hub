@@ -22,6 +22,44 @@ function formatValue(value: number) {
   }).format(value);
 }
 
+/**
+ * The verdict mark. MM2 uses the same stroked icon set everywhere else; the
+ * result panel was the one place still rendering an emoji, at 60px, bouncing.
+ */
+export function VerdictIcon({
+  verdict,
+  className = "h-7 w-7 sm:h-8 sm:w-8",
+}: {
+  verdict: MM2TradeResult;
+  className?: string;
+}) {
+  const paths: Record<MM2TradeResult, string> = {
+    // balance scale — nothing weighed yet
+    READY: "M12 5v14M6 19h12M12 7 5 10l7 3 7-3-7-3ZM5 10v1a2.5 2.5 0 0 0 5 0v-1M14 10v1a2.5 2.5 0 0 0 5 0v-1",
+    // magnifier — a value could not be resolved
+    CHECK: "M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13ZM15.5 15.5 20 20",
+    // two arrows level with each other
+    FAIR: "M4 9h13M14 6l3 3-3 3M20 15H7M10 12l-3 3 3 3",
+    // upward step
+    WIN: "M4 17l5-5 3 3 7-8M15 7h4v4",
+    // downward step
+    LOSE: "M4 7l5 5 3-3 7 8M15 17h4v-4",
+  };
+
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={`${className} fill-none stroke-current`}
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d={paths[verdict]} />
+    </svg>
+  );
+}
+
 export function getMM2TradeResult(
   yourTotal: number,
   theirTotal: number,
@@ -41,8 +79,8 @@ export function getMM2TradeResult(
     return {
       title: "READY",
       emoji: "⚖️",
-      color: "from-slate-600 via-slate-700 to-slate-900",
-      glow: "shadow-black/30",
+      color: "from-[#141922] via-[#0f141c] to-[#0a0d13]",
+      glow: "shadow-black/40",
       message: "Add weapons to both sides to calculate your trade.",
       explanation: `This calculator is currently using ${sourceLabel}.`,
     };
@@ -52,8 +90,8 @@ export function getMM2TradeResult(
     return {
       title: "CHECK",
       emoji: "🔎",
-      color: "from-orange-500 via-amber-600 to-orange-800",
-      glow: "shadow-orange-950/35",
+      color: "from-[#4a3a1c] via-[#33270f] to-[#171308]",
+      glow: "shadow-black/45",
       message: `${missingCount} selected item${missingCount === 1 ? " is" : "s are"} missing the active value source.`,
       explanation: "CSBT withholds W/F/L instead of estimating missing MM2 values.",
     };
@@ -63,8 +101,8 @@ export function getMM2TradeResult(
     return {
       title: "FAIR",
       emoji: "🤝",
-      color: "from-amber-400 via-orange-500 to-amber-700",
-      glow: "shadow-orange-950/35",
+      color: "from-[#20303f] via-[#18242f] to-[#0d141b]",
+      glow: "shadow-black/45",
       message: `The offers are within ${differencePercent.toFixed(1)}% of each other.`,
       explanation: `Fair-range result using ${sourceLabel}. Demand still matters outside raw value.`,
     };
@@ -74,8 +112,8 @@ export function getMM2TradeResult(
     return {
       title: "WIN",
       emoji: "🏆",
-      color: "from-emerald-500 via-green-600 to-emerald-800",
-      glow: "shadow-emerald-950/35",
+      color: "from-[#123527] via-[#0e2a1f] to-[#081511]",
+      glow: "shadow-black/45",
       message: `You gain ${formatValue(difference)} in listed value.`,
       explanation: `You're receiving more ${sourceLabel} than you're giving.`,
     };
@@ -84,8 +122,8 @@ export function getMM2TradeResult(
   return {
     title: "LOSE",
     emoji: "⚠️",
-    color: "from-rose-500 via-red-600 to-red-800",
-    glow: "shadow-red-950/35",
+    color: "from-[#4a1420] via-[#360e18] to-[#19070c]",
+    glow: "shadow-black/45",
     message: `You overpay by ${formatValue(difference)} in listed value.`,
     explanation: `You're giving more ${sourceLabel} than you're receiving.`,
   };
@@ -122,15 +160,12 @@ export default function MM2TradeSummary({
     <motion.section
       aria-labelledby="mm2-trade-result-heading"
       aria-live="polite"
-      initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-50px" }}
-      transition={{ duration: shouldReduceMotion ? 0 : 0.6, ease: [0.22, 1, 0.36, 1] }}
-      className={`relative mt-7 overflow-hidden rounded-[28px] bg-gradient-to-r ${result.color} p-5 text-white shadow-2xl ${result.glow} sm:mt-9 sm:rounded-[34px] sm:p-7 lg:p-8`}
+      initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: shouldReduceMotion ? 0 : 0.4, ease: [0.22, 1, 0.36, 1] }}
+      className={`relative mt-7 overflow-hidden rounded-[24px] border border-[var(--mm2-edge-strong)] bg-gradient-to-br ${result.color} p-5 text-white shadow-[var(--mm2-shadow-lift)] ${result.glow} sm:mt-9 sm:rounded-[28px] sm:p-7 lg:p-8`}
     >
-      <div className="pointer-events-none absolute -left-20 top-0 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
-      <div className="pointer-events-none absolute -right-20 bottom-0 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,.18),transparent_50%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_-14%,rgba(255,255,255,.07),transparent_58%)]" />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.045)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.045)_1px,transparent_1px)] bg-[size:34px_34px]" />
       <div className="pointer-events-none absolute inset-x-12 top-0 h-px bg-gradient-to-r from-transparent via-white/70 to-transparent" />
 
@@ -144,18 +179,12 @@ export default function MM2TradeSummary({
             transition={{ duration: shouldReduceMotion ? 0 : 0.3, ease: [0.22, 1, 0.36, 1] }}
             className="text-center"
           >
-            <motion.div
-              animate={
-                shouldReduceMotion
-                  ? undefined
-                  : { y: [0, -8, 0], rotate: [-2, 2, -2] }
-              }
-              transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
-              className="text-5xl drop-shadow-xl sm:text-6xl"
+            <span
+              className="mx-auto flex h-14 w-14 items-center justify-center rounded-[16px] border border-white/20 bg-black/30 shadow-inner sm:h-16 sm:w-16"
               aria-hidden="true"
             >
-              {result.emoji}
-            </motion.div>
+              <VerdictIcon verdict={result.title} />
+            </span>
 
             <h2
               id="mm2-trade-result-heading"
@@ -164,7 +193,7 @@ export default function MM2TradeSummary({
               {result.title}
             </h2>
 
-            <p className="mx-auto mt-3 max-w-2xl text-base font-medium text-white/90 sm:mt-4 sm:text-xl">
+            <p className="mx-auto mt-3 max-w-2xl text-[15px] font-medium leading-[1.6] text-white/85 sm:mt-4 sm:text-[19px]">
               {result.message}
             </p>
           </motion.div>
@@ -225,7 +254,7 @@ function SummaryValue({
         emphasized ? "bg-white/20" : "bg-white/10"
       }`}
     >
-      <p className="text-xs font-black uppercase tracking-[.16em] text-white/70 sm:text-sm">
+      <p className="text-[11px] font-black uppercase tracking-[.16em] text-white/75 sm:text-[13px]">
         {label}
       </p>
       <p className="mt-2 break-words text-2xl font-black tabular-nums sm:mt-4 sm:text-4xl">
