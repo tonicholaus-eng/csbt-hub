@@ -12,6 +12,7 @@ type MM2Item = {
 type MM2Meta = {
   totalItems?: number;
   sourceName?: string;
+  sourceFetchedAt?: string;
   categoryCounts?: Record<string, number>;
 };
 
@@ -64,41 +65,6 @@ function StationIcon({ kind }: { kind: StationIcon }) {
   );
 }
 
-function RailIcon({ kind }: { kind: "weapon" | "demand" | "category" | "source" }) {
-  if (kind === "weapon") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="m5 19 8-8M13 11l5-6 1 1-6 5M7 17l-2-2M9 15l-2-2" />
-      </svg>
-    );
-  }
-
-  if (kind === "demand") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M4 17 9 12l3 3 7-8" />
-        <path d="M15 7h4v4" />
-      </svg>
-    );
-  }
-
-  if (kind === "category") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="m12 3 8 4-8 4-8-4 8-4Z" />
-        <path d="m4 7 8 4 8-4v10l-8 4-8-4V7Z" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="m12 3 7 3v5c0 4.5-2.8 7.7-7 10-4.2-2.3-7-5.5-7-10V6l7-3Z" />
-      <path d="m9 12 2 2 4-5" />
-    </svg>
-  );
-}
-
 function formatValue(value?: number | null) {
   return typeof value === "number" && Number.isFinite(value)
     ? value.toLocaleString("en-US")
@@ -118,6 +84,13 @@ export default function MM2HQHome({
     Object.keys(meta.categoryCounts ?? {}).length ||
     new Set(items.map((item) => item.CATEGORY).filter(Boolean)).size;
   const demandRated = items.filter((item) => typeof item.DEMAND === "number").length;
+
+  // Provenance, not another copy of the catalog counts the console already shows.
+  const syncedAt = meta.sourceFetchedAt ? new Date(meta.sourceFetchedAt) : null;
+  const syncedOn =
+    syncedAt && !Number.isNaN(syncedAt.getTime())
+      ? syncedAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+      : "N/A";
 
   const topWeapon = items.reduce<MM2Item | null>((best, item) => {
     if (typeof item.SOURCE_VALUE !== "number") return best;
@@ -172,13 +145,13 @@ export default function MM2HQHome({
 
           <div className={styles.headerReadout}>
             <div>
-              <small>DATABASE</small>
-              <strong>{totalItems.toLocaleString("en-US")} WEAPONS</strong>
+              <small>VALUE NETWORK</small>
+              <strong>{source}</strong>
             </div>
             <i />
             <div>
-              <small>VALUE NETWORK</small>
-              <strong>{source}</strong>
+              <small>CATALOG SYNCED</small>
+              <strong>{syncedOn}</strong>
             </div>
           </div>
         </header>
@@ -195,7 +168,6 @@ export default function MM2HQHome({
             </div>
 
             <div className={styles.vaultLabel}>
-              <span>DISPLAY CHAMBER 01</span>
               <strong>WEAPON VAULT</strong>
             </div>
 
@@ -210,13 +182,6 @@ export default function MM2HQHome({
               />
             </div>
 
-            <div className={styles.vaultLowerRail}>
-              <span>CSBT / MM2</span>
-              <i />
-              <span>COLLECTIBLE MARKET FACILITY</span>
-              <i />
-              <span>SECURE DISPLAY</span>
-            </div>
           </div>
 
           <aside className={styles.tradingConsole}>
@@ -243,11 +208,10 @@ export default function MM2HQHome({
             <div className={styles.marketSignal}>
               <div className={styles.signalHeader}>
                 <span>MARKET INTELLIGENCE</span>
-                <small>DATABASE LEADER</small>
               </div>
               <div className={styles.signalBody}>
                 <div>
-                  <small>HIGHEST RECORDED SUPREME VALUE</small>
+                  <small>HIGHEST SUPREME VALUE</small>
                   <strong>{topWeapon?.NAME ?? "N/A"}</strong>
                   <span>{topWeapon?.CATEGORY ?? "MM2 WEAPON"}</span>
                 </div>
@@ -299,15 +263,10 @@ export default function MM2HQHome({
               <div className={styles.stationContent}>
                 <div className={styles.stationHeader}>
                   <span className={styles.stationIcon}><StationIcon kind="values" /></span>
-                  <span className={styles.stationCode}>STATION 01</span>
                 </div>
                 <span className={styles.stationEyebrow}>VALUE INTELLIGENCE</span>
                 <h3>Weapon Values</h3>
                 <p>Search the complete MM2 catalogue, inspect Supreme values, demand, categories, and weapon profiles.</p>
-                <div className={styles.stationFactRow}>
-                  <span>{totalItems.toLocaleString("en-US")} tracked</span>
-                  <span>{categoryCount} categories</span>
-                </div>
                 <Link href="/mm2/values" className={styles.stationAction}>
                   Enter Value Terminal <span>→</span>
                 </Link>
@@ -326,7 +285,6 @@ export default function MM2HQHome({
               <div className={styles.stationContent}>
                 <div className={styles.stationHeader}>
                   <span className={styles.stationIcon}><StationIcon kind="calculator" /></span>
-                  <span className={styles.stationCode}>02</span>
                 </div>
                 <span className={styles.stationEyebrow}>TRADE ANALYSIS</span>
                 <h3>Calculator</h3>
@@ -347,7 +305,6 @@ export default function MM2HQHome({
               <div className={styles.stationContent}>
                 <div className={styles.stationHeader}>
                   <span className={styles.stationIcon}><StationIcon kind="exchange" /></span>
-                  <span className={styles.stationCode}>03</span>
                 </div>
                 <span className={styles.stationEyebrow}>LISTINGS & OFFERS</span>
                 <h3>CSBT Exchange</h3>
@@ -368,7 +325,6 @@ export default function MM2HQHome({
               <div className={styles.stationContent}>
                 <div className={styles.stationHeader}>
                   <span className={styles.stationIcon}><StationIcon kind="opinions" /></span>
-                  <span className={styles.stationCode}>04</span>
                 </div>
                 <span className={styles.stationEyebrow}>COMMUNITY W / F / L</span>
                 <h3>Trade Opinions</h3>
@@ -389,7 +345,6 @@ export default function MM2HQHome({
               <div className={styles.stationContent}>
                 <div className={styles.stationHeader}>
                   <span className={styles.stationIcon}><StationIcon kind="lounge" /></span>
-                  <span className={styles.stationCode}>05</span>
                 </div>
                 <span className={styles.stationEyebrow}>COMMUNITY ROOM</span>
                 <h3>CSBT Lounge</h3>
@@ -400,24 +355,6 @@ export default function MM2HQHome({
           </div>
         </section>
 
-        <section className={styles.systemRail} aria-label="MM2 system telemetry">
-          <div className={styles.railItem}>
-            <span className={styles.railIcon}><RailIcon kind="weapon" /></span>
-            <div><small>CATALOGUE</small><strong>{totalItems.toLocaleString("en-US")}</strong><span>weapons tracked</span></div>
-          </div>
-          <div className={styles.railItem}>
-            <span className={styles.railIcon}><RailIcon kind="demand" /></span>
-            <div><small>DEMAND MATRIX</small><strong>{demandRated.toLocaleString("en-US")}</strong><span>weapons scored</span></div>
-          </div>
-          <div className={styles.railItem}>
-            <span className={styles.railIcon}><RailIcon kind="category" /></span>
-            <div><small>CLASSIFICATION</small><strong>{categoryCount}</strong><span>categories</span></div>
-          </div>
-          <div className={styles.railItem}>
-            <span className={styles.railIcon}><RailIcon kind="source" /></span>
-            <div><small>VALUE NETWORK</small><strong className={styles.railTextValue}>{source}</strong><span>active source</span></div>
-          </div>
-        </section>
       </div>
     </div>
   );
