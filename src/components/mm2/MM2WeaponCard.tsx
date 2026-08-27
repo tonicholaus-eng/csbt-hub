@@ -66,7 +66,7 @@ function rarityTone(category?: string) {
 }
 
 export default function MM2WeaponCard({ item }: { item: Item }) {
-  const slug = encodeURIComponent(item.NAME);
+  const slug = encodeURIComponent(item.ID ?? item.NAME);
   const image = imageUrl(item.IMAGE);
   const demand = demandNumber(item.DEMAND);
   const calculatorKey = String(item.ID ?? item.NAME);

@@ -1,5 +1,6 @@
 "use client";
 
+import { FAIR_THRESHOLD_PERCENT } from "../../lib/trade/verdict";
 import type {
   MM2Item,
   MM2SelectedTradeItem,
@@ -67,7 +68,7 @@ export default function MM2TradeBalanceFinder({
   const baseline = Math.max(higherTotal, lowerTotal, 1);
   const currentPercent = (difference / baseline) * 100;
 
-  const alreadyFair = hasBothSides && currentPercent <= 5;
+  const alreadyFair = hasBothSides && currentPercent <= FAIR_THRESHOLD_PERCENT;
 
   const selectedKeys = new Set(
     [...yourItems, ...theirItems].map((entry) =>
@@ -99,7 +100,7 @@ export default function MM2TradeBalanceFinder({
             value,
             resultingDifference,
             resultingPercent,
-            fairAfterAdd: resultingPercent <= 5,
+            fairAfterAdd: resultingPercent <= FAIR_THRESHOLD_PERCENT,
           }];
         })
         .sort(

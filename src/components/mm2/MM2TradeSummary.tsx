@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { MM2ValueSource } from "./MM2TradeTypes";
+import { getTradeVerdict } from "../../lib/trade/verdict";
 
 export type MM2TradeResult = "READY" | "CHECK" | "WIN" | "FAIR" | "LOSE";
 
@@ -28,8 +29,15 @@ export function getMM2TradeResult(
   missingCount: number,
 ): ResultConfig {
   const sourceLabel = valueSource === "SUPREME" ? "Supreme Value" : "GCash Value";
+  // Shared with the Adopt Me calculator so the two games can never disagree
+  // about what counts as FAIR. See src/lib/trade/verdict.ts.
+  const { verdict, difference, differencePercent } = getTradeVerdict(
+    yourTotal,
+    theirTotal,
+    { missingCount },
+  );
 
-  if (yourTotal === 0 && theirTotal === 0 && missingCount === 0) {
+  if (verdict === "READY") {
     return {
       title: "READY",
       emoji: "⚖️",
@@ -40,7 +48,7 @@ export function getMM2TradeResult(
     };
   }
 
-  if (missingCount > 0) {
+  if (verdict === "CHECK") {
     return {
       title: "CHECK",
       emoji: "🔎",
@@ -51,11 +59,7 @@ export function getMM2TradeResult(
     };
   }
 
-  const difference = Math.abs(theirTotal - yourTotal);
-  const baseline = Math.max(yourTotal, theirTotal, 1);
-  const differencePercent = (difference / baseline) * 100;
-
-  if (differencePercent <= 5) {
+  if (verdict === "FAIR") {
     return {
       title: "FAIR",
       emoji: "🤝",
@@ -66,7 +70,7 @@ export function getMM2TradeResult(
     };
   }
 
-  if (theirTotal > yourTotal) {
+  if (verdict === "WIN") {
     return {
       title: "WIN",
       emoji: "🏆",

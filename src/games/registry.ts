@@ -63,13 +63,57 @@ const mm2GameItems: CSBTGameItem[] = mm2Raw.map((item) => ({
   raw: item,
 }));
 
+/**
+ * Build the id/name lookup for a game.
+ *
+ * Exact ids and exact names are unique in both catalogs, so they are always
+ * safe. Normalized keys are not: in MM2, normalize("Rainbow (Gun)") and
+ * normalize("Rainbow Gun") both produce "rainbow gun", and those are different
+ * weapons worth 41 and 420 respectively.
+ *
+ * The previous implementation let the last write win, so getItem() could return
+ * a weapon 10x the requested value. A colliding normalized key is now dropped
+ * entirely: an ambiguous lookup resolves to undefined rather than to a
+ * confidently wrong item. Exact lookups still work for both weapons.
+ */
 function buildLookup(items: CSBTGameItem[]) {
   const map = new Map<string, CSBTGameItem>();
+  // Exact keys are authoritative and must survive normalized-key collisions.
+  const exact = new Set<string>();
+
+  const setExact = (key: string, item: CSBTGameItem) => {
+    if (!key || map.has(key)) return;
+    map.set(key, item);
+    exact.add(key);
+  };
+
+  for (const item of items) setExact(item.id.toLowerCase().trim(), item);
+  for (const item of items) setExact(item.name.toLowerCase().trim(), item);
+
+  // Normalized keys second. They never overwrite an exact key, and a normalized
+  // key claimed by two different items is dropped rather than resolved wrongly.
+  const loose = new Map<string, CSBTGameItem | null>();
+  const claim = (key: string, item: CSBTGameItem) => {
+    if (!key || exact.has(key)) return;
+    const existing = loose.get(key);
+    if (existing === undefined) loose.set(key, item);
+    else if (existing !== null && existing.id !== item.id) loose.set(key, null);
+  };
+
   for (const item of items) {
-    map.set(normalize(item.id), item);
-    map.set(normalize(item.name), item);
+    claim(normalize(item.id), item);
+    claim(normalize(item.name), item);
   }
+  for (const [key, item] of loose) {
+    if (item) map.set(key, item);
+  }
+
   return map;
+}
+
+function lookupItem(map: Map<string, CSBTGameItem>, value: string) {
+  const raw = String(value ?? "");
+  return map.get(raw.toLowerCase().trim()) ?? map.get(normalize(raw));
 }
 
 function buildSearch(items: CSBTGameItem[]) {
@@ -115,7 +159,7 @@ const adoptAdapter: CSBTGameAdapter = {
     { id: "ELVE", label: "Elve Shark Values", shortLabel: "Elve", symbol: "🦈" },
   ],
   items: adoptItems,
-  getItem: (value) => adoptLookup.get(normalize(value)),
+  getItem: (value) => lookupItem(adoptLookup, value),
   searchItems: buildSearch(adoptItems),
   getVariants(item, source) {
     const raw = item.raw as TradeItem;
@@ -152,7 +196,7 @@ const mm2Adapter: CSBTGameAdapter = {
     { id: "SUPREME", label: "Supreme Values", shortLabel: "Supreme", symbol: "◈" },
   ],
   items: mm2GameItems,
-  getItem: (value) => mm2Lookup.get(normalize(value)),
+  getItem: (value) => lookupItem(mm2Lookup, value),
   searchItems: buildSearch(mm2GameItems),
   getVariants: () => ["NORMAL"],
   getValue(item, source) {
@@ -162,7 +206,7 @@ const mm2Adapter: CSBTGameAdapter = {
     return null;
   },
   getDemandLabel: (item) => item.demandLabel ?? null,
-  itemProfileHref: (item) => `/mm2/values/${encodeURIComponent(item.name)}`,
+  itemProfileHref: (item) => `/mm2/values/${encodeURIComponent(item.id)}`,
 };
 
 const REGISTRY: Record<CSBTGameId, CSBTGameAdapter> = {

@@ -1,3 +1,4 @@
+import { FAIR_THRESHOLD_PERCENT } from "@/lib/trade/verdict";
 import type {
   NichPotionStatus,
   NichTradeComparison,
@@ -1104,7 +1105,7 @@ export function comparePreparedTradeItems(
   const differencePercent = (difference / comparisonBase) * 100;
   const absolutePercent = Math.abs(differencePercent);
   const verdict: NichTradeComparison["verdict"] =
-    absolutePercent <= 5 ? "fair" : difference > 0 ? "win" : "lose";
+    absolutePercent <= FAIR_THRESHOLD_PERCENT ? "fair" : difference > 0 ? "win" : "lose";
 
   return {
     offeredItems,

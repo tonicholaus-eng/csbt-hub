@@ -16,7 +16,8 @@ import {
   ValueSource,
   ValueType,
 } from "./types";
-import { getItemValue, parseTradeValue } from "../../lib/valueSystem";
+import { VALUE_SOURCE_SHORT_LABELS, getItemValue, parseTradeValue } from "../../lib/valueSystem";
+import { getTradeVerdict } from "../../lib/trade/verdict";
 import { buildTradeContextParams, selectedItemsToRows } from "../../lib/tradeContext";
 
 type TradeSideType = "your" | "their";
@@ -39,14 +40,40 @@ const valueOptions: {
   },
 ];
 
+/**
+ * The item's value in the active source, or null when it has none.
+ *
+ * Keeping "unpriced" distinct from "zero" is the whole point: an item CSBT
+ * cannot price must not quietly contribute 0 to a total that then produces a
+ * confident WIN/FAIR/LOSE.
+ */
+function itemValueOrNull(
+  item: TradeItem,
+  valueType: ValueType,
+  valueSource: ValueSource,
+): number | null {
+  return parseTradeValue(getItemValue(item, valueSource, valueType));
+}
+
 function parseItemValue(
   item: TradeItem,
   valueType: ValueType,
   valueSource: ValueSource,
 ) {
-  return parseTradeValue(
-    getItemValue(item, valueSource, valueType),
-  ) ?? 0;
+  return itemValueOrNull(item, valueType, valueSource) ?? 0;
+}
+
+/** Count selected rows that cannot be priced in the active value source. */
+function countMissing(
+  items: SelectedTradeItem[],
+  valueSource: ValueSource,
+) {
+  return items.reduce(
+    (count, selectedItem) =>
+      count +
+      (itemValueOrNull(selectedItem.item, selectedItem.valueType, valueSource) === null ? 1 : 0),
+    0,
+  );
 }
 
 function hasItemValue(
@@ -152,6 +179,11 @@ export default function TradeCalculator() {
     [theirItems, valueSource],
   );
 
+  const missingCount = useMemo(
+    () => countMissing(yourItems, valueSource) + countMissing(theirItems, valueSource),
+    [yourItems, theirItems, valueSource],
+  );
+
   const tradeIsEmpty =
     yourItems.length === 0 &&
     theirItems.length === 0;
@@ -167,59 +199,45 @@ export default function TradeCalculator() {
   );
 
   const mobileResult = useMemo(() => {
-    const safeYourTotal = Number.isFinite(yourTotal)
-      ? Math.max(0, yourTotal)
-      : 0;
-    const safeTheirTotal = Number.isFinite(theirTotal)
-      ? Math.max(0, theirTotal)
-      : 0;
-    const difference = Math.abs(
-      safeTheirTotal - safeYourTotal,
-    );
-    const baseline = Math.max(
-      safeYourTotal,
-      safeTheirTotal,
-      1,
-    );
-    const differencePercent =
-      (difference / baseline) * 100;
-    const formattedDifference =
-      new Intl.NumberFormat("en-US", {
-        maximumFractionDigits: 2,
-      }).format(difference);
+    const { verdict, difference, differencePercent, missingCount: missing } =
+      getTradeVerdict(yourTotal, theirTotal, { missingCount });
+    const formattedDifference = new Intl.NumberFormat("en-US", {
+      maximumFractionDigits: 2,
+    }).format(difference);
 
-    if (
-      safeYourTotal === 0 &&
-      safeTheirTotal === 0
-    ) {
+    if (verdict === "READY") {
       return {
         title: "READY",
         emoji: "🧮",
         message: "Add valued items to compare",
-        color:
-          "from-slate-600 via-slate-700 to-slate-900",
+        color: "from-slate-600 via-slate-700 to-slate-900",
       };
     }
 
-    if (differencePercent <= 5) {
+    if (verdict === "CHECK") {
+      return {
+        title: "CHECK",
+        emoji: "🔎",
+        message: `${missing} item${missing === 1 ? " has" : "s have"} no ${VALUE_SOURCE_SHORT_LABELS[valueSource]} value`,
+        color: "from-orange-500 via-amber-600 to-orange-700",
+      };
+    }
+
+    if (verdict === "FAIR") {
       return {
         title: "FAIR",
         emoji: "🤝",
-        message: `Only ${differencePercent.toFixed(
-          1,
-        )}% apart`,
-        color:
-          "from-amber-400 via-orange-500 to-orange-600",
+        message: `Only ${differencePercent.toFixed(1)}% apart`,
+        color: "from-amber-400 via-orange-500 to-orange-600",
       };
     }
 
-    if (safeTheirTotal > safeYourTotal) {
+    if (verdict === "WIN") {
       return {
         title: "WIN",
         emoji: "🏆",
         message: `You gain ${formattedDifference}`,
-        color:
-          "from-emerald-500 via-green-600 to-green-700",
+        color: "from-emerald-500 via-green-600 to-green-700",
       };
     }
 
@@ -227,10 +245,9 @@ export default function TradeCalculator() {
       title: "LOSE",
       emoji: "⚠️",
       message: `You overpay ${formattedDifference}`,
-      color:
-        "from-rose-500 via-red-600 to-red-700",
+      color: "from-rose-500 via-red-600 to-red-700",
     };
-  }, [yourTotal, theirTotal]);
+  }, [yourTotal, theirTotal, missingCount, valueSource]);
 
   function openAddItemModal(
     side: TradeSideType,
@@ -552,6 +569,7 @@ export default function TradeCalculator() {
           yourTotal={yourTotal}
           theirTotal={theirTotal}
           valueSource={valueSource}
+          missingCount={missingCount}
         />
       </div>
 

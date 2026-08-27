@@ -8,15 +8,18 @@ import {
 
 import type { ValueSource } from "./types";
 import { VALUE_SOURCE_LABELS } from "../../lib/valueSystem";
+import { getTradeVerdict } from "../../lib/trade/verdict";
 
 type Props = {
   yourTotal: number;
   theirTotal: number;
   valueSource: ValueSource;
+  missingCount?: number;
 };
 
 type TradeResult =
   | "READY"
+  | "CHECK"
   | "WIN"
   | "FAIR"
   | "LOSE";
@@ -41,10 +44,16 @@ function getTradeResult(
   yourTotal: number,
   theirTotal: number,
   valueSource: ValueSource,
+  missingCount = 0,
 ): ResultConfig {
   const sourceLabel = VALUE_SOURCE_LABELS[valueSource];
+  const { verdict, difference, differencePercent } = getTradeVerdict(
+    yourTotal,
+    theirTotal,
+    { missingCount },
+  );
 
-  if (yourTotal === 0 && theirTotal === 0) {
+  if (verdict === "READY") {
     return {
       title: "READY",
       emoji: "🧮",
@@ -55,11 +64,21 @@ function getTradeResult(
     };
   }
 
-  const difference = Math.abs(theirTotal - yourTotal);
-  const baseline = Math.max(yourTotal, theirTotal, 1);
-  const differencePercent = (difference / baseline) * 100;
+  // Some selected items have no value in this source. Withhold the verdict
+  // rather than counting them as zero and reporting a confident result.
+  if (verdict === "CHECK") {
+    return {
+      title: "CHECK",
+      emoji: "🔎",
+      color: "from-orange-500 via-amber-600 to-orange-700",
+      glow: "shadow-orange-400/40 dark:shadow-orange-950/40",
+      message: `${missingCount} selected item${missingCount === 1 ? " has" : "s have"} no ${sourceLabel}.`,
+      explanation:
+        "CSBT withholds Win / Fair / Lose instead of treating a missing value as zero. Switch value source, pick a different variant, or remove the item.",
+    };
+  }
 
-  if (differencePercent <= 5) {
+  if (verdict === "FAIR") {
     return {
       title: "FAIR",
       emoji: "🤝",
@@ -70,7 +89,7 @@ function getTradeResult(
     };
   }
 
-  if (theirTotal > yourTotal) {
+  if (verdict === "WIN") {
     return {
       title: "WIN",
       emoji: "🏆",
@@ -95,6 +114,7 @@ export default function TradeSummary({
   yourTotal,
   theirTotal,
   valueSource,
+  missingCount = 0,
 }: Props) {
   const shouldReduceMotion =
     useReducedMotion();
@@ -115,6 +135,7 @@ export default function TradeSummary({
     safeYourTotal,
     safeTheirTotal,
     valueSource,
+    missingCount,
   );
 
   const difference = Math.abs(
@@ -145,7 +166,8 @@ export default function TradeSummary({
 
   const hasTradeValues =
     safeYourTotal > 0 ||
-    safeTheirTotal > 0;
+    safeTheirTotal > 0 ||
+    missingCount > 0;
 
   return (
     <motion.section

@@ -1,3 +1,4 @@
+import { FAIR_THRESHOLD_PERCENT } from "@/lib/trade/verdict";
 import {
   buildOptimizedOffer,
   getDemandScore,
@@ -589,7 +590,7 @@ function offerBuilder(input: NichBrainInput): NichResponse | null {
       ...(activeConstraintLines.length ? ["", "Applied constraints:", ...activeConstraintLines.map((line) => `- ${line}`)] : []),
     ].join("\n"),
     intent: "offerBuilder",
-    reaction: Math.abs(actualDiff) <= 5 ? "celebrate" : "calculator",
+    reaction: Math.abs(actualDiff) <= FAIR_THRESHOLD_PERCENT ? "celebrate" : "calculator",
     localConfidence: 0.99,
     aiEligible: false,
     context: {
@@ -1087,10 +1088,10 @@ function counterOffer(input: NichBrainInput): NichResponse | null {
           `New your total: ${formatNumber(best.newOffered)}`,
           `Their total: ${formatNumber(comparison.requestedValue)}`,
           `New difference: ${formatSignedPercent(best.pct)}`,
-          Math.abs(best.pct) <= 5 ? "That moves the trade into NICH’s Fair range." : "That’s the closest removal combination I found, but it is still outside the 5% Fair range.",
+          Math.abs(best.pct) <= FAIR_THRESHOLD_PERCENT ? "That moves the trade into NICH’s Fair range." : `That’s the closest removal combination I found, but it is still outside the ${FAIR_THRESHOLD_PERCENT}% Fair range.`,
         ].join("\n"),
         intent: "counterOffer",
-        reaction: Math.abs(best.pct) <= 5 ? "celebrate" : "calculator",
+        reaction: Math.abs(best.pct) <= FAIR_THRESHOLD_PERCENT ? "celebrate" : "calculator",
         localConfidence: 0.99,
         aiEligible: false,
       };
@@ -1130,10 +1131,10 @@ function counterOffer(input: NichBrainInput): NichResponse | null {
           `New your total: ${formatNumber(newOffered)}`,
           `Their total: ${formatNumber(comparison.requestedValue)}`,
           `New difference: ${formatSignedPercent(pct)}`,
-          Math.abs(pct) <= 5 ? "That lands inside NICH’s Fair range." : "That’s the closest compact add combination I found locally.",
+          Math.abs(pct) <= FAIR_THRESHOLD_PERCENT ? "That lands inside NICH’s Fair range." : "That’s the closest compact add combination I found locally.",
         ].join("\n"),
         intent: "counterOffer",
-        reaction: Math.abs(pct) <= 5 ? "celebrate" : "calculator",
+        reaction: Math.abs(pct) <= FAIR_THRESHOLD_PERCENT ? "celebrate" : "calculator",
         localConfidence: 0.99,
         aiEligible: false,
       };

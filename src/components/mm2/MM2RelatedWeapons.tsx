@@ -59,7 +59,7 @@ export default function MM2RelatedWeapons({ weapons }: { weapons: MM2Item[] }) {
           return (
             <Link
               key={weapon.ID ?? weapon.NAME}
-              href={`/mm2/values/${encodeURIComponent(weapon.NAME)}`}
+              href={`/mm2/values/${encodeURIComponent(weapon.ID ?? weapon.NAME)}`}
               className="group flex min-w-0 items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-3 transition hover:-translate-y-0.5 hover:border-red-400/25 hover:bg-white/[0.04]"
             >
               <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/[0.06] bg-black/30 p-1">

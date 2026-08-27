@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 type Item={
+ ID?:string;
  NAME?:string;
  CATEGORY?:string;
  IMAGE?:string;
@@ -22,7 +23,7 @@ function imagePath(item:Item){
 
 export default function MM2ValueCard({item}:{item:Item}){
  const img=imagePath(item);
- return <Link href={`/mm2/values/${encodeURIComponent((item.NAME || "").toLowerCase().replaceAll(" ", "-"))}`} className="group rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02))] p-5 transition hover:-translate-y-1 hover:border-red-300/30 block">
+ return <Link href={`/mm2/values/${encodeURIComponent(item.ID ?? item.NAME ?? "")}`} className="group rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02))] p-5 transition hover:-translate-y-1 hover:border-red-300/30 block">
   <div className="flex justify-between gap-4">
    <div>
     <p className="text-[10px] font-black uppercase tracking-[.2em] text-red-200/70">Weapon</p>
