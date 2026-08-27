@@ -4822,69 +4822,162 @@ body::before {
 }
 
 
-/* MM2-local shared community features: same CSBT engines, MM2 shell and palette. */
-.mm2-social-mode {
-  --background: #07080d;
-  --background-secondary: #080b12;
-  --foreground: #f7f8fb;
-  --foreground-muted: #7d8594;
-  --surface-0: #07080d;
-  --surface-1: #090d14;
-  --surface-2: #0d121b;
-  --surface-3: #111722;
-  --surface-raised: #0d121b;
-  --surface-elevated: #111722;
-  --surface-hover: #151c28;
-  --surface-interactive: #151c28;
-  --surface-selected: rgba(239, 68, 68, .10);
-  --surface-smart: rgba(239, 68, 68, .08);
-  --border: rgba(255,255,255,.08);
-  --border-strong: rgba(255,255,255,.15);
-  --border-gold: rgba(239,68,68,.24);
-  --brand-primary: #ef4444;
-  --brand-secondary: #991b1b;
-  --brand-soft: rgba(239,68,68,.08);
-  --gold: #ef4444;
-  --gold-bright: #f87171;
-  --gold-dark: #dc2626;
-  --amber: #ef4444;
-  --orange: #dc2626;
-  --cyan: #67e8f9;
-  --green: #34d399;
-  --purple: #a78bfa;
-  --rose: #fb7185;
-  --primary-button: linear-gradient(135deg,#b91c1c,#ef4444);
-  --primary-button-hover: linear-gradient(135deg,#dc2626,#f05252);
-  --primary-button-text: #ffffff;
-  --secondary-button: #111722;
-  --secondary-button-hover: #171f2c;
-  --input-background: #0a0f17;
-  --input-border: rgba(255,255,255,.10);
-  --input-focus: #ef4444;
-  --ring: rgba(239,68,68,.20);
-  --glow-primary: rgba(239,68,68,.16);
-  --glow-secondary: rgba(239,68,68,.08);
-  --shadow-sm: 0 10px 28px rgba(0,0,0,.22);
-  --shadow-md: 0 18px 48px rgba(0,0,0,.30);
-  --shadow-lg: 0 28px 72px rgba(0,0,0,.38);
-  --shadow-gold: 0 14px 34px rgba(185,28,28,.18);
-}
-.mm2-social-mode .csbt-app-workspace { color: var(--foreground); }
-.mm2-social-mode .csbt-exchange-hero {
-  border: 1px solid rgba(239,68,68,.16);
-  background: radial-gradient(circle at 88% 0%,rgba(239,68,68,.10),transparent 27rem),linear-gradient(135deg,#0d1119,#090c12 68%,#12090c);
-}
-.mm2-social-mode .csbt-feature-panel,
-.mm2-social-mode .csbt-section-panel {
-  border-color: rgba(255,255,255,.08);
-  background: #090d14;
+/* ============================================================================
+   MM2 FOUNDATION — every selector below is `.mm2-*` scoped.
+   Adopt Me shares no class with this block and cannot receive any of it.
+
+   Material scale, dark → light:
+     void   page base, architectural
+     bay    structural recessed surfaces (filter bars, rails, wells)
+     panel  standard content panels
+     riser  raised / interactive surfaces
+     lift   hover + selected surfaces
+   Ink steps are chosen so every one of them clears WCAG AA (4.5:1) on `panel`;
+   see docs/design/mm2/01_IMPLEMENTATION_LOG.md for the measured ratios.
+   ========================================================================= */
+.mm2-mode,
+.mm2-social-mode,
+.mm2-gate {
+  --mm2-void: #050609;
+  --mm2-bay: #080a10;
+  --mm2-panel: #0c0f16;
+  --mm2-riser: #11151e;
+  --mm2-lift: #171c27;
+
+  --mm2-edge: rgba(255, 255, 255, .07);
+  --mm2-edge-strong: rgba(255, 255, 255, .13);
+  --mm2-edge-lit: rgba(226, 52, 74, .30);
+
+  --mm2-crimson: #e2344a;
+  --mm2-crimson-text: #ee4257;
+  --mm2-crimson-deep: #a8182f;
+  --mm2-crimson-lift: #ff5f74;
+
+  --mm2-ink: #f4f6fa;
+  --mm2-ink-2: #c3cad6;
+  --mm2-ink-3: #939aa8;
+  --mm2-ink-4: #7c8493;
+
+  --mm2-shadow-panel: 0 18px 44px rgba(0, 0, 0, .38);
+  --mm2-shadow-lift: 0 26px 70px rgba(0, 0, 0, .52);
+  --mm2-inset-top: inset 0 1px 0 rgba(255, 255, 255, .045);
+
+  /* Content measure. Two tiers only: reading/analysis surfaces and dense
+     multi-pane workspaces. Previously MM2 shipped seven different widths. */
+  --mm2-measure: 1560px;
+  --mm2-measure-wide: 1680px;
 }
 
-/* MM2 control rail scrollbar — scoped so Adopt Me remains unchanged. */
+/* --- MM2 page shell ------------------------------------------------------ */
+.mm2-mode {
+  background: var(--mm2-void);
+  color: var(--mm2-ink);
+}
+
+.mm2-shell-body {
+  width: 100%;
+  min-width: 0;
+  margin-inline: auto;
+  padding: 22px 14px 72px;
+}
+
+@media (min-width: 640px) {
+  .mm2-shell-body { padding: 30px 22px 88px; }
+}
+
+@media (min-width: 1024px) {
+  .mm2-shell-body { padding: 38px 30px 96px; }
+}
+
+/* Measure is separate from padding so social routes can keep the shared
+   `.csbt-app-workspace` padding (which other CSBT components style against)
+   while still adopting the MM2 column. */
+.mm2-shell-measure { width: 100%; min-width: 0; margin-inline: auto; }
+.mm2-shell-measure[data-measure="standard"] { max-width: var(--mm2-measure); }
+.mm2-shell-measure[data-measure="wide"] { max-width: var(--mm2-measure-wide); }
+.mm2-shell-measure[data-measure="flush"] { max-width: none; }
+.mm2-shell-body[data-measure="flush"] { padding: 0; }
+
+/* --- Shared community engines rendered inside MM2 ------------------------ */
+/* The Adopt Me accent tokens used to pass straight through here, which is why
+   the MM2 Lounge rendered indigo avatars and a violet primary button. MM2 maps
+   them onto its own steel/crimson scale instead. */
+.mm2-social-mode,
+.mm2-gate {
+  --background: var(--mm2-void);
+  --background-secondary: var(--mm2-bay);
+  --foreground: var(--mm2-ink);
+  --foreground-muted: var(--mm2-ink-3);
+  --surface-0: var(--mm2-void);
+  --surface-1: var(--mm2-panel);
+  --surface-2: var(--mm2-riser);
+  --surface-3: var(--mm2-lift);
+  --surface-raised: var(--mm2-riser);
+  --surface-elevated: var(--mm2-lift);
+  --surface-hover: #1b2130;
+  --surface-interactive: var(--mm2-lift);
+  --surface-selected: rgba(226, 52, 74, .11);
+  --surface-smart: rgba(226, 52, 74, .07);
+  --border: var(--mm2-edge);
+  --border-strong: var(--mm2-edge-strong);
+  --border-gold: var(--mm2-edge-lit);
+  --brand-primary: var(--mm2-crimson-text);
+  --brand-secondary: var(--mm2-crimson-deep);
+  --brand-soft: rgba(226, 52, 74, .08);
+  --gold: var(--mm2-crimson-text);
+  --gold-bright: var(--mm2-crimson-lift);
+  --gold-dark: var(--mm2-crimson-deep);
+  --amber: var(--mm2-crimson-text);
+  --orange: var(--mm2-crimson);
+  --cyan: #8fa2b8;
+  --green: #6fbf9b;
+  --purple: #b0788a;
+  --rose: var(--mm2-crimson-lift);
+  --primary-button: linear-gradient(135deg, #8f1224 0%, #c22539 52%, #9a1729 100%);
+  --primary-button-hover: linear-gradient(135deg, #a3162a 0%, #d92c42 52%, #ad1b2f 100%);
+  --primary-button-text: #fff4f5;
+  --secondary-button: var(--mm2-riser);
+  --secondary-button-hover: var(--mm2-lift);
+  --input-background: #090c12;
+  --input-border: var(--mm2-edge-strong);
+  --input-focus: var(--mm2-crimson);
+  --ring: rgba(226, 52, 74, .22);
+  --glow-primary: rgba(226, 52, 74, .16);
+  --glow-secondary: rgba(226, 52, 74, .07);
+  --shadow-sm: 0 10px 28px rgba(0, 0, 0, .26);
+  --shadow-md: 0 18px 48px rgba(0, 0, 0, .34);
+  --shadow-lg: var(--mm2-shadow-lift);
+  --shadow-gold: 0 14px 34px rgba(140, 18, 34, .26);
+}
+
+.mm2-social-mode .csbt-app-workspace { color: var(--foreground); }
+
+.mm2-social-mode .csbt-exchange-hero {
+  border: 1px solid var(--mm2-edge-lit);
+  background:
+    radial-gradient(ellipse at 84% -10%, rgba(226, 52, 74, .11), transparent 62%),
+    linear-gradient(155deg, #101520, #0a0d13 62%, #140a0e);
+}
+
+.mm2-social-mode .csbt-feature-panel,
+.mm2-social-mode .csbt-section-panel {
+  border-color: var(--mm2-edge);
+  background: var(--mm2-panel);
+}
+
+/* --- Control rail --------------------------------------------------------
+   Consolidated. This used to be four separate `.mm2-control-rail` blocks with
+   three competing `!important` box-shadows, only the last of which applied. */
 .mm2-control-rail {
   scrollbar-width: thin;
-  scrollbar-color: rgba(154, 26, 45, 0.72) transparent;
+  scrollbar-color: rgba(154, 26, 45, .72) transparent;
+  border-right-color: rgba(226, 45, 67, .08);
+  box-shadow:
+    34px 0 98px rgba(0, 0, 0, .58),
+    inset -28px 0 60px rgba(116, 10, 28, .05),
+    inset -1px 0 0 rgba(235, 51, 73, .038);
 }
+
 .mm2-control-rail::-webkit-scrollbar { width: 7px; }
 .mm2-control-rail::-webkit-scrollbar-track { background: transparent; }
 .mm2-control-rail::-webkit-scrollbar-thumb {
@@ -4894,26 +4987,8 @@ body::before {
   background-clip: padding-box;
 }
 
-/* MM2 V5 final cohesion: the control rail catches the same restrained crimson
-   room light as the homepage. Scoped to MM2 only; Adopt Me is unaffected. */
-.mm2-control-rail {
-  border-right-color: rgba(226, 45, 67, .10) !important;
-  box-shadow:
-    28px 0 90px rgba(0,0,0,.52),
-    inset -18px 0 42px rgba(137,10,31,.045),
-    inset -1px 0 0 rgba(235,51,73,.045) !important;
-}
-
-/* MM2 homepage V7: keep the control rail dark, but let it catch a slightly
-   clearer shared room reflection along the inner edge. */
-.mm2-control-rail {
-  border-right-color: rgba(226, 45, 67, .08) !important;
-  box-shadow:
-    30px 0 92px rgba(0,0,0,.56),
-    inset -24px 0 56px rgba(126,10,29,.055),
-    inset -1px 0 0 rgba(235,51,73,.04) !important;
-}
-
+/* Room light along the rail's inner edge — the facility fixture the homepage
+   and the rail are both lit by. */
 .mm2-control-rail::after {
   content: "";
   position: absolute;
@@ -4926,28 +5001,127 @@ body::before {
   box-shadow: 8px 0 24px rgba(161, 13, 35, .08);
 }
 
-/* MM2 homepage V8 — environmental sidebar integration only. */
-.mm2-control-rail {
-  box-shadow:
-    34px 0 98px rgba(0,0,0,.58),
-    inset -28px 0 60px rgba(116, 10, 28, .05),
-    inset -1px 0 0 rgba(235,51,73,.038) !important;
-}
-
 .mm2-control-rail::before {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
   background:
-    linear-gradient(180deg, rgba(255,255,255,.02), transparent 16%, transparent 82%, rgba(255,255,255,.01)),
+    linear-gradient(180deg, rgba(255, 255, 255, .02), transparent 16%, transparent 82%, rgba(255, 255, 255, .01)),
     radial-gradient(ellipse at right center, rgba(134, 12, 31, .05), transparent 58%);
   opacity: .55;
 }
 
 .mm2-control-rail a[aria-current="page"] {
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.05),
+    inset 0 1px 0 rgba(255, 255, 255, .05),
     inset 18px 0 32px rgba(152, 14, 35, .11),
-    0 16px 36px rgba(0,0,0,.18) !important;
+    0 16px 36px rgba(0, 0, 0, .18);
+}
+
+/* --- Weapon plate --------------------------------------------------------
+   The MM2 catalog art is hosted on a third-party origin that answers image
+   requests with a bot-check HTML stub, so in practice every weapon image
+   fails to decode. This is the designed fallback: a lit display plate carrying
+   the weapon's initials and its rarity, rather than an empty box or the
+   browser's broken-image glyph. It disappears on its own if the art loads. */
+.mm2-plate {
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse at 50% 118%, var(--mm2-plate-glow, rgba(226, 52, 74, .16)), transparent 68%),
+    linear-gradient(168deg, rgba(255, 255, 255, .045), rgba(0, 0, 0, .30));
+  box-shadow: var(--mm2-inset-top), inset 0 -18px 26px -18px var(--mm2-plate-glow, rgba(226, 52, 74, .28));
+}
+
+.mm2-plate::after {
+  content: "";
+  position: absolute;
+  inset: auto 14% 6%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--mm2-plate-edge, rgba(226, 52, 74, .5)), transparent);
+}
+
+.mm2-plate-mark {
+  position: relative;
+  z-index: 1;
+  font-weight: 900;
+  letter-spacing: -.04em;
+  line-height: 1;
+  color: var(--mm2-plate-ink, #cfd5df);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, .6);
+}
+
+.mm2-plate-img {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 8%;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, .5));
+}
+
+/* --- Signed-out account gate rendered over MM2 ---------------------------
+   The gate itself is unchanged product behaviour: it still cannot be skipped.
+   Only its surface is re-skinned so MM2's first frame is not an Adopt Me
+   modal. `AuthCard` carries no design tokens, so its utility classes are
+   remapped here rather than in the shared component. */
+.mm2-gate-scrim { background: rgba(4, 5, 8, .86) !important; }
+
+.mm2-gate .csbt-tour-card {
+  border-color: var(--mm2-edge-lit);
+  background: linear-gradient(168deg, #10141d, #0a0d13 72%);
+  box-shadow: var(--mm2-shadow-lift);
+}
+
+.mm2-gate .csbt-tour-header {
+  border-color: var(--mm2-edge);
+  background:
+    radial-gradient(ellipse at 12% -40%, rgba(226, 52, 74, .16), transparent 66%),
+    var(--mm2-riser);
+}
+
+.mm2-gate [class*="border-amber-300"] { border-color: var(--mm2-edge-lit) !important; }
+
+.mm2-gate .csbt-tour-badge {
+  border-color: var(--mm2-edge-lit);
+  background: rgba(226, 52, 74, .10);
+  color: var(--mm2-crimson-text);
+}
+
+.mm2-gate .csbt-tour-progress { background: linear-gradient(90deg, var(--mm2-crimson-deep), var(--mm2-crimson)); }
+
+/* AuthCard — hard-coded slate/amber utilities remapped for MM2 only. */
+.mm2-gate [class*="rounded-[28px]"][class*="bg-white/85"] {
+  border-color: var(--mm2-edge) !important;
+  background: var(--mm2-bay) !important;
+}
+
+.mm2-gate [class*="bg-slate-100"] { background: rgba(0, 0, 0, .34) !important; }
+.mm2-gate [class*="bg-white"][class*="text-slate-900"] {
+  background: var(--mm2-lift) !important;
+  color: var(--mm2-ink) !important;
+}
+.mm2-gate input {
+  border-color: var(--mm2-edge-strong) !important;
+  background: #090c12 !important;
+  color: var(--mm2-ink) !important;
+}
+.mm2-gate input:focus { border-color: var(--mm2-crimson) !important; }
+.mm2-gate label > span { color: var(--mm2-ink-2) !important; }
+.mm2-gate [class*="text-amber-700"] { color: var(--mm2-crimson-text) !important; }
+.mm2-gate .csbt-theme-primary {
+  background: var(--primary-button, linear-gradient(135deg, #8f1224, #c22539 52%, #9a1729)) !important;
+  color: #fff4f5 !important;
+}
+
+/* --- Motion ------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .mm2-plate,
+  .mm2-plate-img { transition: none !important; }
 }

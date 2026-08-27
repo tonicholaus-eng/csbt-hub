@@ -11,6 +11,13 @@ type NichIntroMascotProps = {
   authRequired?: boolean;
   supabase: SupabaseClient | null;
   manualOpen?: boolean;
+  /**
+   * Presentation only. `"mm2"` adds the `.mm2-gate` scope so the gate adopts
+   * MM2's palette instead of opening an Adopt Me modal over the MM2 command
+   * deck. Steps, copy, auth flow and the no-skip rule are unchanged, and
+   * Adopt Me (no value) renders exactly the same markup as before.
+   */
+  gameTone?: "mm2";
   onComplete: () => void;
   onSkip: () => void;
 };
@@ -130,9 +137,12 @@ export default function NichIntroMascot({
   authRequired = false,
   supabase,
   manualOpen = false,
+  gameTone,
   onComplete,
   onSkip,
 }: NichIntroMascotProps) {
+  const gateScope = gameTone === "mm2" ? " mm2-gate" : "";
+  const scrimClass = gameTone === "mm2" ? "mm2-gate-scrim" : "bg-slate-950/78";
   const shouldReduceMotion = useReducedMotion();
   const [stepIndex, setStepIndex] = useState(0);
   const [isDesktop, setIsDesktop] = useState(() =>
@@ -361,18 +371,18 @@ export default function NichIntroMascot({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: shouldReduceMotion ? 0 : 0.25 }}
-        className="fixed inset-0 z-[120] overflow-hidden"
+        className={`fixed inset-0 z-[120] overflow-hidden${gateScope}`}
       >
         {!highlightRect || authRequired ? (
-          <div className="absolute inset-0 bg-slate-950/78 backdrop-blur-[3px]" />
+          <div className={`absolute inset-0 ${scrimClass} backdrop-blur-[3px]`} />
         ) : (
           <>
             <div
-              className="pointer-events-auto fixed left-0 top-0 bg-slate-950/78 backdrop-blur-[3px]"
+              className={`pointer-events-auto fixed left-0 top-0 ${scrimClass} backdrop-blur-[3px]`}
               style={{ width: "100%", height: highlightRect.top }}
             />
             <div
-              className="pointer-events-auto fixed left-0 bg-slate-950/78 backdrop-blur-[3px]"
+              className={`pointer-events-auto fixed left-0 ${scrimClass} backdrop-blur-[3px]`}
               style={{
                 top: highlightRect.top,
                 width: highlightRect.left,
@@ -380,7 +390,7 @@ export default function NichIntroMascot({
               }}
             />
             <div
-              className="pointer-events-auto fixed right-0 bg-slate-950/78 backdrop-blur-[3px]"
+              className={`pointer-events-auto fixed right-0 ${scrimClass} backdrop-blur-[3px]`}
               style={{
                 top: highlightRect.top,
                 left: highlightRect.left + highlightRect.width,
@@ -388,7 +398,7 @@ export default function NichIntroMascot({
               }}
             />
             <div
-              className="pointer-events-auto fixed bottom-0 left-0 bg-slate-950/78 backdrop-blur-[3px]"
+              className={`pointer-events-auto fixed bottom-0 left-0 ${scrimClass} backdrop-blur-[3px]`}
               style={{
                 top: highlightRect.top + highlightRect.height,
                 width: "100%",
@@ -397,7 +407,7 @@ export default function NichIntroMascot({
           </>
         )}
 
-        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_50%_50%,rgba(251,191,36,.07),transparent_42%)]" />
+        <div className={`absolute inset-0 pointer-events-none ${gameTone === "mm2" ? "bg-[radial-gradient(ellipse_at_50%_44%,rgba(226,52,74,.09),transparent_46%)]" : "bg-[radial-gradient(circle_at_50%_50%,rgba(251,191,36,.07),transparent_42%)]"}`} />
 
         {!authRequired && highlightRect && (
           <>

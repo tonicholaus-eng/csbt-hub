@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { permanentRedirect } from "next/navigation";
 
-import MM2Navbar from "../../../../components/mm2/MM2Navbar";
+import MM2Shell from "../../../../components/mm2/MM2Shell";
 import MM2WeaponDetails from "../../../../components/mm2/MM2WeaponDetails";
 import {
   mm2Catalog,
@@ -57,14 +57,7 @@ function getRelated(item: MM2CatalogItem) {
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
-  return (
-    <main className="min-h-screen bg-[#07080d] text-white">
-      <MM2Navbar />
-      <div className="lg:pl-[288px]">
-        <div className="mx-auto max-w-[1260px] px-4 py-8 sm:px-6 lg:px-8">{children}</div>
-      </div>
-    </main>
-  );
+  return <MM2Shell measure="standard">{children}</MM2Shell>;
 }
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {

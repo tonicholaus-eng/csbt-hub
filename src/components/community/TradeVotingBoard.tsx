@@ -118,10 +118,17 @@ export default function TradeVotingBoard({
   fixedGameId,
   routeBasePath = "/trade-opinions",
   loungeBasePath = "/lounge",
+  feedHeading = true,
 }: {
   fixedGameId?: CSBTGameId;
   routeBasePath?: string;
   loungeBasePath?: string;
+  /**
+   * Presentation only. Hosts that already render a page title reading
+   * "Trade Opinions" can drop the feed's duplicate of it and keep just the sort
+   * control. Defaults to true, so Adopt Me is unchanged.
+   */
+  feedHeading?: boolean;
 } = {}) {
   const { supabase, user, loading } = useAuthSession();
   const searchParams = useSearchParams();
@@ -369,8 +376,10 @@ export default function TradeVotingBoard({
       {error && <p role="alert" className="rounded-[var(--radius-control)] bg-rose-500/10 p-4 text-xs font-bold text-[var(--rose)]">{error.includes("relation") || error.includes("column") ? "Trade Opinions needs the included multi-game database migration before it can load live data." : error}</p>}
 
       <section>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <SectionHeader eyebrow="Community feed" title="Trade Opinions" description="Real trades, one shared voting system, filtered by game when you want it." />
+        <div className={`flex flex-col gap-3 sm:flex-row sm:items-end ${feedHeading ? "sm:justify-between" : "sm:justify-end"}`}>
+          {feedHeading ? (
+            <SectionHeader eyebrow="Community feed" title="Trade Opinions" description="Real trades, one shared voting system, filtered by game when you want it." />
+          ) : null}
           <select value={sort} onChange={(event) => setSort(event.target.value as SortMode)} className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--surface-1)] px-3 text-xs font-black text-[var(--foreground)]">
             <option value="LATEST">Latest</option>
             <option value="MOST_VOTED">Most Voted</option>

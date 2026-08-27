@@ -16,6 +16,12 @@ const DISMISSED = "csbt-nich-dismissed-for-session";
 
 type Props = {
   floatingEnabled?: boolean;
+  /**
+   * Re-skins the onboarding/auth surface for a game mode. Gate *behaviour* is
+   * identical in every mode — it still mounts immediately and still cannot be
+   * skipped. Adopt Me passes nothing and renders exactly as before.
+   */
+  gameTone?: "mm2";
 };
 
 function hasLegacyGuideCompletion() {
@@ -26,7 +32,7 @@ function hasLegacyGuideCompletion() {
   }
 }
 
-export default function NichAssistant({ floatingEnabled = true }: Props) {
+export default function NichAssistant({ floatingEnabled = true, gameTone }: Props) {
   const { supabase, user, loading: authLoading } = useAuthSession();
   const [isOpen, setIsOpen] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
@@ -176,8 +182,19 @@ export default function NichAssistant({ floatingEnabled = true }: Props) {
   // intentionally a simple loading veil; the full guide appears immediately after.
   if (authLoading) {
     return (
-      <div className="fixed inset-0 z-[119] grid place-items-center bg-slate-950/80 backdrop-blur-[3px]" aria-label="Checking CSBT account">
-        <div className="rounded-2xl border border-white/10 bg-slate-950/80 px-5 py-4 text-sm font-black text-white shadow-2xl">
+      <div
+        className={`fixed inset-0 z-[119] grid place-items-center backdrop-blur-[3px] ${
+          gameTone === "mm2" ? "mm2-gate-scrim" : "bg-slate-950/80"
+        }`}
+        aria-label="Checking CSBT account"
+      >
+        <div
+          className={`rounded-2xl border px-5 py-4 text-sm font-black text-white shadow-2xl ${
+            gameTone === "mm2"
+              ? "border-[rgba(226,52,74,.30)] bg-[#0c0f16]"
+              : "border-white/10 bg-slate-950/80"
+          }`}
+        >
           Checking your CSBT account…
         </div>
       </div>
@@ -191,6 +208,7 @@ export default function NichAssistant({ floatingEnabled = true }: Props) {
       <NichIntroMascot
         open={showIntro}
         authRequired={authRequired}
+        gameTone={gameTone}
         supabase={supabase}
         manualOpen={manualTour}
         onComplete={() => void completeGuide()}
