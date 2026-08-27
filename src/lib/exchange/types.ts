@@ -1,4 +1,5 @@
 import type { ItemCategory, ValueSource, ValueType, PotionValueStatus } from "../../components/trade/types";
+import type { CSBTGameId, CSBTValueSource } from "../../games/types";
 
 export type ExchangePotionStatus = "BASE" | PotionValueStatus;
 export type ListingIntent = "SPECIFIC" | "SIMILAR_VALUE" | "UPGRADE" | "DOWNGRADE" | "WISHLIST" | "OPEN_OFFERS";
@@ -22,9 +23,10 @@ export type ExchangeItem = {
 
 export type ExchangeListing = {
   id: string;
+  game_id: CSBTGameId;
   user_id: string;
   display_name: string;
-  value_source: ValueSource;
+  value_source: CSBTValueSource;
   intent: ListingIntent;
   status: ListingStatus;
   title: string | null;
@@ -39,12 +41,13 @@ export type ExchangeListing = {
 
 export type ExchangeOffer = {
   id: string;
+  game_id: CSBTGameId;
   listing_id: string;
   sender_id: string;
   recipient_id: string;
   parent_offer_id: string | null;
   status: OfferStatus;
-  value_source: ValueSource;
+  value_source: CSBTValueSource;
   sender_total: number;
   recipient_total: number;
   compatibility_score: number | null;

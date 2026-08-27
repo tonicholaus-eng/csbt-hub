@@ -4820,3 +4820,134 @@ body::before {
   .halloween-mode-tile,.halloween-trail-stop { transition: none; }
   .halloween-mode-tile:hover,.halloween-trail-stop:hover { transform: none; }
 }
+
+
+/* MM2-local shared community features: same CSBT engines, MM2 shell and palette. */
+.mm2-social-mode {
+  --background: #07080d;
+  --background-secondary: #080b12;
+  --foreground: #f7f8fb;
+  --foreground-muted: #7d8594;
+  --surface-0: #07080d;
+  --surface-1: #090d14;
+  --surface-2: #0d121b;
+  --surface-3: #111722;
+  --surface-raised: #0d121b;
+  --surface-elevated: #111722;
+  --surface-hover: #151c28;
+  --surface-interactive: #151c28;
+  --surface-selected: rgba(239, 68, 68, .10);
+  --surface-smart: rgba(239, 68, 68, .08);
+  --border: rgba(255,255,255,.08);
+  --border-strong: rgba(255,255,255,.15);
+  --border-gold: rgba(239,68,68,.24);
+  --brand-primary: #ef4444;
+  --brand-secondary: #991b1b;
+  --brand-soft: rgba(239,68,68,.08);
+  --gold: #ef4444;
+  --gold-bright: #f87171;
+  --gold-dark: #dc2626;
+  --amber: #ef4444;
+  --orange: #dc2626;
+  --cyan: #67e8f9;
+  --green: #34d399;
+  --purple: #a78bfa;
+  --rose: #fb7185;
+  --primary-button: linear-gradient(135deg,#b91c1c,#ef4444);
+  --primary-button-hover: linear-gradient(135deg,#dc2626,#f05252);
+  --primary-button-text: #ffffff;
+  --secondary-button: #111722;
+  --secondary-button-hover: #171f2c;
+  --input-background: #0a0f17;
+  --input-border: rgba(255,255,255,.10);
+  --input-focus: #ef4444;
+  --ring: rgba(239,68,68,.20);
+  --glow-primary: rgba(239,68,68,.16);
+  --glow-secondary: rgba(239,68,68,.08);
+  --shadow-sm: 0 10px 28px rgba(0,0,0,.22);
+  --shadow-md: 0 18px 48px rgba(0,0,0,.30);
+  --shadow-lg: 0 28px 72px rgba(0,0,0,.38);
+  --shadow-gold: 0 14px 34px rgba(185,28,28,.18);
+}
+.mm2-social-mode .csbt-app-workspace { color: var(--foreground); }
+.mm2-social-mode .csbt-exchange-hero {
+  border: 1px solid rgba(239,68,68,.16);
+  background: radial-gradient(circle at 88% 0%,rgba(239,68,68,.10),transparent 27rem),linear-gradient(135deg,#0d1119,#090c12 68%,#12090c);
+}
+.mm2-social-mode .csbt-feature-panel,
+.mm2-social-mode .csbt-section-panel {
+  border-color: rgba(255,255,255,.08);
+  background: #090d14;
+}
+
+/* MM2 control rail scrollbar — scoped so Adopt Me remains unchanged. */
+.mm2-control-rail {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(154, 26, 45, 0.72) transparent;
+}
+.mm2-control-rail::-webkit-scrollbar { width: 7px; }
+.mm2-control-rail::-webkit-scrollbar-track { background: transparent; }
+.mm2-control-rail::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(214, 40, 62, .78), rgba(104, 12, 29, .68));
+  background-clip: padding-box;
+}
+
+/* MM2 V5 final cohesion: the control rail catches the same restrained crimson
+   room light as the homepage. Scoped to MM2 only; Adopt Me is unaffected. */
+.mm2-control-rail {
+  border-right-color: rgba(226, 45, 67, .10) !important;
+  box-shadow:
+    28px 0 90px rgba(0,0,0,.52),
+    inset -18px 0 42px rgba(137,10,31,.045),
+    inset -1px 0 0 rgba(235,51,73,.045) !important;
+}
+
+/* MM2 homepage V7: keep the control rail dark, but let it catch a slightly
+   clearer shared room reflection along the inner edge. */
+.mm2-control-rail {
+  border-right-color: rgba(226, 45, 67, .08) !important;
+  box-shadow:
+    30px 0 92px rgba(0,0,0,.56),
+    inset -24px 0 56px rgba(126,10,29,.055),
+    inset -1px 0 0 rgba(235,51,73,.04) !important;
+}
+
+.mm2-control-rail::after {
+  content: "";
+  position: absolute;
+  top: 4%;
+  bottom: 4%;
+  right: 0;
+  width: 1px;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, rgba(228, 43, 66, .18) 18%, rgba(228, 43, 66, .05) 58%, transparent);
+  box-shadow: 8px 0 24px rgba(161, 13, 35, .08);
+}
+
+/* MM2 homepage V8 — environmental sidebar integration only. */
+.mm2-control-rail {
+  box-shadow:
+    34px 0 98px rgba(0,0,0,.58),
+    inset -28px 0 60px rgba(116, 10, 28, .05),
+    inset -1px 0 0 rgba(235,51,73,.038) !important;
+}
+
+.mm2-control-rail::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.02), transparent 16%, transparent 82%, rgba(255,255,255,.01)),
+    radial-gradient(ellipse at right center, rgba(134, 12, 31, .05), transparent 58%);
+  opacity: .55;
+}
+
+.mm2-control-rail a[aria-current="page"] {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.05),
+    inset 18px 0 32px rgba(152, 14, 35, .11),
+    0 16px 36px rgba(0,0,0,.18) !important;
+}

@@ -1,0 +1,60 @@
+{
+  "categories": [
+    {
+      "name": "Ancient",
+      "type": "Weapon"
+    },
+    {
+      "name": "Godly",
+      "type": "Weapon"
+    },
+    {
+      "name": "Chroma",
+      "type": "Weapon"
+    },
+    {
+      "name": "Vintage",
+      "type": "Weapon"
+    },
+    {
+      "name": "Unique",
+      "type": "Weapon"
+    },
+    {
+      "name": "Legendary",
+      "type": "Weapon"
+    },
+    {
+      "name": "Rare",
+      "type": "Weapon"
+    },
+    {
+      "name": "Uncommon",
+      "type": "Weapon"
+    },
+    {
+      "name": "Common",
+      "type": "Weapon"
+    },
+    {
+      "name": "Sets",
+      "type": "Set"
+    },
+    {
+      "name": "Pets",
+      "type": "Pet"
+    },
+    {
+      "name": "Misc",
+      "type": "Misc"
+    },
+    {
+      "name": "Evos",
+      "type": "Evo"
+    },
+    {
+      "name": "Untradables",
+      "type": "Untradable"
+    }
+  ]
+}

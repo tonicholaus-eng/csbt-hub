@@ -27,7 +27,12 @@
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "verify:vision-source": "node scripts/verify-vision-source.mjs",
     "verify:vision-live": "node scripts/verify-live-vision.mjs",
-    "deploy:raw": "opennextjs-cloudflare build && opennextjs-cloudflare deploy"
+    "deploy:raw": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "generate:mm2": "node scripts/generate-mm2-items.js",
+    "sync:mm2-master": "node scripts/sync-mm2-source-to-master.js",
+    "data:validate:mm2": "node scripts/validate-mm2-data.js",
+    "refresh:mm2": "npm run update:mm2-supreme && npm run sync:mm2-master && npm run generate:mm2 && npm run data:validate:mm2",
+    "update:mm2-supreme": "node scripts/update-mm2-supreme-values.js"
   },
   "dependencies": {
     "@next/third-parties": "16.3.0",

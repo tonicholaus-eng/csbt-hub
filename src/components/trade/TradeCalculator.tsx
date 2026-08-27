@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
   motion,
@@ -16,6 +17,7 @@ import {
   ValueType,
 } from "./types";
 import { getItemValue, parseTradeValue } from "../../lib/valueSystem";
+import { buildTradeContextParams, selectedItemsToRows } from "../../lib/tradeContext";
 
 type TradeSideType = "your" | "their";
 
@@ -153,6 +155,16 @@ export default function TradeCalculator() {
   const tradeIsEmpty =
     yourItems.length === 0 &&
     theirItems.length === 0;
+
+  const tradeContextQuery = useMemo(
+    () =>
+      buildTradeContextParams(
+        selectedItemsToRows(yourItems),
+        selectedItemsToRows(theirItems),
+        valueSource,
+      ).toString(),
+    [theirItems, valueSource, yourItems],
+  );
 
   const mobileResult = useMemo(() => {
     const safeYourTotal = Number.isFinite(yourTotal)
@@ -542,6 +554,20 @@ export default function TradeCalculator() {
           valueSource={valueSource}
         />
       </div>
+
+      <section className="mt-5 rounded-[24px] border border-slate-200/80 bg-white/70 p-4 dark:border-white/10 dark:bg-white/[0.035] sm:mt-7 sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-[9px] font-black uppercase tracking-[.15em] text-violet-500">CSBT Community</p>
+            <h3 className="mt-1 text-lg font-black text-slate-950 dark:text-white">Take this trade into the rest of CSBT.</h3>
+            <p className="mt-1 text-xs font-semibold text-slate-500">The same Adopt Me offer can become an Exchange listing or a Trade Opinions post.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link aria-disabled={tradeIsEmpty} href={tradeIsEmpty ? "/exchange?game=adopt-me" : `/exchange?game=adopt-me&${tradeContextQuery}`} className={`min-h-11 rounded-2xl border px-4 py-3 text-xs font-black transition ${tradeIsEmpty ? "pointer-events-none border-slate-200 text-slate-300 dark:border-white/10 dark:text-white/20" : "border-cyan-300/50 bg-cyan-50 text-cyan-700 hover:bg-cyan-100 dark:border-cyan-400/15 dark:bg-cyan-400/[0.07] dark:text-cyan-200"}`}>⇄ Find Trades</Link>
+            <Link aria-disabled={tradeIsEmpty} href={tradeIsEmpty ? "/trade-opinions?game=adopt-me" : `/trade-opinions?game=adopt-me&${tradeContextQuery}`} className={`min-h-11 rounded-2xl border px-4 py-3 text-xs font-black transition ${tradeIsEmpty ? "pointer-events-none border-slate-200 text-slate-300 dark:border-white/10 dark:text-white/20" : "border-violet-300/50 bg-violet-50 text-violet-700 hover:bg-violet-100 dark:border-violet-400/15 dark:bg-violet-400/[0.07] dark:text-violet-200"}`}>🗳 Ask Trade Opinions</Link>
+          </div>
+        </div>
+      </section>
 
     </div>
   </motion.section>

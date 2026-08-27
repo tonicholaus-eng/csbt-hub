@@ -26,6 +26,12 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
+        hostname: "supremevalues.com",
+        port: "",
+        pathname: "/media/**",
+      },
+      {
+        protocol: "https",
         hostname: "**.supabase.co",
         pathname: "/storage/v1/object/public/**",
       },

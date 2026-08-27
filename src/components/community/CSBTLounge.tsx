@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { Session, User } from "@supabase/supabase-js";
 import type { FormEvent } from "react";
@@ -15,6 +16,10 @@ import {
 } from "react";
 
 import { getSupabaseBrowserClient } from "../../lib/supabase/client";
+import GameScopePicker from "../games/GameScopePicker";
+import { getGameAdapter, parseGameScope } from "../../games/registry";
+import type { CSBTGameId, CSBTGameScope } from "../../games/types";
+import { isLegacyGameSchemaError } from "../../lib/supabase/multigameCompat";
 
 const STORAGE_BUCKET = "community-images";
 const AVATAR_BUCKET = "avatars";
@@ -89,6 +94,7 @@ const CHANNEL_MAP = new Map(CHANNELS.map((channel) => [channel.slug, channel]));
 
 type CommunityPostRow = {
   id: string;
+  game_id?: CSBTGameId;
   user_id: string;
   display_name: string;
   content: string;
@@ -98,7 +104,7 @@ type CommunityPostRow = {
   updated_at: string;
 };
 
-type CommunityPost = CommunityPostRow & { image_url: string | null };
+type CommunityPost = Omit<CommunityPostRow, "game_id"> & { game_id: CSBTGameId; image_url: string | null };
 
 type CommunityProfileRow = {
   user_id: string;
@@ -133,6 +139,7 @@ type PresenceMember = {
   userId: string | null;
   displayName: string;
   channel: ChannelSlug;
+  game: CSBTGameScope;
 };
 
 type Notice = { type: "success" | "error" | "info"; text: string };
@@ -242,8 +249,22 @@ function AuthMiniPanel({ onSession }: { onSession: (session: Session | null) => 
   );
 }
 
-export default function CSBTLounge() {
+export default function CSBTLounge({
+  fixedGameId,
+  routeBasePath = "/lounge",
+  exchangeBasePath = "/exchange",
+  tradeOpinionsBasePath = "/trade-opinions",
+}: {
+  fixedGameId?: CSBTGameId;
+  routeBasePath?: string;
+  exchangeBasePath?: string;
+  tradeOpinionsBasePath?: string;
+} = {}) {
   const shouldReduceMotion = useReducedMotion();
+  const searchParams = useSearchParams();
+  const scope: CSBTGameScope = fixedGameId ?? parseGameScope(searchParams.get("game"), "all");
+  const requestedChannel = searchParams.get("channel");
+  const initialChannel = isChannelSlug(requestedChannel) ? requestedChannel : "general";
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
   const feedRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -258,7 +279,8 @@ export default function CSBTLounge() {
   const [reactions, setReactions] = useState<ReactionRow[]>([]);
   const [replies, setReplies] = useState<ReplyRow[]>([]);
   const [presenceMembers, setPresenceMembers] = useState<PresenceMember[]>([]);
-  const [activeChannel, setActiveChannel] = useState<ChannelSlug>("general");
+  const [activeChannel, setActiveChannel] = useState<ChannelSlug>(initialChannel);
+  const [postGame, setPostGame] = useState<CSBTGameId>(scope === "mm2" ? "mm2" : "adopt-me");
   const [message, setMessage] = useState("");
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -276,6 +298,16 @@ export default function CSBTLounge() {
   const [now, setNow] = useState(() => Date.now());
 
   const user = session?.user ?? null;
+
+  useEffect(() => {
+    if (isChannelSlug(requestedChannel) && requestedChannel !== activeChannel) {
+      queueMicrotask(() => setActiveChannel(requestedChannel));
+    }
+    if (scope !== "all" && postGame !== scope) {
+      queueMicrotask(() => setPostGame(scope));
+    }
+  }, [activeChannel, postGame, requestedChannel, scope]);
+
   const currentProfile = user ? profiles[user.id] : undefined;
   const currentDisplayName = currentProfile?.display_name?.trim() || (user ? fallbackName(user) : "Guest");
   const currentChannel = CHANNEL_MAP.get(activeChannel) ?? CHANNELS[0];
@@ -287,9 +319,10 @@ export default function CSBTLounge() {
 
   const toPost = useCallback((row: CommunityPostRow): CommunityPost => ({
     ...row,
+    game_id: row.game_id ?? "adopt-me",
     channel_slug: isChannelSlug(row.channel_slug) ? row.channel_slug : "general",
     image_url: createImageUrl(row.image_path),
-  }), [createImageUrl]);
+  } as CommunityPost), [createImageUrl]);
 
   const loadProfiles = useCallback(async (ids: string[]) => {
     const client = supabase;
@@ -324,25 +357,51 @@ export default function CSBTLounge() {
   const loadChannelCounts = useCallback(async () => {
     const client = supabase;
     if (!client) return;
-    const { data, error } = await client.rpc("community_channel_counts");
-    if (!error) setChannelCountRows(((data ?? []) as Array<{ channel_slug: ChannelSlug; post_count: number }>).filter((row) => isChannelSlug(row.channel_slug)));
-  }, [supabase]);
+    const { data, error } = await client.rpc("community_channel_counts_by_game", {
+      p_game_id: scope === "all" ? null : scope,
+    });
+    if (!error) {
+      setChannelCountRows(((data ?? []) as Array<{ channel_slug: ChannelSlug; post_count: number }>).filter((row) => isChannelSlug(row.channel_slug)));
+      return;
+    }
+    if ((scope === "adopt-me" || scope === "all") && isLegacyGameSchemaError(error)) {
+      const legacy = await client.from("community_posts").select("channel_slug").limit(5000);
+      if (!legacy.error) {
+        const counts = new Map<ChannelSlug, number>();
+        for (const row of legacy.data ?? []) {
+          if (isChannelSlug(row.channel_slug)) counts.set(row.channel_slug, (counts.get(row.channel_slug) ?? 0) + 1);
+        }
+        setChannelCountRows(Array.from(counts, ([channel_slug, post_count]) => ({ channel_slug, post_count })));
+      }
+    }
+  }, [scope, supabase]);
 
   const loadPosts = useCallback(async () => {
     const client = supabase;
     if (!client) { setLoading(false); return; }
     setLoading(true);
-    const { data, error } = await client.from("community_posts")
-      .select("id,user_id,display_name,content,image_path,channel_slug,created_at,updated_at")
+    let request = client.from("community_posts")
+      .select("id,game_id,user_id,display_name,content,image_path,channel_slug,created_at,updated_at")
       .eq("channel_slug", activeChannel)
       .order("created_at", { ascending: false })
       .limit(CHANNEL_PAGE_SIZE + 1);
-    if (error) {
-      setNotice({ type: "error", text: error.message.includes("channel_slug") ? "CSBT Lounge is temporarily unavailable. Please try again later." : error.message });
+    if (scope !== "all") request = request.eq("game_id", scope);
+    let result = await request;
+    if (result.error && (scope === "adopt-me" || scope === "all") && isLegacyGameSchemaError(result.error)) {
+      result = await client.from("community_posts")
+        .select("id,user_id,display_name,content,image_path,channel_slug,created_at,updated_at")
+        .eq("channel_slug", activeChannel)
+        .order("created_at", { ascending: false })
+        .limit(CHANNEL_PAGE_SIZE + 1) as typeof result;
+    }
+    if (result.error) {
+      setNotice({ type: "error", text: scope === "mm2" && isLegacyGameSchemaError(result.error)
+        ? "MM2 Lounge needs the included multi-game Supabase migration before MM2 messages can load."
+        : result.error.message.includes("channel_slug") ? "CSBT Lounge is temporarily unavailable. Please try again later." : result.error.message });
       setLoading(false);
       return;
     }
-    const rows = (data ?? []) as CommunityPostRow[];
+    const rows = (result.data ?? []) as CommunityPostRow[];
     setHasOlder(rows.length > CHANNEL_PAGE_SIZE);
     const next = rows.slice(0, CHANNEL_PAGE_SIZE).map(toPost);
     setPosts(next);
@@ -352,21 +411,31 @@ export default function CSBTLounge() {
     void loadReplies(postIdsRef.current);
     void loadChannelCounts();
     setLoading(false);
-  }, [activeChannel, loadChannelCounts, loadProfiles, loadReactions, loadReplies, supabase, toPost]);
+  }, [activeChannel, loadChannelCounts, loadProfiles, loadReactions, loadReplies, scope, supabase, toPost]);
 
   const loadOlderPosts = useCallback(async () => {
     const client = supabase;
     const oldest = posts[posts.length - 1];
     if (!client || !oldest || loadingOlder || !hasOlder) return;
     setLoadingOlder(true);
-    const { data, error } = await client.from("community_posts")
-      .select("id,user_id,display_name,content,image_path,channel_slug,created_at,updated_at")
+    let request = client.from("community_posts")
+      .select("id,game_id,user_id,display_name,content,image_path,channel_slug,created_at,updated_at")
       .eq("channel_slug", activeChannel)
       .lt("created_at", oldest.created_at)
       .order("created_at", { ascending: false })
       .limit(CHANNEL_PAGE_SIZE + 1);
-    if (!error) {
-      const rows = (data ?? []) as CommunityPostRow[];
+    if (scope !== "all") request = request.eq("game_id", scope);
+    let result = await request;
+    if (result.error && (scope === "adopt-me" || scope === "all") && isLegacyGameSchemaError(result.error)) {
+      result = await client.from("community_posts")
+        .select("id,user_id,display_name,content,image_path,channel_slug,created_at,updated_at")
+        .eq("channel_slug", activeChannel)
+        .lt("created_at", oldest.created_at)
+        .order("created_at", { ascending: false })
+        .limit(CHANNEL_PAGE_SIZE + 1) as typeof result;
+    }
+    if (!result.error) {
+      const rows = (result.data ?? []) as CommunityPostRow[];
       setHasOlder(rows.length > CHANNEL_PAGE_SIZE);
       const additions = rows.slice(0, CHANNEL_PAGE_SIZE).map(toPost);
       setPosts((current) => [...current, ...additions.filter((post) => !current.some((existing) => existing.id === post.id))]);
@@ -379,7 +448,7 @@ export default function CSBTLounge() {
       setNotice({ type: "error", text: "Older Lounge messages could not be loaded." });
     }
     setLoadingOlder(false);
-  }, [activeChannel, hasOlder, loadProfiles, loadReactions, loadReplies, loadingOlder, posts, supabase, toPost]);
+  }, [activeChannel, hasOlder, loadProfiles, loadReactions, loadReplies, loadingOlder, posts, scope, supabase, toPost]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 30_000);
@@ -423,10 +492,10 @@ export default function CSBTLounge() {
     const client = supabase;
     if (!client) return;
     const filter = `channel_slug=eq.${activeChannel}`;
-    const channel = client.channel(`csbt-lounge-${activeChannel}`)
+    const channel = client.channel(`csbt-lounge-${scope}-${activeChannel}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "community_posts", filter }, (payload) => {
         const row = payload.new as CommunityPostRow;
-        if (!row?.id || row.channel_slug !== activeChannel) return;
+        if (!row?.id || row.channel_slug !== activeChannel || (scope !== "all" && row.game_id !== scope)) return;
         const next = toPost(row);
         setPosts((current) => [next, ...current.filter((post) => post.id !== next.id)]);
         postIdsRef.current = [next.id, ...postIdsRef.current.filter((id) => id !== next.id)];
@@ -435,7 +504,7 @@ export default function CSBTLounge() {
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "community_posts", filter }, (payload) => {
         const row = payload.new as CommunityPostRow;
-        if (!row?.id) return;
+        if (!row?.id || (scope !== "all" && row.game_id !== scope)) return;
         const next = toPost(row);
         setPosts((current) => current.map((post) => post.id === next.id ? next : post));
       })
@@ -450,7 +519,7 @@ export default function CSBTLounge() {
       .on("postgres_changes", { event: "*", schema: "public", table: "community_replies" }, () => void loadReplies(postIdsRef.current))
       .subscribe();
     return () => { void client.removeChannel(channel); };
-  }, [activeChannel, loadChannelCounts, loadProfiles, loadReactions, loadReplies, supabase, toPost]);
+  }, [activeChannel, loadChannelCounts, loadProfiles, loadReactions, loadReplies, scope, supabase, toPost]);
 
   useEffect(() => {
     const client = supabase;
@@ -470,6 +539,7 @@ export default function CSBTLounge() {
           userId: typeof latest.user_id === "string" ? latest.user_id : null,
           displayName: typeof latest.display_name === "string" ? latest.display_name : "Guest",
           channel: isChannelSlug(rawChannel) ? rawChannel : "general",
+          game: latest.game === "mm2" ? "mm2" : latest.game === "adopt-me" ? "adopt-me" : "all",
         });
       }
       setPresenceMembers(next);
@@ -477,12 +547,12 @@ export default function CSBTLounge() {
 
     presence.on("presence", { event: "sync" }, syncPresence).subscribe(async (status) => {
       if (status === "SUBSCRIBED") {
-        await presence.track({ user_id: user?.id ?? null, display_name: currentDisplayName, channel: activeChannel, online_at: new Date().toISOString() });
+        await presence.track({ user_id: user?.id ?? null, display_name: currentDisplayName, channel: activeChannel, game: scope, online_at: new Date().toISOString() });
       }
     });
 
     return () => { void client.removeChannel(presence); };
-  }, [activeChannel, currentDisplayName, supabase, user?.id]);
+  }, [activeChannel, currentDisplayName, scope, supabase, user?.id]);
 
   const visiblePosts = useMemo(() => posts.slice().reverse(), [posts]);
   const threadPost = threadPostId ? posts.find((post) => post.id === threadPostId) ?? null : null;
@@ -494,7 +564,11 @@ export default function CSBTLounge() {
     return counts;
   }, [channelCountRows]);
 
-  const activeMembers = useMemo(() => presenceMembers.filter((member) => member.channel === activeChannel), [activeChannel, presenceMembers]);
+  const scopedPresenceMembers = useMemo(
+    () => scope === "all" ? presenceMembers : presenceMembers.filter((member) => member.game === scope || member.game === "all"),
+    [presenceMembers, scope],
+  );
+  const activeMembers = useMemo(() => scopedPresenceMembers.filter((member) => member.channel === activeChannel), [activeChannel, scopedPresenceMembers]);
   const trendingChannels = useMemo(() => [...CHANNELS].sort((a, b) => (channelCounts.get(b.slug) ?? 0) - (channelCounts.get(a.slug) ?? 0)).slice(0, 3), [channelCounts]);
 
   useEffect(() => {
@@ -519,9 +593,22 @@ export default function CSBTLounge() {
         const { error: uploadError } = await client.storage.from(STORAGE_BUCKET).upload(uploadedPath, selectedImage, { cacheControl: "3600", upsert: false, contentType: selectedImage.type });
         if (uploadError) throw uploadError;
       }
-      const { data, error } = await client.from("community_posts").insert({ user_id: user.id, display_name: currentDisplayName, content: clean, image_path: uploadedPath, channel_slug: activeChannel }).select("id,user_id,display_name,content,image_path,channel_slug,created_at,updated_at").single();
-      if (error) throw error;
-      const next = toPost(data as CommunityPostRow);
+      const postingGame = scope === "all" ? postGame : scope;
+      const payload = {
+        user_id: user.id,
+        display_name: currentDisplayName,
+        content: clean,
+        image_path: uploadedPath,
+        channel_slug: activeChannel,
+      };
+      let result = await client.from("community_posts").insert({ ...payload, game_id: postingGame }).select("id,game_id,user_id,display_name,content,image_path,channel_slug,created_at,updated_at").single();
+      if (result.error && postingGame === "adopt-me" && isLegacyGameSchemaError(result.error)) {
+        result = await client.from("community_posts").insert(payload).select("id,user_id,display_name,content,image_path,channel_slug,created_at,updated_at").single() as typeof result;
+      }
+      if (result.error) throw new Error(postingGame === "mm2" && isLegacyGameSchemaError(result.error)
+        ? "MM2 Lounge needs the included multi-game Supabase migration before posting."
+        : result.error.message);
+      const next = toPost(result.data as CommunityPostRow);
       setPosts((current) => [next, ...current.filter((post) => post.id !== next.id)]);
       setMessage("");
       setSelectedImage(null);
@@ -595,11 +682,18 @@ export default function CSBTLounge() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <div className="hidden rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-[10px] font-black text-white/55 sm:block">{activeMembers.length} here · {presenceMembers.length} online</div>
+          {!fixedGameId && <div className="hidden 2xl:block"><GameScopePicker scope={scope} baseHref={routeBasePath} compact /></div>}
+          <div className="hidden rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-[10px] font-black text-white/55 sm:block">{activeMembers.length} here · {scopedPresenceMembers.length} online</div>
           <button type="button" onClick={() => setChannelDrawerOpen(true)} className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-black xl:hidden">Channels</button>
           {user && <button type="button" onClick={() => void signOut()} className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-black text-white/70 hover:bg-white/10">Sign out</button>}
         </div>
       </header>
+
+      {!fixedGameId && (
+        <div className="relative border-b border-white/[0.06] px-3 py-2 2xl:hidden">
+          <GameScopePicker scope={scope} baseHref={routeBasePath} compact />
+        </div>
+      )}
 
       <div className="relative grid min-h-[720px] xl:min-h-[820px] xl:grid-cols-[250px_minmax(0,1fr)] 2xl:grid-cols-[250px_minmax(0,1fr)_290px]">
         <aside className="csbt-lounge-channel-rail hidden min-h-0 border-r border-[var(--border)] p-3 xl:block xl:p-4">
@@ -655,6 +749,15 @@ export default function CSBTLounge() {
               <div className="flex items-center gap-3 rounded-2xl border border-amber-300/15 bg-amber-400/[0.06] p-4"><span className="text-xl">📢</span><div><p className="text-sm font-black text-amber-200">Announcements are read-only</p><p className="mt-1 text-xs text-white/40">Only approved CSBT staff can publish in this channel.</p></div></div>
             ) : (
               <form onSubmit={createPost} className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-2.5 shadow-inner">
+                {scope === "all" && (
+                  <div className="mb-2 flex items-center gap-2 border-b border-white/[0.06] pb-2">
+                    <span className="text-[9px] font-black uppercase tracking-[.12em] text-white/30">Post to</span>
+                    {(["adopt-me", "mm2"] as const).map((game) => {
+                      const gameAdapter = getGameAdapter(game);
+                      return <button key={game} type="button" onClick={() => setPostGame(game)} className={`rounded-lg px-2.5 py-1.5 text-[9px] font-black ${postGame === game ? "bg-white text-slate-950" : "bg-white/[0.04] text-white/45"}`}>{gameAdapter.icon} {gameAdapter.shortName}</button>;
+                    })}
+                  </div>
+                )}
                 {imagePreview && <div className="relative mb-2 w-fit max-w-full overflow-hidden rounded-xl border border-white/10 bg-black/20"><Image src={imagePreview} alt="Upload preview" width={720} height={480} unoptimized className="max-h-44 h-auto max-w-full w-auto object-contain"/><button type="button" onClick={() => setSelectedImage(null)} className="absolute right-2 top-2 rounded-full bg-black/70 px-2 py-1 text-[9px] font-black">Remove</button></div>}
                 <div className="flex items-end gap-2">
                   <ProfileAvatar profile={currentProfile} displayName={currentDisplayName} size="sm" />
@@ -665,9 +768,9 @@ export default function CSBTLounge() {
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-white/[0.06] pt-2 text-[10px] font-black text-white/40">
                   <button type="button" onClick={() => fileInputRef.current?.click()} className="rounded-lg bg-white/[0.04] px-2.5 py-1.5 hover:bg-white/[0.08]">📷 Image</button>
-                  <Link href="/exchange" className="rounded-lg bg-white/[0.04] px-2.5 py-1.5 hover:bg-white/[0.08]">⇄ Share Listing</Link>
-                  <Link href="/calculator" className="rounded-lg bg-white/[0.04] px-2.5 py-1.5 hover:bg-white/[0.08]">⚖️ Share Trade</Link>
-                  <Link href="/values" className="rounded-lg bg-white/[0.04] px-2.5 py-1.5 hover:bg-white/[0.08]">◇ Share Value</Link>
+                  <Link href={fixedGameId ? exchangeBasePath : `${exchangeBasePath}?game=${scope === "all" ? postGame : scope}`} className="rounded-lg bg-white/[0.04] px-2.5 py-1.5 hover:bg-white/[0.08]">⇄ Share Listing</Link>
+                  <Link href={getGameAdapter(scope === "all" ? postGame : scope).calculatorHref} className="rounded-lg bg-white/[0.04] px-2.5 py-1.5 hover:bg-white/[0.08]">⚖️ Share Trade</Link>
+                  <Link href={getGameAdapter(scope === "all" ? postGame : scope).valuesHref} className="rounded-lg bg-white/[0.04] px-2.5 py-1.5 hover:bg-white/[0.08]">◇ Share Value</Link>
                   <span className="ml-auto hidden sm:inline">{MAX_POST_LENGTH - message.length} left</span>
                 </div>
               </form>
@@ -676,7 +779,7 @@ export default function CSBTLounge() {
         </main>
 
         <aside className="csbt-lounge-activity hidden min-h-0 border-l border-[var(--border)] p-4 2xl:block 2xl:p-5">
-          <RightActivityPanel user={user} profile={currentProfile} displayName={currentDisplayName} presence={presenceMembers} activeMembers={activeMembers} trendingChannels={trendingChannels} counts={channelCounts} recentPosts={posts.slice(0, 4)} profiles={profiles} />
+          <RightActivityPanel scope={scope} user={user} profile={currentProfile} displayName={currentDisplayName} presence={scopedPresenceMembers} activeMembers={activeMembers} trendingChannels={trendingChannels} counts={channelCounts} recentPosts={posts.slice(0, 4)} profiles={profiles} exchangeBasePath={exchangeBasePath} tradeOpinionsBasePath={tradeOpinionsBasePath} fixedGameId={fixedGameId} />
         </aside>
       </div>
 
@@ -696,7 +799,7 @@ function LoungeMessage({ post, profile, currentUserId, reactions, replyCount, no
   const grouped = REACTIONS.map((emoji) => ({ emoji, count: reactions.filter((reaction) => reaction.emoji === emoji).length, mine: reactions.some((reaction) => reaction.emoji === emoji && reaction.user_id === currentUserId) }));
   return <motion.article layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="group relative flex gap-3 rounded-xl border border-transparent px-3 py-2.5 transition hover:border-[var(--border)] hover:bg-[color-mix(in_srgb,var(--surface-3)_48%,transparent)] sm:px-4 xl:gap-4 xl:px-5 xl:py-4">
     <div className="relative pt-0.5"><ProfileAvatar profile={profile} displayName={displayName}/><span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#0c1222] bg-emerald-400"/></div>
-    <div className="min-w-0 flex-1"><div className="flex flex-wrap items-baseline gap-x-2 gap-y-1"><span className="font-black text-white">{displayName}</span>{own && <span className="rounded bg-violet-400/15 px-1.5 py-0.5 text-[8px] font-black uppercase text-violet-300">you</span>}<span className="text-[10px] font-semibold text-white/25">{formatRelativeTime(post.created_at, now)}</span>{own && <button type="button" onClick={onDelete} className="ml-auto text-[10px] font-black text-white/20 opacity-0 transition hover:text-rose-300 group-hover:opacity-100">Delete</button>}</div>
+    <div className="min-w-0 flex-1"><div className="flex flex-wrap items-baseline gap-x-2 gap-y-1"><span className="font-black text-white">{displayName}</span><span className="rounded bg-white/[0.05] px-1.5 py-0.5 text-[8px] font-black text-white/35">{getGameAdapter(post.game_id).icon} {getGameAdapter(post.game_id).shortName}</span>{own && <span className="rounded bg-violet-400/15 px-1.5 py-0.5 text-[8px] font-black uppercase text-violet-300">you</span>}<span className="text-[10px] font-semibold text-white/25">{formatRelativeTime(post.created_at, now)}</span>{own && <button type="button" onClick={onDelete} className="ml-auto text-[10px] font-black text-white/20 opacity-0 transition hover:text-rose-300 group-hover:opacity-100">Delete</button>}</div>
       {post.content && <p className="mt-1 whitespace-pre-wrap break-words text-[13px] font-medium leading-6 text-white/78 sm:text-sm">{post.content}</p>}
       {post.image_url && <a href={post.image_url} target="_blank" rel="noopener noreferrer" className="mt-2 block w-fit max-w-full overflow-hidden rounded-2xl border border-white/10 bg-black/20 shadow-lg"><Image src={post.image_url} alt={`Shared by ${displayName}`} width={1200} height={800} unoptimized className="max-h-[520px] h-auto max-w-full w-auto object-contain"/></a>}
       <div className="mt-2 flex flex-wrap items-center gap-1.5">{grouped.filter((item) => item.count > 0).map((item) => <button key={item.emoji} type="button" onClick={() => onReact(item.emoji)} className={`rounded-lg border px-2 py-1 text-[10px] font-black transition ${item.mine ? "border-violet-400/35 bg-violet-400/12 text-violet-200" : "border-white/[0.08] bg-white/[0.035] text-white/55 hover:bg-white/[0.07]"}`}>{item.emoji} {item.count}</button>)}<ReactionPicker onReact={onReact}/><button type="button" onClick={onThread} className={`rounded-lg px-2 py-1 text-[10px] font-black transition ${replyCount ? "bg-blue-400/10 text-blue-300" : "text-white/30 hover:bg-white/[0.05] hover:text-white/60"}`}>↩ {replyCount ? `${replyCount} ${replyCount === 1 ? "reply" : "replies"}` : "Reply"}</button></div>
@@ -709,11 +812,13 @@ function ReactionPicker({ onReact }: { onReact: (emoji: string) => void }) {
   return <div className="relative"><button type="button" onClick={() => setOpen((value) => !value)} className="rounded-lg border border-white/[0.08] bg-white/[0.025] px-2 py-1 text-[10px] font-black text-white/30 hover:bg-white/[0.06] hover:text-white/60">＋ react</button>{open && <div className="absolute bottom-full left-0 z-30 mb-2 flex gap-1 rounded-xl border border-white/10 bg-[#11182c] p-1.5 shadow-2xl">{REACTIONS.map((emoji) => <button key={emoji} type="button" onClick={() => { onReact(emoji); setOpen(false); }} className="min-w-8 rounded-lg px-1.5 py-1.5 text-xs font-black hover:bg-white/10">{emoji}</button>)}</div>}</div>;
 }
 
-function RightActivityPanel({ user, profile, displayName, presence, activeMembers, trendingChannels, counts, recentPosts, profiles }: { user: User | null; profile?: CommunityProfile; displayName: string; presence: PresenceMember[]; activeMembers: PresenceMember[]; trendingChannels: ChannelDefinition[]; counts: Map<ChannelSlug, number>; recentPosts: CommunityPost[]; profiles: Record<string, CommunityProfile> }) {
+function RightActivityPanel({ scope, user, profile, displayName, presence, activeMembers, trendingChannels, counts, recentPosts, profiles, exchangeBasePath = "/exchange", tradeOpinionsBasePath = "/trade-opinions", fixedGameId }: { scope: CSBTGameScope; user: User | null; profile?: CommunityProfile; displayName: string; presence: PresenceMember[]; activeMembers: PresenceMember[]; trendingChannels: ChannelDefinition[]; counts: Map<ChannelSlug, number>; recentPosts: CommunityPost[]; profiles: Record<string, CommunityProfile>; exchangeBasePath?: string; tradeOpinionsBasePath?: string; fixedGameId?: CSBTGameId }) {
+  const actionGame: CSBTGameId = scope === "mm2" ? "mm2" : "adopt-me";
+  const actionAdapter = getGameAdapter(actionGame);
   return <div className="space-y-5"><section><p className="text-[9px] font-black uppercase tracking-[.17em] text-white/25">Live now</p><div className="mt-2 grid grid-cols-2 gap-2"><Stat value={String(presence.length)} label="online"/><Stat value={String(activeMembers.length)} label="in channel"/></div></section>
     {user && <section className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-3"><div className="flex items-center gap-3"><ProfileAvatar profile={profile} displayName={displayName} size="lg"/><div className="min-w-0"><p className="truncate text-sm font-black">{displayName}</p><p className="mt-0.5 text-[10px] font-semibold text-emerald-300">● Online in CSBT Lounge</p></div></div><Link href="/profile" className="mt-3 block rounded-xl bg-white/[0.05] px-3 py-2 text-center text-[10px] font-black text-white/55 hover:bg-white/[0.08]">Edit profile</Link></section>}
     <section><p className="text-[9px] font-black uppercase tracking-[.17em] text-white/25">Trending rooms</p><div className="mt-2 space-y-1.5">{trendingChannels.map((channel, index) => <div key={channel.slug} className="flex items-center gap-2 rounded-xl bg-white/[0.025] px-3 py-2"><span className="text-[10px] font-black text-white/20">0{index+1}</span><span className="min-w-0 flex-1 truncate text-xs font-black text-white/65"># {channel.label}</span><span className="text-[9px] font-black text-white/25">{counts.get(channel.slug) ?? 0}</span></div>)}</div></section>
-    <section><p className="text-[9px] font-black uppercase tracking-[.17em] text-white/25">Quick actions</p><div className="mt-2 grid gap-1.5"><QuickLink href="/exchange" label="🔄 Find a trade"/><QuickLink href="/trade-feed" label="🗳️ Ask Trade Opinions"/><QuickLink href="/nich" label="🤖 Ask Nich"/><QuickLink href="/values" label="◇ Check a value"/></div></section>
+    <section><p className="text-[9px] font-black uppercase tracking-[.17em] text-white/25">Quick actions</p><div className="mt-2 grid gap-1.5"><QuickLink href={fixedGameId ? exchangeBasePath : `${exchangeBasePath}?game=${actionGame}`} label="🔄 Find a trade"/><QuickLink href={fixedGameId ? tradeOpinionsBasePath : `${tradeOpinionsBasePath}?game=${actionGame}`} label="🗳️ Ask Trade Opinions"/>{actionGame === "adopt-me" && <QuickLink href="/nich" label="🤖 Ask Nich"/>}<QuickLink href={actionAdapter.valuesHref} label="◇ Check a value"/></div></section>
     <section><p className="text-[9px] font-black uppercase tracking-[.17em] text-white/25">Recent activity</p><div className="mt-2 space-y-2">{recentPosts.map((post) => { const name = profiles[post.user_id]?.display_name || post.display_name; return <div key={post.id} className="flex gap-2"><span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400"/><p className="text-[10px] leading-4 text-white/35"><strong className="text-white/60">{name}</strong> posted in #{CHANNEL_MAP.get(post.channel_slug)?.label ?? "general"}</p></div>; })}</div></section>
   </div>;
 }

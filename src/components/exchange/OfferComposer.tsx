@@ -4,6 +4,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { useMemo, useState } from "react";
 import ExchangeItemBuilder from "./ExchangeItemBuilder";
 import type { ExchangeItem, ExchangeListing, ExchangeOffer, InventoryExchangeRow, OfferSuggestion } from "../../lib/exchange/types";
+import type { ValueSource } from "../trade/types";
+import { getGameAdapter, sourceSymbol } from "../../games/registry";
 import { buildOfferSuggestions, getCompatibilityExplanation, sumExchangeItems } from "../../lib/exchange/matching";
 import AccessibleDialog from "../ui/AccessibleDialog";
 
@@ -28,6 +30,7 @@ export default function OfferComposer({
   onClose: () => void;
   onSent: () => void;
 }) {
+  const adapter = getGameAdapter(listing.game_id);
   const listingHave = listing.items.filter((item) => item.side === "HAVE").map(stripSide);
   const parentSender = parentOffer?.items.filter((item) => item.side === "SENDER").map(stripSide) ?? [];
   const parentRecipient = parentOffer?.items.filter((item) => item.side === "RECIPIENT").map(stripSide) ?? [];
@@ -41,8 +44,10 @@ export default function OfferComposer({
 
   const recipientTotal = sumExchangeItems(recipientItems);
   const suggestions = useMemo(
-    () => buildOfferSuggestions(inventory, listing.value_source, recipientTotal),
-    [inventory, listing.value_source, recipientTotal],
+    () => listing.game_id === "adopt-me" && (listing.value_source === "GCASH" || listing.value_source === "ELVE")
+      ? buildOfferSuggestions(inventory, listing.value_source as ValueSource, recipientTotal)
+      : [],
+    [inventory, listing.game_id, listing.value_source, recipientTotal],
   );
   const senderTotal = sumExchangeItems(senderItems);
   const differencePercent = recipientTotal > 0 ? ((senderTotal - recipientTotal) / recipientTotal) * 100 : 0;
@@ -99,7 +104,7 @@ export default function OfferComposer({
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-500">{isCounter ? "Counteroffer" : "Make an offer"}</p>
             <h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">{listing.title || `${listing.items.find((item) => item.side === "HAVE")?.item_name ?? "Exchange"} listing`}</h2>
-            <p className="mt-1 text-xs font-semibold text-slate-500">Trading with {isCounter && parentOffer ? "the original offer sender" : listing.display_name} • {listing.value_source}</p>
+            <p className="mt-1 text-xs font-semibold text-slate-500">Trading with {isCounter && parentOffer ? "the original offer sender" : listing.display_name} • {adapter.shortName} • {listing.value_source}</p>
           </div>
           <button onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-xl font-black shadow-sm dark:bg-white/5">×</button>
         </div>
@@ -111,14 +116,14 @@ export default function OfferComposer({
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-600 dark:text-cyan-300">✨ Smart Offer Builder</p>
                 <h3 className="mt-1 text-lg font-black text-slate-950 dark:text-white">Offers built from your saved inventory</h3>
               </div>
-              <p className="text-xs font-bold text-slate-400">Target {listing.value_source === "GCASH" ? "₱" : "🦈"} {recipientTotal.toLocaleString()}</p>
+              <p className="text-xs font-bold text-slate-400">Target {sourceSymbol(listing.value_source)} {recipientTotal.toLocaleString()}</p>
             </div>
             <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
               {suggestions.map((suggestion) => (
                 <button key={suggestion.id} type="button" onClick={() => applySuggestion(suggestion)} className="rounded-2xl border border-white bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-cyan-300 dark:border-white/10 dark:bg-slate-950/55">
                   <span className="text-sm font-black text-slate-950 dark:text-white">{suggestion.label}</span>
                   <span className="mt-1 block text-[10px] font-semibold leading-4 text-slate-400">{suggestion.description}</span>
-                  <span className="mt-2 block text-xs font-black text-cyan-700 dark:text-cyan-300">{listing.value_source === "GCASH" ? "₱" : "🦈"} {suggestion.total.toLocaleString()} • {suggestion.differencePercent >= 0 ? "+" : ""}{suggestion.differencePercent.toFixed(1)}%</span>
+                  <span className="mt-2 block text-xs font-black text-cyan-700 dark:text-cyan-300">{sourceSymbol(listing.value_source)} {suggestion.total.toLocaleString()} • {suggestion.differencePercent >= 0 ? "+" : ""}{suggestion.differencePercent.toFixed(1)}%</span>
                 </button>
               ))}
             </div>
@@ -126,8 +131,8 @@ export default function OfferComposer({
         )}
 
         <div className="mt-5 grid gap-4 xl:grid-cols-2">
-          <ExchangeItemBuilder title="Your Offer" description="What you will give." items={senderItems} source={listing.value_source} onChange={setSenderItems} />
-          <ExchangeItemBuilder title="You Receive" description="What you expect in return. Edit this when negotiating a counteroffer." items={recipientItems} source={listing.value_source} onChange={setRecipientItems} />
+          <ExchangeItemBuilder title="Your Offer" description="What you will give." items={senderItems} gameId={listing.game_id} source={listing.value_source} onChange={setSenderItems} />
+          <ExchangeItemBuilder title="You Receive" description="What you expect in return. Edit this when negotiating a counteroffer." items={recipientItems} gameId={listing.game_id} source={listing.value_source} onChange={setRecipientItems} />
         </div>
 
         <section className="mt-4 grid gap-3 rounded-[24px] border border-slate-200 bg-white/70 p-4 dark:border-white/10 dark:bg-white/[0.035] md:grid-cols-[1fr_auto] md:items-center">
@@ -136,7 +141,7 @@ export default function OfferComposer({
             <p className="mt-1 text-xs font-semibold leading-5 text-slate-500 dark:text-slate-400">{explanation}</p>
           </div>
           <div className="text-left md:text-right">
-            <p className="text-xs font-black text-slate-700 dark:text-slate-200">Your total: {listing.value_source === "GCASH" ? "₱" : "🦈"} {senderTotal.toLocaleString()}</p>
+            <p className="text-xs font-black text-slate-700 dark:text-slate-200">Your total: {sourceSymbol(listing.value_source)} {senderTotal.toLocaleString()}</p>
             <p className="text-[10px] font-bold text-slate-400">Difference {differencePercent >= 0 ? "+" : ""}{differencePercent.toFixed(1)}%</p>
           </div>
         </section>

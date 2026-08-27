@@ -311,7 +311,7 @@ export default function ProfileDashboard() {
           <Link href="/wishlist" className="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-700 dark:bg-white/5 dark:text-slate-200">⭐ Wishlist & alerts</Link>
           <Link href="/notifications" className="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-700 dark:bg-white/5 dark:text-slate-200">🔔 Notifications</Link>
           <Link href="/trades" className="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-700 dark:bg-white/5 dark:text-slate-200">🧮 Saved trades</Link>
-          <Link href="/trade-feed" className="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-700 dark:bg-white/5 dark:text-slate-200">⚖️ Trade voting</Link>
+          <Link href="/trade-opinions" className="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-700 dark:bg-white/5 dark:text-slate-200">⚖️ Trade voting</Link>
           <Link href="/feedback" className="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-700 dark:bg-white/5 dark:text-slate-200">💬 Send feedback</Link>
           <button
             type="button"

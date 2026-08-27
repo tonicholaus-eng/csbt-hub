@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ExchangeItem, ExchangeListing, ListingMatch, TrustStats } from "../../lib/exchange/types";
 import { formatTradeValue } from "../../lib/valueSystem";
+import { getGameAdapter, sourceSymbol } from "../../games/registry";
 import { Badge } from "../ui/CSBTUI";
 
 function itemLabel(item: ExchangeItem) {
@@ -51,17 +52,20 @@ export default function ListingCard({
   match,
   trust,
   onOffer,
+  detailBasePath = "/exchange",
 }: {
   listing: ExchangeListing;
   match?: ListingMatch | null;
   trust?: TrustStats | null;
   onOffer?: (listing: ExchangeListing) => void;
+  detailBasePath?: string;
 }) {
   const have = listing.items.filter((item) => item.side === "HAVE");
   const want = listing.items.filter((item) => item.side === "WANT");
   const totalHave = have.reduce((sum, item) => sum + (item.snapshot_value ?? 0) * item.quantity, 0);
   const totalWant = want.reduce((sum, item) => sum + (item.snapshot_value ?? 0) * item.quantity, 0);
-  const symbol = listing.value_source === "GCASH" ? "₱" : "🦈";
+  const adapter = getGameAdapter(listing.game_id);
+  const symbol = sourceSymbol(listing.value_source);
   const initial = (listing.display_name || "T").trim().slice(0, 1).toUpperCase();
 
   return (
@@ -76,7 +80,7 @@ export default function ListingCard({
                 {isFresh(listing.created_at) && <Badge tone="gold">Fresh</Badge>}
                 {match && match.score >= 80 && <Badge tone="smart">{match.score}% match</Badge>}
               </div>
-              <p className="mt-1 truncate text-[10px] font-bold uppercase tracking-[.1em] text-[var(--foreground-muted)]">{listing.intent.replaceAll("_", " ")} · {listing.value_source}</p>
+              <p className="mt-1 truncate text-[10px] font-bold uppercase tracking-[.1em] text-[var(--foreground-muted)]">{adapter.icon} {adapter.shortName} · {listing.intent.replaceAll("_", " ")} · {listing.value_source}</p>
             </div>
           </div>
           {trust && (
@@ -117,7 +121,7 @@ export default function ListingCard({
 
       <div className="flex gap-2 bg-[var(--surface-3)] p-3 sm:px-5">
         <Link
-          href={`/exchange/${listing.id}`}
+          href={`${detailBasePath}/${listing.id}`}
           onClick={() => {
             if (match) void fetch("/api/exchange/event", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ eventType: "MATCH_VIEW", listingId: listing.id, itemId: have[0]?.item_id, valueSource: listing.value_source, value: match.score }) }).catch(() => undefined);
           }}

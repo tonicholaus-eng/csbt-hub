@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import type { ExchangeItem, TrustStats } from "../lib/exchange/types";
+import type { CSBTGameId, CSBTValueSource } from "../games/types";
 
-export type TradeRoom = { id:string; listing_id:string|null; accepted_offer_id:string|null; user_a:string; user_b:string; status:string; lock_snapshot:{value_source?:string;sender_total?:number;recipient_total?:number;sender_items?:ExchangeItem[];recipient_items?:ExchangeItem[];locked_at?:string}; completed_by_a:boolean; completed_by_b:boolean; created_at:string; updated_at:string };
+export type TradeRoom = { id:string; game_id:CSBTGameId; listing_id:string|null; accepted_offer_id:string|null; user_a:string; user_b:string; status:string; lock_snapshot:{value_source?:CSBTValueSource;sender_total?:number;recipient_total?:number;sender_items?:ExchangeItem[];recipient_items?:ExchangeItem[];locked_at?:string}; completed_by_a:boolean; completed_by_b:boolean; created_at:string; updated_at:string };
 export type TradeRoomProfile = { user_id:string; display_name:string; roblox_username:string|null; avatar_path:string|null };
 export type TradeRoomMessage = { id:string; sender_id:string; message_type:string; body:string; created_at:string };
 export type TradeRoomEvent = { id:number; actor_id:string|null; event_type:string; body:string|null; created_at:string };

@@ -12,6 +12,10 @@ export default function GlobalNichAssistant() {
 
   // Onboarding/auth must mount immediately on every route so a signed-out visitor
   // cannot use a feature during the previous idle-load delay. The floating Nich
-  // launcher itself stays hidden on /nich because that page already contains Nich.
-  return <NichAssistant floatingEnabled={pathname !== "/nich"} />;
+  // launcher stays hidden on /nich and across MM2 routes while MM2 Nich integration is intentionally disabled.
+  return (
+    <NichAssistant
+      floatingEnabled={pathname !== "/nich" && !pathname.startsWith("/mm2")}
+    />
+  );
 }

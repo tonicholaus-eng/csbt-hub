@@ -1,0 +1,8 @@
+MM2 redesign plan:
+- Categories belong inside Weapon Values only.
+- Sidebar remains: Home, Weapon Values, Demand Tracker, Trade Calculator.
+- Weapon Values route handles /mm2/values?category=<category>.
+- Background art slots:
+  public/mm2/bg-left.png
+  public/mm2/bg-right.png
+  public/mm2/decor.png

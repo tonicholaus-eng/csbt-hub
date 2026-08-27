@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import GameSwitcher from "./GameSwitcher";
 import ItemSearchPicker from "./items/ItemSearchPicker";
 import { useCSBTTheme } from "./ThemeProvider";
 import {
@@ -209,6 +210,8 @@ export default function Hero({ totalItems, categoryCount, generatedAt }: HeroPro
           <span aria-hidden="true">🚀</span>
           Database refreshed {refreshedLabel}
         </span>
+
+        <GameSwitcher />
 
         <h1 className="mt-8 text-4xl font-black tracking-tight drop-shadow-lg sm:text-6xl md:text-8xl">
           CSBT HUB

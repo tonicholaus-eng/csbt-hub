@@ -10,15 +10,19 @@ import type {
   TrustStats,
 } from "../lib/exchange/types";
 import { DEFAULT_MARKETPLACE_PREFERENCES } from "../lib/exchange/matching";
+import type { CSBTGameId } from "../games/types";
+import { isLegacyGameSchemaError } from "../lib/supabase/multigameCompat";
 
-type DbListing = Omit<ExchangeListing, "items"> & { marketplace_listing_items?: ExchangeListing["items"] };
-type DbOffer = Omit<ExchangeOffer, "items" | "listing"> & {
+type DbListing = Omit<ExchangeListing, "items" | "game_id"> & { game_id?: CSBTGameId; marketplace_listing_items?: ExchangeListing["items"] };
+type DbOffer = Omit<ExchangeOffer, "items" | "listing" | "game_id"> & {
+  game_id?: CSBTGameId;
   marketplace_offer_items?: ExchangeOffer["items"];
   marketplace_listings?: DbListing | null;
 };
 
 export type ExchangeRoomRow = {
   id: string;
+  game_id: CSBTGameId;
   listing_id: string | null;
   accepted_offer_id: string | null;
   user_a: string;
@@ -33,6 +37,7 @@ export type ExchangeRoomRow = {
 
 export type ExchangeMarketEvent = {
   id: number;
+  game_id: CSBTGameId;
   event_type: string;
   listing_id: string | null;
   offer_id: string | null;
@@ -45,15 +50,16 @@ export type ExchangeMarketEvent = {
 };
 
 function normalizeListing(row: DbListing): ExchangeListing {
-  return { ...row, items: (row.marketplace_listing_items ?? []).map((item) => ({ ...item })) };
+  return { ...row, game_id: row.game_id ?? "adopt-me", items: (row.marketplace_listing_items ?? []).map((item) => ({ ...item })) } as ExchangeListing;
 }
 
 function normalizeOffer(row: DbOffer): ExchangeOffer {
   return {
     ...row,
+    game_id: row.game_id ?? row.marketplace_listings?.game_id ?? "adopt-me",
     items: (row.marketplace_offer_items ?? []).map((item) => ({ ...item })),
     listing: row.marketplace_listings ? normalizeListing(row.marketplace_listings) : null,
-  };
+  } as ExchangeOffer;
 }
 
 function upsertById<T extends { id: string }>(rows: T[], next: T, limit = 120): T[] {
@@ -81,11 +87,13 @@ export function useExchangeData({
   user,
   authLoading,
   loadMarketEvents = false,
+  gameId,
 }: {
   supabase: SupabaseClient | null;
   user: User | null;
   authLoading: boolean;
   loadMarketEvents?: boolean;
+  gameId: CSBTGameId;
 }) {
   const [listings, setListings] = useState<ExchangeListing[]>([]);
   const [offers, setOffers] = useState<ExchangeOffer[]>([]);
@@ -116,44 +124,124 @@ export function useExchangeData({
   }, []);
 
   const loadPublic = useCallback(async (client: SupabaseClient) => {
-    const listingRequest = client
+    let listingResult = await client
       .from("marketplace_listings")
       .select("*,marketplace_listing_items(*)")
       .eq("status", "OPEN")
+      .eq("game_id", gameId)
       .gt("expires_at", new Date().toISOString())
       .order("created_at", { ascending: false })
       .limit(120);
-    const marketRequest = loadMarketEvents
-      ? client.from("marketplace_events").select("id,event_type,listing_id,offer_id,room_id,item_id,value_source,value,metadata,created_at").order("created_at", { ascending: false }).limit(600)
-      : Promise.resolve({ data: [] as ExchangeMarketEvent[], error: null });
-    const [{ data: listingRows, error: listingError }, { data: marketRows }] = await Promise.all([listingRequest, marketRequest]);
-    if (listingError) throw listingError;
+
+    if (listingResult.error && gameId === "adopt-me" && isLegacyGameSchemaError(listingResult.error)) {
+      listingResult = await client
+        .from("marketplace_listings")
+        .select("*,marketplace_listing_items(*)")
+        .eq("status", "OPEN")
+        .gt("expires_at", new Date().toISOString())
+        .order("created_at", { ascending: false })
+        .limit(120);
+    }
+
+    if (listingResult.error) throw listingResult.error;
+
+    let marketRows: ExchangeMarketEvent[] = [];
+    if (loadMarketEvents) {
+      let marketResult = await client
+        .from("marketplace_events")
+        .select("id,game_id,event_type,listing_id,offer_id,room_id,item_id,value_source,value,metadata,created_at")
+        .eq("game_id", gameId)
+        .order("created_at", { ascending: false })
+        .limit(600);
+
+      if (marketResult.error && gameId === "adopt-me" && isLegacyGameSchemaError(marketResult.error)) {
+        marketResult = await client
+          .from("marketplace_events")
+          .select("id,event_type,listing_id,offer_id,room_id,item_id,value_source,value,metadata,created_at")
+          .order("created_at", { ascending: false })
+          .limit(600) as typeof marketResult;
+      }
+
+      if (!marketResult.error) {
+        marketRows = ((marketResult.data ?? []) as Array<ExchangeMarketEvent & { game_id?: CSBTGameId }>).map((row) => ({
+          ...row,
+          game_id: row.game_id ?? "adopt-me",
+        }));
+      }
+    }
+
     if (!mountedRef.current) return;
-    const normalized = ((listingRows ?? []) as DbListing[]).map(normalizeListing);
-    setListings(normalized);
-    setEvents((marketRows ?? []) as ExchangeMarketEvent[]);
+    const normalized = ((listingResult.data ?? []) as DbListing[]).map(normalizeListing);
+    setListings(normalized.filter((row) => row.game_id === gameId));
+    setEvents(marketRows.filter((row) => row.game_id === gameId));
     await loadTrustForUsers(client, normalized.map((row) => row.user_id));
-  }, [loadMarketEvents, loadTrustForUsers]);
+  }, [gameId, loadMarketEvents, loadTrustForUsers]);
 
   const loadPrivate = useCallback(async (client: SupabaseClient, userId: string) => {
-    const [inventoryResult, wishlistResult, preferencesResult, offerResult, roomResult, blockResult, ownedListingResult] = await Promise.all([
+    const [inventoryResult, wishlistResult, preferencesResult, blockResult] = await Promise.all([
       client.from("inventory_items").select("id,item_id,item_name,image_url,category,value_type,potion_status,quantity").eq("user_id", userId),
       client.from("wishlist_items").select("item_id").eq("user_id", userId),
       client.from("marketplace_preferences").select("*").eq("user_id", userId).maybeSingle(),
-      client.from("marketplace_offers").select("*,marketplace_offer_items(*),marketplace_listings(*,marketplace_listing_items(*))").or(`sender_id.eq.${userId},recipient_id.eq.${userId}`).order("created_at", { ascending: false }).limit(100),
-      client.from("trade_rooms").select("id,listing_id,accepted_offer_id,user_a,user_b,status,lock_snapshot,completed_by_a,completed_by_b,created_at,updated_at").or(`user_a.eq.${userId},user_b.eq.${userId}`).order("updated_at", { ascending: false }).limit(100),
       client.from("user_blocks").select("blocked_id").eq("blocker_id", userId),
-      client.from("marketplace_listings").select("*,marketplace_listing_items(*)").eq("user_id", userId).order("created_at", { ascending: false }).limit(100),
     ]);
+
+    let offerResult = await client
+      .from("marketplace_offers")
+      .select("*,marketplace_offer_items(*),marketplace_listings(*,marketplace_listing_items(*))")
+      .eq("game_id", gameId)
+      .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (offerResult.error && gameId === "adopt-me" && isLegacyGameSchemaError(offerResult.error)) {
+      offerResult = await client
+        .from("marketplace_offers")
+        .select("*,marketplace_offer_items(*),marketplace_listings(*,marketplace_listing_items(*))")
+        .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
+        .order("created_at", { ascending: false })
+        .limit(100);
+    }
+
+    let roomResult = await client
+      .from("trade_rooms")
+      .select("id,game_id,listing_id,accepted_offer_id,user_a,user_b,status,lock_snapshot,completed_by_a,completed_by_b,created_at,updated_at")
+      .eq("game_id", gameId)
+      .or(`user_a.eq.${userId},user_b.eq.${userId}`)
+      .order("updated_at", { ascending: false })
+      .limit(100);
+    if (roomResult.error && gameId === "adopt-me" && isLegacyGameSchemaError(roomResult.error)) {
+      roomResult = await client
+        .from("trade_rooms")
+        .select("id,listing_id,accepted_offer_id,user_a,user_b,status,lock_snapshot,completed_by_a,completed_by_b,created_at,updated_at")
+        .or(`user_a.eq.${userId},user_b.eq.${userId}`)
+        .order("updated_at", { ascending: false })
+        .limit(100) as typeof roomResult;
+    }
+
+    let ownedListingResult = await client
+      .from("marketplace_listings")
+      .select("*,marketplace_listing_items(*)")
+      .eq("user_id", userId)
+      .eq("game_id", gameId)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (ownedListingResult.error && gameId === "adopt-me" && isLegacyGameSchemaError(ownedListingResult.error)) {
+      ownedListingResult = await client
+        .from("marketplace_listings")
+        .select("*,marketplace_listing_items(*)")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(100);
+    }
+
     if (!mountedRef.current) return;
-    setInventory((inventoryResult.data ?? []) as InventoryExchangeRow[]);
-    setWishlistIds(new Set((wishlistResult.data ?? []).map((row) => String(row.item_id))));
-    setPreferences(preferencesResult.data ? { ...DEFAULT_MARKETPLACE_PREFERENCES, ...(preferencesResult.data as MarketplacePreferences) } : DEFAULT_MARKETPLACE_PREFERENCES);
-    setOffers(((offerResult.data ?? []) as DbOffer[]).map(normalizeOffer));
-    setOwnedListings(((ownedListingResult.data ?? []) as DbListing[]).map(normalizeListing));
-    setRooms((roomResult.data ?? []) as ExchangeRoomRow[]);
+    setInventory(gameId === "adopt-me" ? (inventoryResult.data ?? []) as InventoryExchangeRow[] : []);
+    setWishlistIds(gameId === "adopt-me" ? new Set((wishlistResult.data ?? []).map((row) => String(row.item_id))) : new Set());
+    setPreferences(gameId === "adopt-me" && preferencesResult.data ? { ...DEFAULT_MARKETPLACE_PREFERENCES, ...(preferencesResult.data as MarketplacePreferences) } : DEFAULT_MARKETPLACE_PREFERENCES);
+    setOffers(((offerResult.data ?? []) as DbOffer[]).map(normalizeOffer).filter((row) => row.game_id === gameId));
+    setOwnedListings(((ownedListingResult.data ?? []) as DbListing[]).map(normalizeListing).filter((row) => row.game_id === gameId));
+    setRooms(((roomResult.data ?? []) as Array<ExchangeRoomRow & { game_id?: CSBTGameId }>).map((row) => ({ ...row, game_id: row.game_id ?? "adopt-me" })).filter((row) => row.game_id === gameId));
     setBlockedIds(new Set((blockResult.data ?? []).map((row) => String(row.blocked_id))));
-  }, []);
+  }, [gameId]);
 
   const clearPrivate = useCallback(() => {
     setInventory([]);
@@ -193,35 +281,48 @@ export function useExchangeData({
       return;
     }
     const listing = normalizeListing(data as DbListing);
+    if (listing.game_id !== gameId) {
+      setListings((current) => current.filter((row) => row.id !== id));
+      setOwnedListings((current) => current.filter((row) => row.id !== id));
+      return;
+    }
     const isOpen = listing.status === "OPEN" && new Date(listing.expires_at).getTime() > Date.now();
     setListings((current) => isOpen ? upsertById(current, listing) : current.filter((row) => row.id !== id));
     if (user?.id === listing.user_id) setOwnedListings((current) => upsertById(current, listing, 100));
     await loadTrustForUsers(client, [listing.user_id]);
-  }, [loadTrustForUsers, supabase, user?.id]);
+  }, [gameId, loadTrustForUsers, supabase, user?.id]);
 
   const refreshOffer = useCallback(async (id: string) => {
     const client = supabase;
     if (!client || !user || !id) return;
-    const { data, error: offerError } = await client.from("marketplace_offers").select("*,marketplace_offer_items(*),marketplace_listings(*,marketplace_listing_items(*))").eq("id", id).maybeSingle();
-    if (offerError) { setError(offerError.message); return; }
+    let result = await client.from("marketplace_offers").select("*,marketplace_offer_items(*),marketplace_listings(*,marketplace_listing_items(*))").eq("id", id).eq("game_id", gameId).maybeSingle();
+    if (result.error && gameId === "adopt-me" && isLegacyGameSchemaError(result.error)) {
+      result = await client.from("marketplace_offers").select("*,marketplace_offer_items(*),marketplace_listings(*,marketplace_listing_items(*))").eq("id", id).maybeSingle();
+    }
+    if (result.error) { setError(result.error.message); return; }
     if (!mountedRef.current) return;
-    if (!data) { setOffers((current) => current.filter((row) => row.id !== id)); return; }
-    const offer = normalizeOffer(data as DbOffer);
+    if (!result.data) { setOffers((current) => current.filter((row) => row.id !== id)); return; }
+    const offer = normalizeOffer(result.data as DbOffer);
+    if (offer.game_id !== gameId) return;
     if (offer.sender_id !== user.id && offer.recipient_id !== user.id) return;
     setOffers((current) => upsertById(current, offer, 100));
-  }, [supabase, user]);
+  }, [gameId, supabase, user]);
 
   const refreshRoom = useCallback(async (id: string) => {
     const client = supabase;
     if (!client || !user || !id) return;
-    const { data, error: roomError } = await client.from("trade_rooms").select("id,listing_id,accepted_offer_id,user_a,user_b,status,lock_snapshot,completed_by_a,completed_by_b,created_at,updated_at").eq("id", id).maybeSingle();
-    if (roomError) { setError(roomError.message); return; }
+    let result = await client.from("trade_rooms").select("id,game_id,listing_id,accepted_offer_id,user_a,user_b,status,lock_snapshot,completed_by_a,completed_by_b,created_at,updated_at").eq("id", id).eq("game_id", gameId).maybeSingle();
+    if (result.error && gameId === "adopt-me" && isLegacyGameSchemaError(result.error)) {
+      result = await client.from("trade_rooms").select("id,listing_id,accepted_offer_id,user_a,user_b,status,lock_snapshot,completed_by_a,completed_by_b,created_at,updated_at").eq("id", id).maybeSingle() as typeof result;
+    }
+    if (result.error) { setError(result.error.message); return; }
     if (!mountedRef.current) return;
-    if (!data) { setRooms((current) => current.filter((row) => row.id !== id)); return; }
-    const room = data as ExchangeRoomRow;
+    if (!result.data) { setRooms((current) => current.filter((row) => row.id !== id)); return; }
+    const room = { ...(result.data as ExchangeRoomRow & { game_id?: CSBTGameId }), game_id: (result.data as ExchangeRoomRow & { game_id?: CSBTGameId }).game_id ?? "adopt-me" } as ExchangeRoomRow;
+    if (room.game_id !== gameId) return;
     if (room.user_a !== user.id && room.user_b !== user.id) return;
     setRooms((current) => upsertById(current, room, 100));
-  }, [supabase, user]);
+  }, [gameId, supabase, user]);
 
   const refreshPrivate = useCallback(async () => {
     if (!supabase || !user) return;
@@ -257,7 +358,7 @@ export function useExchangeData({
     };
 
     const channel = client
-      .channel(`csbt-exchange-live-${user?.id ?? "public"}`)
+      .channel(`csbt-exchange-live-${gameId}-${user?.id ?? "public"}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "marketplace_listings" }, listingChange)
       .on("postgres_changes", { event: "*", schema: "public", table: "marketplace_listing_items" }, (payload) => {
         const record = payload.eventType === "DELETE" ? payload.old : payload.new;
@@ -273,14 +374,16 @@ export function useExchangeData({
       .on("postgres_changes", { event: "*", schema: "public", table: "trade_rooms" }, roomChange)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "marketplace_events" }, (payload) => {
         if (!loadMarketEvents) return;
-        const event = payload.new as ExchangeMarketEvent;
-        if (!event?.id) return;
+        const raw = payload.new as ExchangeMarketEvent & { game_id?: CSBTGameId };
+        if (!raw?.id) return;
+        const event: ExchangeMarketEvent = { ...raw, game_id: raw.game_id ?? "adopt-me" };
+        if (event.game_id !== gameId) return;
         setEvents((current) => [event, ...current.filter((row) => row.id !== event.id)].slice(0, 600));
       })
       .subscribe();
 
     return () => { void client.removeChannel(channel); };
-  }, [loadMarketEvents, refreshListing, refreshOffer, refreshRoom, supabase, user]);
+  }, [gameId, loadMarketEvents, refreshListing, refreshOffer, refreshRoom, supabase, user]);
 
   return {
     listings,

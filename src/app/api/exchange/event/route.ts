@@ -8,7 +8,7 @@ export async function POST(request: Request) {
   const secret = process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !secret) return NextResponse.json({ ok: false }, { status: 503 });
 
-  let body: { eventType?: string; listingId?: string; itemId?: string; valueSource?: string; value?: number; metadata?: Record<string, unknown> };
+  let body: { eventType?: string; listingId?: string; itemId?: string; valueSource?: string; value?: number; gameId?: string; metadata?: Record<string, unknown> };
   try { body = await request.json(); } catch { return NextResponse.json({ ok: false }, { status: 400 }); }
   const eventType = String(body.eventType ?? "").toUpperCase();
   if (!allowed.has(eventType)) return NextResponse.json({ ok: false }, { status: 400 });
@@ -22,6 +22,13 @@ export async function POST(request: Request) {
   const fingerprint = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 
   const metadata: Record<string, unknown> = {};
+  const requestedGame = typeof body.gameId === "string"
+    ? body.gameId
+    : typeof body.metadata?.game_id === "string"
+      ? body.metadata.game_id
+      : null;
+  if (requestedGame === "adopt-me" || requestedGame === "mm2") metadata.game_id = requestedGame;
+
   if (eventType === "SEARCH") {
     const query = typeof body.metadata?.query === "string" ? body.metadata.query.trim().slice(0, 80) : "";
     if (query.length < 2) return NextResponse.json({ ok: false }, { status: 400 });
@@ -34,7 +41,7 @@ export async function POST(request: Request) {
     p_event_type: eventType,
     p_listing_id: body.listingId ?? null,
     p_item_id: typeof body.itemId === "string" ? body.itemId.slice(0, 180) : null,
-    p_value_source: body.valueSource === "GCASH" || body.valueSource === "ELVE" ? body.valueSource : null,
+    p_value_source: body.valueSource === "GCASH" || body.valueSource === "ELVE" || body.valueSource === "SUPREME" ? body.valueSource : null,
     p_value: typeof body.value === "number" && Number.isFinite(body.value) ? body.value : null,
     p_metadata: metadata,
   });

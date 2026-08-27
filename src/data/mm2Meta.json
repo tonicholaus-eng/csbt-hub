@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "totalItems": 1099,
+  "categoryCounts": {
+    "COMMON": 220,
+    "UNCOMMON": 142,
+    "RARE": 107,
+    "UNTRADABLE": 171,
+    "SET": 104,
+    "GODLY": 126,
+    "VINTAGE": 9,
+    "LEGENDARY": 76,
+    "PET": 57,
+    "ANCIENT": 13,
+    "MISC": 13,
+    "CHROMA": 44,
+    "UNIQUE": 1,
+    "EVO": 16
+  },
+  "typeCounts": {
+    "OTHER": 1099
+  },
+  "generatedAt": "2026-08-24T20:26:25.722Z",
+  "sourceName": "Supreme Values",
+  "sourceFetchedAt": "2026-08-24T20:26:23.276Z"
+}
