@@ -73,7 +73,11 @@ test("registry variant availability matches the full dataset", () => {
     const source = fullById.get(registryItem.id);
     assert.ok(source);
     for (const valueSource of SOURCES) {
-      const expected = VARIANTS.filter((variant) => fullValue(source, valueSource, variant) !== null);
+      // Annotated: without it the comparison against the ["NORMAL"] fallback
+      // literal makes this resolve circularly and fall back to any (TS7022).
+      const expected: ValueType[] = VARIANTS.filter(
+        (variant) => fullValue(source, valueSource, variant) !== null,
+      );
       const actual = adopt.getVariants(registryItem, valueSource);
       // The adapter falls back to ["NORMAL"] when nothing is priced.
       assert.deepEqual(
