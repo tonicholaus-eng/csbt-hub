@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import MM2WeaponPlate from "./MM2WeaponPlate";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
@@ -153,7 +154,7 @@ export default function MM2DemandIntelligence({ items }: { items: Item[] }) {
     (demandNumber(b.DEMAND) ?? -1) - (demandNumber(a.DEMAND) ?? -1) ||
     (b.SOURCE_VALUE ?? -1) - (a.SOURCE_VALUE ?? -1) ||
     a.NAME.localeCompare(b.NAME)
-  ).slice(0, 8), [ratedItems]);
+  ).slice(0, 12), [ratedItems]);
 
   const highestDemand = useMemo(() => ratedItems.reduce((max, item) => Math.max(max, demandNumber(item.DEMAND) ?? 0), 0), [ratedItems]);
   const highDemandCount = useMemo(() => ratedItems.filter((item) => (demandNumber(item.DEMAND) ?? 0) >= 6).length, [ratedItems]);
@@ -207,11 +208,11 @@ export default function MM2DemandIntelligence({ items }: { items: Item[] }) {
         </div>
       </header>
 
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(390px,.65fr)]">
+      <section className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(390px,.65fr)]">
         <div className="overflow-hidden rounded-[24px] border border-white/[0.08] bg-[#090c12]">
           <div className="flex items-center justify-between gap-3 border-b border-white/[0.06] px-4 py-4 sm:px-5">
-            <div><p className="text-[9px] font-black uppercase tracking-[.17em] text-red-300">Demand Leaderboard</p><h2 className="mt-1 text-xl font-black tracking-[-.03em] text-white">Strongest demand in the database</h2></div>
-            <span className="rounded-full border border-white/[0.07] bg-white/[0.025] px-3 py-1.5 text-[9px] font-black text-zinc-600">Demand → Value</span>
+            <div><p className="text-[11px] font-black uppercase tracking-[.16em] text-[#f0919b]">Demand Leaderboard</p><h2 className="mt-1 text-xl font-black tracking-[-.03em] text-white">Strongest demand in the database</h2></div>
+            <span className="rounded-full border border-white/[0.07] bg-white/[0.025] px-3 py-1.5 text-[11px] font-black text-[var(--mm2-ink-3)]">Demand → Value</span>
           </div>
           <div className="grid gap-2 p-3 sm:grid-cols-2 sm:p-4">
             {topWeapons.map((item, index) => <LeaderboardCard key={item.ID ?? item.NAME} item={item} rank={index + 1} />)}
@@ -220,9 +221,9 @@ export default function MM2DemandIntelligence({ items }: { items: Item[] }) {
 
         <div className="overflow-hidden rounded-[24px] border border-white/[0.08] bg-[#090c12]">
           <div className="border-b border-white/[0.06] px-4 py-4 sm:px-5">
-            <p className="text-[9px] font-black uppercase tracking-[.17em] text-cyan-300">Category Radar</p>
+            <p className="text-[11px] font-black uppercase tracking-[.16em] text-[#a3c6d5]">Category Radar</p>
             <h2 className="mt-1 text-xl font-black tracking-[-.03em] text-white">Where demand is concentrated</h2>
-            <p className="mt-1 text-[10px] font-semibold leading-5 text-zinc-600">Average demand uses only weapons that have a recorded demand score.</p>
+            <p className="mt-1 text-[12px] font-semibold leading-5 text-[var(--mm2-ink-3)]">Average demand uses only weapons that have a recorded demand score.</p>
           </div>
           <div className="space-y-2 p-3 sm:p-4">
             {categoryOverview.map((group) => (
@@ -237,7 +238,7 @@ export default function MM2DemandIntelligence({ items }: { items: Item[] }) {
 
       <section id="demand-browser" className="scroll-mt-6 rounded-[24px] border border-white/[0.08] bg-[#090c12] p-4 sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div><p className="text-[9px] font-black uppercase tracking-[.17em] text-red-300">Demand Browser</p><h2 className="mt-1 text-2xl font-black tracking-[-.035em] text-white">Scan the full MM2 market</h2></div>
+          <div><p className="text-[11px] font-black uppercase tracking-[.16em] text-[#f0919b]">Demand Browser</p><h2 className="mt-1 text-2xl font-black tracking-[-.035em] text-white">Scan the full MM2 market</h2></div>
           <div className="rounded-full border border-white/[0.07] bg-black/20 px-3 py-2 text-[9px] font-black uppercase tracking-[.1em] text-zinc-600">{filtered.length.toLocaleString()} matching weapons</div>
         </div>
 
@@ -265,17 +266,17 @@ export default function MM2DemandIntelligence({ items }: { items: Item[] }) {
 
         <div className="mt-4 flex items-center justify-between gap-3">
           <p className="text-xs font-bold text-zinc-600">Demand tiers are derived only from the recorded 1–10 demand score.</p>
-          {hasFilters ? <button type="button" onClick={clearFilters} className="shrink-0 text-[10px] font-black text-red-300 transition hover:text-red-200">Clear filters</button> : null}
+          {hasFilters ? <button type="button" onClick={clearFilters} className="shrink-0 text-[10px] font-black text-red-300 transition hover:text-[#f0919b]">Clear filters</button> : null}
         </div>
       </section>
 
       {visibleItems.length ? (
         <>
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{visibleItems.map((item) => <DemandWeaponCard key={item.ID ?? item.NAME} item={item} />)}</section>
-          {visibleItems.length < filtered.length ? <div className="text-center"><button type="button" onClick={() => setVisibleCount((count) => Math.min(filtered.length, count + PAGE_SIZE))} className="min-h-11 rounded-[14px] border border-white/[0.09] bg-white/[0.035] px-5 text-xs font-black text-zinc-300 transition hover:border-red-400/20 hover:bg-red-500/[0.05] hover:text-red-200">Load more ({(filtered.length - visibleItems.length).toLocaleString()} left)</button></div> : null}
+          {visibleItems.length < filtered.length ? <div className="text-center"><button type="button" onClick={() => setVisibleCount((count) => Math.min(filtered.length, count + PAGE_SIZE))} className="min-h-11 rounded-[14px] border border-white/[0.09] bg-white/[0.035] px-5 text-xs font-black text-zinc-300 transition hover:border-red-400/20 hover:bg-red-500/[0.05] hover:text-[#f0919b]">Load more ({(filtered.length - visibleItems.length).toLocaleString()} left)</button></div> : null}
         </>
       ) : (
-        <section className="rounded-[24px] border border-dashed border-white/[0.10] bg-white/[0.02] px-6 py-14 text-center"><div className="text-4xl text-zinc-700">⌁</div><h2 className="mt-3 text-lg font-black text-white">No weapons match this demand scan</h2><p className="mt-2 text-sm text-zinc-600">Try another tier, category, or search.</p><button type="button" onClick={clearFilters} className="mt-5 text-xs font-black text-red-300 hover:text-red-200">Reset market scan</button></section>
+        <section className="rounded-[24px] border border-dashed border-white/[0.10] bg-white/[0.02] px-6 py-14 text-center"><div className="text-4xl text-zinc-700">⌁</div><h2 className="mt-3 text-lg font-black text-white">No weapons match this demand scan</h2><p className="mt-2 text-sm text-zinc-600">Try another tier, category, or search.</p><button type="button" onClick={clearFilters} className="mt-5 text-xs font-black text-red-300 hover:text-[#f0919b]">Reset market scan</button></section>
       )}
 
       <section className="rounded-[20px] border border-white/[0.07] bg-black/20 px-4 py-3 text-[10px] font-semibold leading-5 text-zinc-700 sm:px-5">CSBT does not display rising/falling demand arrows on this page because the current MM2 dataset contains point-in-time demand scores, not verified historical demand snapshots. GCash values show N/A where the database has no GCash value.</section>
@@ -290,25 +291,25 @@ function HeroStat({ label, value }: { label: string; value: string }) {
 function LeaderboardCard({ item, rank }: { item: Item; rank: number }) {
   const image = imageUrl(item.IMAGE); const tier = demandTier(item.DEMAND);
   return <div className="group flex min-w-0 items-center gap-3 rounded-[18px] border border-white/[0.07] bg-white/[0.022] p-3 transition hover:border-red-400/18 hover:bg-white/[0.035]">
-    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/[0.07] bg-black/25 text-[10px] font-black text-zinc-500">#{rank}</span>
-    <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[14px] border border-white/[0.07] bg-[#10151d] p-1.5">{image ? <img src={image} alt="" loading="lazy" className="h-full w-full object-contain drop-shadow-[0_8px_14px_rgba(0,0,0,.50)]" /> : <span className="text-xl text-zinc-700">◆</span>}</span>
-    <div className="min-w-0 flex-1"><div className="flex min-w-0 items-center gap-2"><Link href={`/mm2/values/${encodeURIComponent(item.ID ?? item.NAME)}`} className="truncate text-sm font-black text-white transition hover:text-red-200">{item.NAME}</Link><span className={`shrink-0 rounded-full border px-2 py-1 text-[7px] font-black uppercase tracking-[.08em] ${tierTone(tier)}`}>{demandNumber(item.DEMAND) ?? "N/A"}/10</span></div><p className="mt-1 truncate text-[9px] font-bold uppercase tracking-[.09em] text-zinc-700">{item.CATEGORY ?? "Weapon"} · Supreme {formatValue(item.SOURCE_VALUE)}</p></div>
-    <Link href={calcHref(item)} className="shrink-0 rounded-xl border border-white/[0.07] bg-white/[0.035] px-2.5 py-2 text-[8px] font-black text-zinc-400 transition hover:border-red-400/18 hover:bg-red-500/[0.06] hover:text-red-200">Trade →</Link>
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/[0.07] bg-black/25 text-[12px] font-black text-[var(--mm2-ink-3)]">#{rank}</span>
+    <MM2WeaponPlate name={item.NAME} category={item.CATEGORY} src={image} size={64} radius={14} className="shrink-0" />
+    <div className="min-w-0 flex-1"><div className="flex min-w-0 items-center gap-2"><Link href={`/mm2/values/${encodeURIComponent(item.ID ?? item.NAME)}`} className="truncate text-sm font-black text-white transition hover:text-[#f0919b]">{item.NAME}</Link><span className={`shrink-0 rounded-full border px-2 py-1 text-[10px] font-black uppercase tracking-[.06em] ${tierTone(tier)}`}>{demandNumber(item.DEMAND) ?? "N/A"}/10</span></div><p className="mt-1 truncate text-[9px] font-bold uppercase tracking-[.09em] text-zinc-700">{item.CATEGORY ?? "Weapon"} · Supreme {formatValue(item.SOURCE_VALUE)}</p></div>
+    <Link href={calcHref(item)} className="shrink-0 rounded-xl border border-white/[0.07] bg-white/[0.035] px-2.5 py-2 text-[11px] font-black text-[var(--mm2-ink-3)] transition hover:border-red-400/18 hover:bg-red-500/[0.06] hover:text-[#f0919b]">Trade →</Link>
   </div>;
 }
 
 function CategoryDemandRow({ category, averageDemand, rated, highDemand, onClick }: { category: string; averageDemand: number; rated: number; highDemand: number; onClick: () => void }) {
   const width = Math.max(4, Math.min(100, (averageDemand / 10) * 100));
-  return <button type="button" onClick={onClick} className="group block w-full rounded-[16px] border border-white/[0.06] bg-white/[0.02] p-3 text-left transition hover:border-cyan-400/14 hover:bg-cyan-500/[0.025]"><div className="flex items-center justify-between gap-3"><div className="min-w-0"><strong className="block truncate text-xs font-black text-zinc-300 group-hover:text-white">{category}</strong><span className="mt-0.5 block text-[8px] font-bold text-zinc-700">{rated} rated · {highDemand} at 6+</span></div><strong className="shrink-0 text-xs font-black text-cyan-200">{averageDemand.toFixed(1)}/10</strong></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/[0.05]"><div className="h-full rounded-full bg-gradient-to-r from-cyan-700 via-cyan-500 to-red-500" style={{ width: `${width}%` }} /></div></button>;
+  return <button type="button" onClick={onClick} className="group block w-full rounded-[16px] border border-white/[0.06] bg-white/[0.02] p-3 text-left transition hover:border-[var(--mm2-edge-lit)] hover:bg-white/[0.04]"><div className="flex items-center justify-between gap-3"><div className="min-w-0"><strong className="block truncate text-xs font-black text-zinc-300 group-hover:text-white">{category}</strong><span className="mt-0.5 block text-[8px] font-bold text-zinc-700">{rated} rated · {highDemand} at 6+</span></div><strong className="shrink-0 text-xs font-black text-cyan-200">{averageDemand.toFixed(1)}/10</strong></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/[0.05]"><div className="h-full rounded-full bg-gradient-to-r from-cyan-700 via-cyan-500 to-red-500" style={{ width: `${width}%` }} /></div></button>;
 }
 
 function DemandWeaponCard({ item }: { item: Item }) {
   const image = imageUrl(item.IMAGE); const itemTier = demandTier(item.DEMAND); const demand = demandNumber(item.DEMAND);
   return <article className="group overflow-hidden rounded-[20px] border border-white/[0.08] bg-[#0a0d13] shadow-[0_12px_34px_rgba(0,0,0,.18)] transition hover:-translate-y-0.5 hover:border-red-400/20">
-    <div className="flex gap-3 p-3.5"><Link href={`/mm2/values/${encodeURIComponent(item.ID ?? item.NAME)}`} className="flex h-[90px] w-[90px] shrink-0 items-center justify-center overflow-hidden rounded-[17px] border border-white/[0.07] bg-gradient-to-br from-[#171d29] via-[#0d1219] to-[#07090d] p-2">{image ? <img src={image} alt="" loading="lazy" className="h-full w-full object-contain drop-shadow-[0_10px_16px_rgba(0,0,0,.52)] transition duration-200 group-hover:scale-105" /> : <span className="text-3xl text-zinc-700">◆</span>}</Link>
-      <div className="min-w-0 flex-1"><div className="flex min-w-0 items-start justify-between gap-2"><div className="min-w-0"><span className="block truncate text-[8px] font-black uppercase tracking-[.12em] text-red-300">{item.CATEGORY ?? "Weapon"}</span><Link href={`/mm2/values/${encodeURIComponent(item.ID ?? item.NAME)}`} className="mt-1 block truncate text-base font-black text-white transition hover:text-red-200">{item.NAME}</Link></div><span className={`shrink-0 rounded-full border px-2.5 py-1.5 text-[8px] font-black uppercase tracking-[.08em] ${tierTone(itemTier)}`}>{demand === null ? "Unrated" : `${demand}/10`}</span></div><div className="mt-3 grid grid-cols-2 gap-2"><ValueCell label="Supreme" value={formatValue(item.SOURCE_VALUE)} /><ValueCell label="GCash" value={formatValue(item.GCASH_VALUE)} /></div></div>
+    <div className="flex gap-3 p-3.5"><Link href={`/mm2/values/${encodeURIComponent(item.ID ?? item.NAME)}`} className="shrink-0" tabIndex={-1} aria-hidden="true"><MM2WeaponPlate name={item.NAME} category={item.CATEGORY} src={image} size={90} radius={17} className="transition duration-200 group-hover:scale-[1.03]" /></Link>
+      <div className="min-w-0 flex-1"><div className="flex min-w-0 items-start justify-between gap-2"><div className="min-w-0"><span className="block truncate text-[11px] font-black uppercase tracking-[.1em] text-[#f0919b]">{item.CATEGORY ?? "Weapon"}</span><Link href={`/mm2/values/${encodeURIComponent(item.ID ?? item.NAME)}`} className="mt-1 block truncate text-base font-black text-white transition hover:text-[#f0919b]">{item.NAME}</Link></div><span className={`shrink-0 rounded-full border px-2.5 py-1.5 text-[8px] font-black uppercase tracking-[.08em] ${tierTone(itemTier)}`}>{demand === null ? "Unrated" : `${demand}/10`}</span></div><div className="mt-3 grid grid-cols-2 gap-2"><ValueCell label="Supreme" value={formatValue(item.SOURCE_VALUE)} /><ValueCell label="GCash" value={formatValue(item.GCASH_VALUE)} /></div></div>
     </div>
-    <div className="grid grid-cols-2 border-t border-white/[0.06]"><Link href={`/mm2/values/${encodeURIComponent(item.ID ?? item.NAME)}`} className="flex min-h-11 items-center justify-center border-r border-white/[0.06] text-[9px] font-black text-zinc-500 transition hover:bg-white/[0.025] hover:text-white">View Profile</Link><Link href={calcHref(item)} className="flex min-h-11 items-center justify-center text-[9px] font-black text-red-300 transition hover:bg-red-500/[0.055] hover:text-red-200">+ Add to Calculator</Link></div>
+    <div className="grid grid-cols-2 border-t border-white/[0.06]"><Link href={`/mm2/values/${encodeURIComponent(item.ID ?? item.NAME)}`} className="flex min-h-11 items-center justify-center border-r border-white/[0.06] text-[11px] font-black text-[var(--mm2-ink-3)] transition hover:bg-white/[0.025] hover:text-white">View Profile</Link><Link href={calcHref(item)} className="flex min-h-11 items-center justify-center text-[9px] font-black text-red-300 transition hover:bg-red-500/[0.055] hover:text-[#f0919b]">+ Add to Calculator</Link></div>
   </article>;
 }
 

@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import MM2RelatedWeapons from "./MM2RelatedWeapons";
+import MM2WeaponPlate from "./MM2WeaponPlate";
+import { mm2RarityTone } from "../../lib/mm2/rarity";
 
 type DemandContext = {
   demand: number | null;
@@ -53,29 +55,6 @@ function demandLabel(demand: number | null) {
   return "Low";
 }
 
-function categoryTheme(category?: string) {
-  switch ((category ?? "").toUpperCase()) {
-    case "CHROMA":
-      return "from-fuchsia-700 via-red-600 to-cyan-700";
-    case "ANCIENT":
-      return "from-amber-800 via-red-800 to-zinc-950";
-    case "GODLY":
-      return "from-rose-700 via-red-800 to-zinc-950";
-    case "VINTAGE":
-      return "from-amber-700 via-orange-900 to-zinc-950";
-    case "UNIQUE":
-      return "from-violet-700 via-red-900 to-zinc-950";
-    case "LEGENDARY":
-      return "from-orange-700 via-red-900 to-zinc-950";
-    case "RARE":
-      return "from-blue-800 via-red-950 to-zinc-950";
-    case "UNCOMMON":
-      return "from-emerald-800 via-red-950 to-zinc-950";
-    default:
-      return "from-red-800 via-rose-950 to-zinc-950";
-  }
-}
-
 export default function MM2WeaponDetails({
   item,
   image,
@@ -98,65 +77,76 @@ export default function MM2WeaponDetails({
     ? `/mm2/demand?category=${encodeURIComponent(item.CATEGORY)}`
     : "/mm2/demand";
 
+  const tone = mm2RarityTone(item.CATEGORY);
+
   return (
-    <section className="overflow-hidden rounded-[30px] border border-white/[0.08] bg-[#090b11]/95 shadow-[0_26px_90px_rgba(0,0,0,.42)]">
-      {/* Adopt Me-style profile hero, reskinned for MM2 */}
-      <div className={`bg-gradient-to-br ${categoryTheme(item.CATEGORY)} px-5 py-7 text-white sm:px-8 sm:py-10`}>
+    <section className="overflow-hidden rounded-[26px] border border-[var(--mm2-edge)] bg-[var(--mm2-panel)] shadow-[var(--mm2-shadow-lift)]">
+      {/* A display bay, not a colour slab: the light comes from behind the
+          weapon and is tinted by its rarity, at the same intensity the vault
+          on /mm2 uses. */}
+      <div
+        className="relative overflow-hidden px-5 py-7 text-white sm:px-8 sm:py-9"
+        style={{
+          background: `radial-gradient(ellipse 62% 76% at 16% 42%, ${tone.glow}, transparent 68%), linear-gradient(168deg, #101420, #0a0d13 62%, #0c0e14)`,
+        }}
+      >
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 h-px"
+          style={{ background: `linear-gradient(90deg, ${tone.edge}, transparent 52%)` }}
+        />
+
         <Link
           href="/mm2/values"
-          className="inline-flex rounded-full border border-white/15 bg-black/20 px-4 py-2 text-xs font-black backdrop-blur transition hover:bg-black/30"
+          className="relative inline-flex min-h-11 items-center rounded-[11px] border border-[var(--mm2-edge-strong)] bg-black/30 px-4 text-[13px] font-black text-[var(--mm2-ink-2)] transition hover:border-[var(--mm2-edge-lit)] hover:text-white"
         >
           ← All weapon values
         </Link>
 
-        <div className="mt-6 flex flex-col items-center gap-6 sm:flex-row sm:items-center sm:text-left">
-          <div className="flex h-40 w-40 shrink-0 items-center justify-center rounded-[28px] border border-white/15 bg-black/25 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,.08)] backdrop-blur-sm sm:h-48 sm:w-48">
-            {image ? (
-              <img
-                src={image}
-                alt={item.NAME}
-                className="h-full w-full object-contain drop-shadow-[0_16px_28px_rgba(0,0,0,.55)]"
-              />
-            ) : (
-              <span className="text-6xl text-white/45">◆</span>
-            )}
-          </div>
+        <div className="relative mt-7 flex flex-col items-center gap-7 sm:flex-row sm:items-center sm:text-left">
+          <MM2WeaponPlate
+            name={item.NAME}
+            category={item.CATEGORY}
+            src={image}
+            size={184}
+            radius={24}
+            markScale={0.3}
+            className="shrink-0"
+          />
 
           <div className="min-w-0 text-center sm:text-left">
             <div className="flex flex-wrap justify-center gap-2 sm:justify-start">
-              <span className="rounded-full bg-white/15 px-3 py-1 text-[10px] font-black uppercase tracking-wider">
+              <span
+                className="rounded-full border px-3 py-1.5 text-[11px] font-black uppercase tracking-[.09em]"
+                style={{ borderColor: tone.border, background: tone.chip, color: tone.chipInk }}
+              >
                 {item.CATEGORY || "Weapon"}
               </span>
-              <span className="rounded-full bg-white/15 px-3 py-1 text-[10px] font-black uppercase tracking-wider">
+              <span className="rounded-full border border-[var(--mm2-edge-strong)] bg-white/[0.05] px-3 py-1.5 text-[11px] font-black uppercase tracking-[.09em] text-[var(--mm2-ink-2)]">
                 {demand === null ? "Demand unrated" : `Demand ${demand}/10`}
               </span>
-              {item.TYPE ? (
-                <span className="rounded-full bg-white/15 px-3 py-1 text-[10px] font-black uppercase tracking-wider">
-                  {item.TYPE}
-                </span>
-              ) : null}
             </div>
 
-            <h1 className="mt-4 break-words text-3xl font-black tracking-[-.05em] sm:text-5xl">
+            <h1 className="mt-4 break-words text-[34px] font-black leading-[1.02] tracking-[-.05em] sm:text-[52px]">
               {item.NAME}
             </h1>
-            <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-white/85">
+            <p className="mt-3 max-w-2xl text-[14.5px] font-medium leading-[1.6] text-[var(--mm2-ink-2)]">
               Compare its listed values, inspect the current demand signal, verify the data source, and discover nearby MM2 weapons.
             </p>
-            <p className="mt-3 text-xs font-bold text-white/60">
+            <p className="mt-2.5 text-[12.5px] font-bold text-[var(--mm2-ink-3)]">
               Last data refresh: {formatDate(updatedAt)}
             </p>
 
-            <div className="mt-5 flex flex-wrap justify-center gap-2 sm:justify-start">
+            <div className="mt-6 flex flex-wrap justify-center gap-2.5 sm:justify-start">
               <Link
                 href={calculatorHref}
-                className="inline-flex min-h-11 items-center rounded-2xl bg-white px-4 text-xs font-black text-zinc-950 transition hover:bg-red-100"
+                className="inline-flex min-h-12 items-center rounded-[13px] border border-[var(--mm2-edge-lit)] bg-[linear-gradient(135deg,rgba(143,18,36,.92),rgba(194,37,57,.78))] px-5 text-[13px] font-black text-[#fff4f5] transition hover:brightness-115"
               >
                 + Add to Trade Calculator
               </Link>
               <Link
                 href={demandMarketHref}
-                className="inline-flex min-h-11 items-center rounded-2xl border border-white/20 bg-black/20 px-4 text-xs font-black text-white transition hover:bg-black/30"
+                className="inline-flex min-h-12 items-center rounded-[13px] border border-[var(--mm2-edge-strong)] bg-black/30 px-5 text-[13px] font-black text-[var(--mm2-ink-2)] transition hover:bg-black/45 hover:text-white"
               >
                 View Demand Market →
               </Link>
@@ -214,33 +204,10 @@ export default function MM2WeaponDetails({
           </p>
         </section>
 
-        {/* Adopt Me equivalent: Value breakdown */}
-        <div className="mt-8">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[.16em] text-zinc-500">
-              Value breakdown
-            </p>
-            <h2 className="mt-1 text-2xl font-black tracking-[-.035em] text-white">
-              Current weapon values
-            </h2>
-          </div>
-
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <ValueCard
-              eyebrow="Supreme"
-              value={formatValue(item.SOURCE_VALUE)}
-              available={hasSupreme}
-            />
-            <ValueCard
-              eyebrow="GCash"
-              value={formatValue(item.GCASH_VALUE)}
-              available={hasGcash}
-            />
-          </div>
-        </div>
-
         {/* MM2 equivalent to the supporting market/profile section */}
-        <div className="mt-8 grid gap-5 lg:grid-cols-[1.08fr_.92fr]">
+        {/* items-start: the profile panel has fewer rows than the demand
+            panel, and stretching it to match left ~40% of it empty. */}
+        <div className="mt-8 grid items-start gap-5 lg:grid-cols-[1.08fr_.92fr]">
           <InfoSection title="Demand profile" eyebrow="Trading signal">
             <div className="rounded-2xl border border-white/[0.06] bg-black/20 p-4">
               <div className="flex items-center justify-between gap-3">
@@ -310,7 +277,6 @@ export default function MM2WeaponDetails({
           <InfoSection title="Weapon information" eyebrow="Profile">
             <InfoRow label="Name" value={item.NAME} />
             <InfoRow label="Category / rarity" value={item.CATEGORY || "Unknown"} />
-            <InfoRow label="Type" value={item.TYPE || "Not specified"} />
             <InfoRow label="Source" value={source} />
           </InfoSection>
         </div>
@@ -344,7 +310,7 @@ export default function MM2WeaponDetails({
         <div className="mt-7 flex flex-wrap gap-3 border-t border-white/[0.06] pt-6">
           <Link
             href={calculatorHref}
-            className="inline-flex min-h-11 items-center rounded-2xl bg-red-600 px-5 text-xs font-black text-white transition hover:bg-red-500"
+            className="inline-flex min-h-12 items-center rounded-[13px] border border-[var(--mm2-edge-lit)] bg-[linear-gradient(135deg,rgba(143,18,36,.92),rgba(194,37,57,.78))] px-5 text-[13px] font-black text-[#fff4f5] transition hover:brightness-115"
           >
             + Add to Calculator
           </Link>
@@ -393,30 +359,6 @@ function HealthMetric({ label, value }: { label: string; value: string }) {
         {label}
       </p>
       <p className="mt-1.5 text-sm font-black text-zinc-200">{value}</p>
-    </div>
-  );
-}
-
-function ValueCard({
-  eyebrow,
-  value,
-  available,
-}: {
-  eyebrow: string;
-  value: string;
-  available: boolean;
-}) {
-  return (
-    <div className="rounded-[22px] border border-white/[0.08] bg-[#0d1018] p-5 text-center">
-      <p className="text-[10px] font-black uppercase tracking-[.15em] text-red-300">
-        {eyebrow}
-      </p>
-      <p className={`mt-3 text-3xl font-black tracking-[-.04em] ${available ? "text-white" : "text-zinc-600"}`}>
-        {value}
-      </p>
-      <p className="mt-2 text-[11px] font-bold text-zinc-600">
-        {available ? "Listed in current MM2 data" : "Not available"}
-      </p>
     </div>
   );
 }

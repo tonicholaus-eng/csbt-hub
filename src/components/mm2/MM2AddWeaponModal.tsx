@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import MM2WeaponPlate from "./MM2WeaponPlate";
 import type { MM2Item, MM2SelectedTradeItem, MM2ValueSource } from "./MM2TradeTypes";
 
 const ITEMS_PER_PAGE = 30;
@@ -271,11 +272,13 @@ export default function MM2AddWeaponModal({
 
                         <div className="relative flex h-28 w-full shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/[0.07] bg-gradient-to-br from-[#171d29] via-[#0c1119] to-[#07090d] p-3 shadow-inner sm:h-[118px] sm:rounded-[20px]">
                           {src ? (
-                            <img
+                            <MM2WeaponPlate
+                              name={item.NAME}
+                              category={item.CATEGORY}
                               src={src}
-                              alt={item.NAME}
-                              className="h-full w-full object-contain drop-shadow-[0_12px_16px_rgba(0,0,0,.55)] transition-transform duration-300 group-hover/card:scale-110 group-hover/card:rotate-2"
-                              loading="lazy"
+                              size={104}
+                              radius={16}
+                              className="transition duration-300 group-hover/card:scale-105"
                             />
                           ) : (
                             <span className="text-5xl text-red-300/45">◆</span>

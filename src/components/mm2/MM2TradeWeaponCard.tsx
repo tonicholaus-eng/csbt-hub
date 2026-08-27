@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
+import MM2WeaponPlate from "./MM2WeaponPlate";
 import type {
   MM2SelectedTradeItem,
   MM2ValueSource,
@@ -67,15 +68,14 @@ export default function MM2TradeWeaponCard({
 
       <div className="flex min-w-0 gap-2.5 pr-8 sm:gap-3">
         <div className="flex h-[68px] w-[68px] shrink-0 items-center justify-center rounded-[15px] border border-white/[0.08] bg-gradient-to-br from-[#1d2533] via-[#10151e] to-[#080a0e] p-1.5 shadow-inner sm:h-[78px] sm:w-[78px] sm:rounded-[18px]">
-          {src ? (
-            <img
-              src={src}
-              alt={selectedItem.item.NAME}
-              className="h-full w-full object-contain drop-shadow-[0_10px_13px_rgba(0,0,0,.55)] transition-transform duration-200 group-hover:scale-105"
-            />
-          ) : (
-            <span className="text-2xl text-red-300/50">◆</span>
-          )}
+          <MM2WeaponPlate
+            name={selectedItem.item.NAME}
+            category={selectedItem.item.CATEGORY}
+            src={src}
+            size={68}
+            radius={15}
+            className="transition duration-200 group-hover:scale-[1.03]"
+          />
         </div>
 
         <div className="min-w-0 flex-1">

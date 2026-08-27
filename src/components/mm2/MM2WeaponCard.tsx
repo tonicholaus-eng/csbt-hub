@@ -1,4 +1,6 @@
 import Link from "next/link";
+import MM2WeaponPlate from "./MM2WeaponPlate";
+import { mm2RarityTone } from "../../lib/mm2/rarity";
 
 // Nullable value/demand fields match the generated mm2Items.json shape.
 type Item = {
@@ -21,24 +23,14 @@ function demandNumber(value: Item["DEMAND"]) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function demandLabel(value: Item["DEMAND"]) {
-  const demand = demandNumber(value);
-  if (demand === null) return "Unrated";
-  if (demand >= 8) return "Very High";
-  if (demand >= 6) return "High";
-  if (demand >= 4) return "Active";
-  if (demand >= 2) return "Moderate";
-  return "Low";
-}
-
 function demandTone(value: Item["DEMAND"]) {
   const demand = demandNumber(value);
-  if (demand === null) return "border-white/[0.07] bg-black/20 text-zinc-600";
-  if (demand >= 8) return "border-red-400/22 bg-red-500/[0.07] text-red-200";
-  if (demand >= 6) return "border-orange-400/18 bg-orange-500/[0.06] text-orange-200";
-  if (demand >= 4) return "border-amber-400/18 bg-amber-500/[0.055] text-amber-200";
-  if (demand >= 2) return "border-cyan-400/16 bg-cyan-500/[0.05] text-cyan-200";
-  return "border-white/[0.08] bg-white/[0.03] text-zinc-400";
+  if (demand === null) return "border-white/[0.07] bg-black/25 text-[var(--mm2-ink-4)]";
+  if (demand >= 8) return "border-[rgba(226,52,74,.30)] bg-[rgba(226,52,74,.10)] text-[#f0919b]";
+  if (demand >= 6) return "border-[rgba(206,74,58,.26)] bg-[rgba(206,74,58,.08)] text-[#dfa598]";
+  if (demand >= 4) return "border-[rgba(180,140,70,.24)] bg-[rgba(180,140,70,.08)] text-[#d3bc90]";
+  if (demand >= 2) return "border-[rgba(96,124,178,.24)] bg-[rgba(96,124,178,.08)] text-[#adbcd8]";
+  return "border-white/[0.08] bg-white/[0.03] text-[var(--mm2-ink-3)]";
 }
 
 function imageUrl(image?: string) {
@@ -48,79 +40,90 @@ function imageUrl(image?: string) {
   return `https://supremevalues.com${clean}`;
 }
 
-function rarityTone(category?: string) {
-  switch ((category || "").toUpperCase()) {
-    case "CHROMA":
-      return "border-fuchsia-400/20 bg-fuchsia-500/[0.05] text-fuchsia-200";
-    case "ANCIENT":
-      return "border-red-400/20 bg-red-500/[0.05] text-red-200";
-    case "GODLY":
-      return "border-rose-400/20 bg-rose-500/[0.05] text-rose-200";
-    case "VINTAGE":
-      return "border-amber-400/20 bg-amber-500/[0.05] text-amber-200";
-    case "UNIQUE":
-      return "border-cyan-400/20 bg-cyan-500/[0.05] text-cyan-200";
-    default:
-      return "border-white/[0.08] bg-white/[0.035] text-zinc-300";
-  }
-}
-
 export default function MM2WeaponCard({ item }: { item: Item }) {
   const slug = encodeURIComponent(item.ID ?? item.NAME);
   const image = imageUrl(item.IMAGE);
   const demand = demandNumber(item.DEMAND);
   const calculatorKey = String(item.ID ?? item.NAME);
+  const tone = mm2RarityTone(item.CATEGORY);
+
+  // A 1,000,000-value Godly used to render exactly like an 11-value Common.
+  // Higher tiers get a lit top rail and a stronger resting edge — presence from
+  // light, not from a louder card.
+  const featured = tone.rank >= 3;
 
   return (
-    <article className="group overflow-hidden rounded-[18px] border border-white/[0.08] bg-[#0b0c12]/95 shadow-[0_10px_32px_rgba(0,0,0,.16)] transition duration-200 hover:-translate-y-0.5 hover:border-red-400/26 hover:bg-[#0d0e15]">
-      <div className="flex min-w-0 items-center gap-3 p-3">
+    <article
+      className="group relative overflow-hidden rounded-[18px] border bg-[var(--mm2-panel)] shadow-[0_10px_32px_rgba(0,0,0,.22)] transition duration-200 hover:-translate-y-0.5 hover:bg-[var(--mm2-riser)]"
+      style={{ borderColor: featured ? tone.border : "rgba(255,255,255,.07)" }}
+    >
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 h-px"
+        style={{
+          background: `linear-gradient(90deg, ${tone.edge}, transparent ${featured ? "62%" : "34%"})`,
+          opacity: featured ? 1 : 0.5,
+        }}
+      />
+
+      <div className="flex min-w-0 items-center gap-3.5 p-3.5">
         <Link
           href={`/mm2/values/${slug}`}
-          className={`flex h-[76px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-[15px] border ${rarityTone(item.CATEGORY)}`}
+          className="shrink-0 rounded-[15px] outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--mm2-crimson)]"
+          tabIndex={-1}
+          aria-hidden="true"
         >
-          {image ? (
-            <img
-              src={image}
-              alt=""
-              loading="lazy"
-              className="h-[68px] w-[68px] object-contain drop-shadow-[0_8px_16px_rgba(0,0,0,.45)] transition duration-300 group-hover:scale-105"
-            />
-          ) : (
-            <span className="text-2xl text-zinc-600">✦</span>
-          )}
+          <MM2WeaponPlate
+            name={item.NAME}
+            category={item.CATEGORY}
+            src={image}
+            size={76}
+            className="transition duration-300 group-hover:scale-[1.03]"
+          />
         </Link>
 
         <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-start justify-between gap-2">
+          <div className="flex min-w-0 items-start justify-between gap-2.5">
             <div className="min-w-0">
               <Link
                 href={`/mm2/values/${slug}`}
-                className="block truncate text-sm font-black text-white transition hover:text-red-200"
+                className="block truncate text-[15px] font-black tracking-[-.01em] text-white transition hover:text-[#f0919b]"
               >
                 {item.NAME}
               </Link>
-              <span className="mt-1 block truncate text-[9px] font-bold uppercase tracking-[0.08em] text-zinc-600">
+              <span
+                className="mt-1.5 inline-block rounded-full border px-2 py-0.5 text-[10px] font-black uppercase tracking-[.08em]"
+                style={{ borderColor: tone.border, background: tone.chip, color: tone.chipInk }}
+              >
                 {item.CATEGORY || "Weapon"}
               </span>
             </div>
 
             <Link
               href={`/mm2/demand?q=${encodeURIComponent(item.NAME)}`}
-              className={`shrink-0 rounded-full border px-2 py-1 text-[7px] font-black uppercase tracking-[.08em] transition hover:brightness-125 ${demandTone(item.DEMAND)}`}
+              className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[.05em] transition hover:brightness-125 ${demandTone(item.DEMAND)}`}
               title="Open this weapon in Demand Intelligence"
             >
-              {demand === null ? "Unrated" : `${demand}/10 ${demandLabel(item.DEMAND)}`}
+              {demand === null ? "Unrated" : `${demand}/10`}
             </Link>
           </div>
 
-          <div className="mt-2 grid grid-cols-2 gap-1.5 text-[10px] font-black">
-            <span className="min-w-0 rounded-[9px] bg-white/[0.045] px-2 py-1.5 text-zinc-200">
-              <small className="mr-1 font-black uppercase text-zinc-600">SV</small>
-              {formatValue(item.SOURCE_VALUE)}
+          <div className="mt-2.5 flex items-end gap-4">
+            <span className="min-w-0">
+              <small className="block text-[10px] font-black uppercase tracking-[.1em] text-[var(--mm2-ink-4)]">
+                Supreme
+              </small>
+              <strong className="mt-0.5 block truncate text-[19px] font-black leading-none tabular-nums tracking-[-.03em] text-white">
+                {formatValue(item.SOURCE_VALUE)}
+              </strong>
             </span>
-            <span className="min-w-0 rounded-[9px] bg-white/[0.045] px-2 py-1.5 text-zinc-200">
-              <small className="mr-1 font-black uppercase text-zinc-600">GC</small>
-              {formatValue(item.GCASH_VALUE)}
+            <span className="min-w-0 border-l border-white/[0.08] pl-4">
+              <small className="block text-[10px] font-black uppercase tracking-[.1em] text-[var(--mm2-ink-4)]">
+                GCash
+              </small>
+              <strong className="mt-0.5 block truncate text-[15px] font-black leading-none tabular-nums tracking-[-.02em] text-[var(--mm2-ink-2)]">
+                {formatValue(item.GCASH_VALUE)}
+              </strong>
             </span>
           </div>
         </div>
@@ -129,19 +132,19 @@ export default function MM2WeaponCard({ item }: { item: Item }) {
       <div className="grid grid-cols-3 border-t border-white/[0.055]">
         <Link
           href={`/mm2/values/${slug}`}
-          className="flex min-h-10 items-center justify-center border-r border-white/[0.055] text-[8px] font-black text-zinc-600 transition hover:bg-white/[0.025] hover:text-white"
+          className="flex min-h-11 items-center justify-center border-r border-white/[0.055] text-[11px] font-black text-[var(--mm2-ink-3)] transition hover:bg-white/[0.03] hover:text-white"
         >
           Profile
         </Link>
         <Link
           href={`/mm2/demand?q=${encodeURIComponent(item.NAME)}`}
-          className="flex min-h-10 items-center justify-center border-r border-white/[0.055] text-[8px] font-black text-cyan-300/75 transition hover:bg-cyan-500/[0.04] hover:text-cyan-200"
+          className="flex min-h-11 items-center justify-center border-r border-white/[0.055] text-[11px] font-black text-[var(--mm2-ink-3)] transition hover:bg-white/[0.03] hover:text-white"
         >
-          Demand Intel
+          Demand
         </Link>
         <Link
           href={`/mm2/calculator?add=${encodeURIComponent(calculatorKey)}&source=SUPREME`}
-          className="flex min-h-10 items-center justify-center text-[8px] font-black text-red-300 transition hover:bg-red-500/[0.05] hover:text-red-200"
+          className="flex min-h-11 items-center justify-center text-[11px] font-black text-[#f0919b] transition hover:bg-[rgba(226,52,74,.07)] hover:text-white"
         >
           + Trade
         </Link>

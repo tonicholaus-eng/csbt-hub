@@ -1,4 +1,5 @@
 import Link from "next/link";
+import MM2WeaponPlate from "./MM2WeaponPlate";
 
 type MM2Item = {
   ID?: string;
@@ -60,20 +61,16 @@ export default function MM2RelatedWeapons({ weapons }: { weapons: MM2Item[] }) {
             <Link
               key={weapon.ID ?? weapon.NAME}
               href={`/mm2/values/${encodeURIComponent(weapon.ID ?? weapon.NAME)}`}
-              className="group flex min-w-0 items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-3 transition hover:-translate-y-0.5 hover:border-red-400/25 hover:bg-white/[0.04]"
+              className="group flex min-w-0 items-center gap-3 rounded-[16px] border border-[var(--mm2-edge)] bg-white/[0.025] p-3 transition hover:-translate-y-0.5 hover:border-[var(--mm2-edge-lit)] hover:bg-white/[0.045]"
             >
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/[0.06] bg-black/30 p-1">
-                {src ? (
-                  <img
-                    src={src}
-                    alt=""
-                    className="h-full w-full object-contain"
-                    loading="lazy"
-                  />
-                ) : (
-                  <span className="text-red-300">◆</span>
-                )}
-              </span>
+              <MM2WeaponPlate
+                name={weapon.NAME}
+                category={weapon.CATEGORY}
+                src={src}
+                size={46}
+                radius={12}
+                className="shrink-0"
+              />
 
               <span className="min-w-0 flex-1">
                 <strong className="block truncate text-sm font-black text-white">

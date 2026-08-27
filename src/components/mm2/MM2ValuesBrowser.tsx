@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import MM2WeaponCard from "./MM2WeaponCard";
+import MM2PageHeader from "./MM2PageHeader";
 
 // Mirrors the generated shape of src/data/mm2Items.json. 189 of the 1,099
 // weapons legitimately have no Supreme value or demand (untradables, EVO
@@ -109,28 +110,26 @@ export default function MM2ValuesBrowser({ items }: { items: Item[] }) {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-col gap-4 border-b border-white/[0.08] pb-6 pt-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-red-300">Weapon Values</p>
-          <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] text-white sm:text-4xl">MM2 Trading Values</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">
-            Search the MM2 database, compare Supreme values and demand, then open any weapon for its full profile.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href="/mm2/demand"
-            className="rounded-full border border-cyan-400/15 bg-cyan-500/[0.05] px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-cyan-200 transition hover:bg-cyan-500/[0.08]"
-          >
-            Open Demand Intel →
-          </Link>
-          <div className="rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-zinc-400">
-            {items.length.toLocaleString()} weapons
-          </div>
-        </div>
-      </header>
+      <MM2PageHeader
+        eyebrow="Weapon Values"
+        title="MM2 Trading Values"
+        description="Search the MM2 database, compare Supreme values and demand, then open any weapon for its full profile."
+        actions={
+          <>
+            <span className="inline-flex min-h-11 items-center rounded-[11px] border border-[var(--mm2-edge)] bg-white/[0.03] px-3.5 text-[12px] font-black text-[var(--mm2-ink-2)]">
+              {items.length.toLocaleString()} weapons
+            </span>
+            <Link
+              href="/mm2/demand"
+              className="inline-flex min-h-11 items-center rounded-[11px] border border-[var(--mm2-edge-lit)] bg-[rgba(226,52,74,.07)] px-4 text-[12px] font-black text-[#f0919b] transition hover:bg-[rgba(226,52,74,.12)] hover:text-white"
+            >
+              Demand Intelligence →
+            </Link>
+          </>
+        }
+      />
 
-      <section className="rounded-[24px] border border-white/[0.08] bg-white/[0.025] p-4 sm:p-5">
+      <section className="rounded-[20px] border border-[var(--mm2-edge)] bg-[var(--mm2-bay)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,.03)] sm:p-5">
         <label className="block">
           <span className="sr-only">Search MM2 weapon values</span>
           <input
@@ -140,7 +139,7 @@ export default function MM2ValuesBrowser({ items }: { items: Item[] }) {
               resetVisible();
             }}
             placeholder="Search Harvester, Luger, Icebreaker..."
-            className="min-h-12 w-full rounded-[14px] border border-white/[0.09] bg-black/30 px-4 text-sm font-bold text-white outline-none transition placeholder:text-zinc-600 focus:border-red-400/45"
+            className="min-h-[52px] w-full rounded-[13px] border border-[var(--mm2-edge-strong)] bg-black/40 px-4 text-[15px] font-bold text-white outline-none transition placeholder:text-[var(--mm2-ink-4)] focus:border-[var(--mm2-crimson)] focus:ring-2 focus:ring-[rgba(226,52,74,.18)]"
           />
         </label>
 
@@ -154,14 +153,14 @@ export default function MM2ValuesBrowser({ items }: { items: Item[] }) {
                 setCategory(value);
                 resetVisible();
               }}
-              className={`shrink-0 rounded-full border px-3.5 py-2 text-[10px] font-black uppercase tracking-[0.09em] transition ${
+              className={`inline-flex min-h-11 shrink-0 items-center rounded-[11px] border px-3.5 text-[12px] font-black uppercase tracking-[0.07em] transition ${
                 category === value
-                  ? "border-red-400/45 bg-red-500/15 text-red-100"
-                  : "border-white/[0.08] bg-white/[0.025] text-zinc-400 hover:border-white/[0.14] hover:text-white"
+                  ? "border-[var(--mm2-edge-lit)] bg-[rgba(226,52,74,.14)] text-[#ffd7dc]"
+                  : "border-[var(--mm2-edge)] bg-white/[0.025] text-[var(--mm2-ink-3)] hover:border-[var(--mm2-edge-strong)] hover:text-white"
               }`}
             >
               {value === "ALL" ? "All" : value}
-              <span className="ml-1.5 opacity-45">
+              <span className="ml-1.5 text-[var(--mm2-ink-4)]">
                 {value === "ALL" ? items.length : categoryCounts.get(value) || 0}
               </span>
             </button>
@@ -176,7 +175,7 @@ export default function MM2ValuesBrowser({ items }: { items: Item[] }) {
               resetVisible();
             }}
             aria-label="Filter by demand"
-            className="min-h-11 rounded-[13px] border border-white/[0.08] bg-[#0b0c12] px-3 text-xs font-black text-zinc-200 outline-none"
+            className="min-h-11 rounded-[12px] border border-[var(--mm2-edge-strong)] bg-[#090c12] px-3 text-[13px] font-black text-[var(--mm2-ink-2)] outline-none transition focus:border-[var(--mm2-crimson)]"
           >
             <option value="ALL">All demand scores</option>
             {demandOptions.map((value) => (
@@ -191,7 +190,7 @@ export default function MM2ValuesBrowser({ items }: { items: Item[] }) {
               resetVisible();
             }}
             aria-label="Sort weapon values"
-            className="min-h-11 rounded-[13px] border border-white/[0.08] bg-[#0b0c12] px-3 text-xs font-black text-zinc-200 outline-none"
+            className="min-h-11 rounded-[12px] border border-[var(--mm2-edge-strong)] bg-[#090c12] px-3 text-[13px] font-black text-[var(--mm2-ink-2)] outline-none transition focus:border-[var(--mm2-crimson)]"
           >
             <option value="AZ">A–Z</option>
             <option value="VALUE_HIGH">Highest Supreme value</option>
@@ -202,9 +201,11 @@ export default function MM2ValuesBrowser({ items }: { items: Item[] }) {
       </section>
 
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-black text-zinc-300">{filtered.length.toLocaleString()} matching weapons</p>
+        <p className="text-[14px] font-black text-[var(--mm2-ink-2)]">
+          <span className="tabular-nums text-white">{filtered.length.toLocaleString()}</span> matching weapons
+        </p>
         {hasFilters ? (
-          <button type="button" onClick={clearFilters} className="min-h-10 px-2 text-xs font-black text-red-300 hover:text-red-200">
+          <button type="button" onClick={clearFilters} className="min-h-11 rounded-[10px] px-3 text-[13px] font-black text-[#f0919b] transition hover:bg-white/[0.04] hover:text-white">
             Clear filters
           </button>
         ) : null}
@@ -212,7 +213,7 @@ export default function MM2ValuesBrowser({ items }: { items: Item[] }) {
 
       {visibleItems.length ? (
         <>
-          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <section className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {visibleItems.map((item, index) => (
               <MM2WeaponCard key={item.ID || `${item.NAME}-${index}`} item={item} />
             ))}
@@ -223,7 +224,7 @@ export default function MM2ValuesBrowser({ items }: { items: Item[] }) {
               <button
                 type="button"
                 onClick={() => setVisibleCount((current) => Math.min(filtered.length, current + PAGE_SIZE))}
-                className="min-h-11 rounded-[14px] border border-white/[0.1] bg-white/[0.04] px-5 text-xs font-black text-zinc-200 transition hover:border-red-400/30 hover:bg-red-500/[0.06]"
+                className="min-h-12 rounded-[13px] border border-[var(--mm2-edge-strong)] bg-white/[0.04] px-6 text-[13px] font-black text-[var(--mm2-ink-2)] transition hover:border-[var(--mm2-edge-lit)] hover:bg-[rgba(226,52,74,.07)] hover:text-white"
               >
                 Load more ({(filtered.length - visibleItems.length).toLocaleString()} left)
               </button>
@@ -231,11 +232,19 @@ export default function MM2ValuesBrowser({ items }: { items: Item[] }) {
           ) : null}
         </>
       ) : (
-        <section className="rounded-[24px] border border-dashed border-white/[0.1] bg-white/[0.02] px-6 py-14 text-center">
-          <div className="text-3xl text-zinc-600">⌕</div>
-          <h2 className="mt-3 text-lg font-black text-white">No weapons match those filters</h2>
-          <p className="mt-2 text-sm text-zinc-500">Try another search, category, or demand score.</p>
-          <button type="button" onClick={clearFilters} className="mt-5 text-xs font-black text-red-300 hover:text-red-200">Clear filters</button>
+        <section className="rounded-[20px] border border-dashed border-[var(--mm2-edge-strong)] bg-[var(--mm2-bay)] px-6 py-16 text-center">
+          <h2 className="text-[20px] font-black tracking-[-.02em] text-white">No weapons match those filters</h2>
+          <p className="mx-auto mt-2.5 max-w-md text-[14px] leading-relaxed text-[var(--mm2-ink-3)]">
+            Nothing in the {items.length.toLocaleString()}-weapon catalog fits that combination. Try another
+            search term, category, or demand score.
+          </p>
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="mt-6 inline-flex min-h-11 items-center rounded-[12px] border border-[var(--mm2-edge-lit)] bg-[rgba(226,52,74,.07)] px-5 text-[13px] font-black text-[#f0919b] transition hover:bg-[rgba(226,52,74,.12)] hover:text-white"
+          >
+            Clear filters
+          </button>
         </section>
       )}
     </div>
