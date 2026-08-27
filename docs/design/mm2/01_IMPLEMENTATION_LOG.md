@@ -180,7 +180,7 @@ inline `Sign in` in a sentence on Trade Opinions.
 
 | Signal | Before | After |
 |---|---|---|
-| `aria-label` | 127 | 132 |
+| `aria-label` | 127 | 129 |
 | `aria-hidden` | 172 | 178 |
 | `aria-live` | 8 | 8 |
 | `aria-pressed` | 7 | 7 |
@@ -193,6 +193,29 @@ not touched.
 Two **infinite** animations were removed (the `VS` disc and the verdict glyph)
 and one reveal-on-scroll was converted to animate-on-mount, so MM2 now runs no
 permanent animation outside the homepage vault's existing 10s breathing loop.
+
+### Three defects found while auditing the modals (item 11)
+
+All three were pre-existing, confirmed against `702fd46`, and all three are now
+fixed:
+
+1. **MM2 was drawing Adopt Me's gold focus ring.** `globals.css:477` sets
+   `:focus-visible { outline: 3px solid var(--ring) }`. The CSBT token bridge
+   was scoped to `.mm2-social-mode` only, so MM2-only routes - home, values,
+   the weapon profile, demand and the calculator - inherited Adopt Me's
+   `--ring: #ffc92880` and put a gold ring around every focused control. The
+   bridge now also applies to `.mm2-mode`; measured after, `--ring` resolves to
+   `#e2344a38` on both `<main>` and a rail link.
+2. **The weapon picker was clipped behind the control rail.** `MM2Shell`
+   inherited `relative z-10` from the old route scaffolding, which creates a
+   stacking context; the modal's `z-[100]` was therefore scoped inside a z-10
+   layer and lost to the rail's `z-50`. The left 288px of the dialog - its
+   title and the start of its search field - rendered underneath the sidebar on
+   every desktop viewport. The shell no longer sets a z-index.
+3. **Escape did not close the weapon picker.** The dialog announced itself
+   correctly (`role="dialog"`, `aria-modal="true"`, `aria-labelledby`) and moved
+   focus to the search field, but there was no key handler, so a keyboard user
+   could open it and not close it. Escape now closes it, verified in-browser.
 
 ### Adopt Me regression
 

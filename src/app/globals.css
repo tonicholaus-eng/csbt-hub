@@ -4902,6 +4902,13 @@ body::before {
 /* The Adopt Me accent tokens used to pass straight through here, which is why
    the MM2 Lounge rendered indigo avatars and a violet primary button. MM2 maps
    them onto its own steel/crimson scale instead. */
+/* The CSBT token bridge applies to every MM2 surface, not just the ones hosting
+   shared community engines. Without it, MM2-only routes fell back to Adopt Me
+   values for anything a global rule reads — most visibly the global
+   `:focus-visible { outline: 3px solid var(--ring) }`, which drew Adopt Me's
+   gold focus ring around every focused control on /mm2, /mm2/values, the weapon
+   profile, /mm2/demand and /mm2/calculator. */
+.mm2-mode,
 .mm2-social-mode,
 .mm2-gate {
   --background: var(--mm2-void);

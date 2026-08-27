@@ -66,6 +66,16 @@ four times, and the station grid had a ~220px hole inside its largest card.
   `whileInView`+`once`, so an `aria-live` result stayed at `opacity: 0` until
   scrolled to.
 - Focus, hover and selected states were moved onto one accent instead of five.
+- **MM2 was drawing Adopt Me's gold focus ring.** The global
+  `:focus-visible { outline: 3px solid var(--ring) }` had no MM2 value on
+  MM2-only routes, so every focused control on the home page, values, the weapon
+  profile, demand and the calculator got Adopt Me's `#ffc92880`. Now `#e2344a38`.
+- **The weapon picker was clipped behind the control rail** on every desktop
+  viewport - a `relative z-10` wrapper trapped the modal's `z-[100]` beneath the
+  rail's `z-50`. The dialog now renders in full.
+- **Escape now closes the weapon picker.** It announced itself correctly and
+  took focus, but had no key handler, so a keyboard user could open it and not
+  close it.
 
 ---
 
@@ -83,11 +93,25 @@ column by 190px and shifts every left edge. Values gains a fourth column above
 
 ## 5. Accessibility
 
-Every signal preserved or increased against baseline `702fd46`: `aria-label`
-127→132, `aria-hidden` 172→178, `aria-live` 8→8, `aria-pressed` 7→7,
-`useReducedMotion` 54→54, and the combobox trio
-(`aria-expanded`/`-controls`/`-activedescendant`) unchanged at 5/3/3 — the
-`GameItemPicker` keyboard work was not touched.
+Every signal preserved or increased against baseline `702fd46`, counted with
+`git grep` over `*.tsx` on both sides. **Nothing decreased.**
+
+| Signal | Before | After |
+|---|---|---|
+| `aria-label` | 127 | 129 |
+| `aria-hidden` | 172 | 178 |
+| `aria-current` | 6 | 8 |
+| `aria-modal` | 8 | 9 |
+| `aria-live` | 8 | 8 |
+| `aria-pressed` | 7 | 7 |
+| `aria-expanded` / `-controls` / `-activedescendant` | 5 / 3 / 3 | 5 / 3 / 3 |
+| `aria-selected` | 4 | 4 |
+| `role=` | 25 | 25 |
+| `useReducedMotion` | 54 | 54 |
+| `sr-only` | 12 | 12 |
+
+The combobox trio is identical — the `GameItemPicker` keyboard work was not
+touched.
 
 WCAG AA text contrast, measured in Chromium at 1920 by compositing each
 element's real background:
@@ -224,8 +248,18 @@ src/components/nich/NichIntroMascot.tsx        gameTone undefined -> original li
 | 10 | Accessibility signal diff vs `702fd46` | nothing decreased |
 | 11 | Adopt Me diff proof (6 shared files) | every Adopt Me path byte-identical |
 | 12 | Adopt Me visual spot-check, 7 routes @1600 | unchanged |
+| 13 | Weapon picker: dialog semantics, Escape, stacking, focus-ring token | `role`/`aria-modal`/`aria-labelledby` present, focus lands on search, Escape closes, dialog no longer clipped, `--ring` resolves crimson |
+| 14 | Focus-ring parity, MM2 vs Adopt Me | MM2 `rgba(226,52,74,.22)`; Adopt Me still `rgba(255,201,40,.5)` — unchanged |
 
-### Production-build browser smoke test (`next start`, port 3001)
+**Every browser check above was re-run a final time against the production
+build** (`npm run build` then `next start`), not the dev server. That matters:
+an earlier pass showed 500s, a `_clientMiddleware` script rejection and a Jest
+worker crash, which turned out to be `npm run build` clobbering the `.next/`
+directory out from under a concurrently running `next dev`. Against a clean
+production server those disappear and the only console error left is the
+pre-existing Supabase `400`.
+
+### Production-build browser smoke test (`next start`)
 
 ```
 200  /mm2                                Trade with intelligence.

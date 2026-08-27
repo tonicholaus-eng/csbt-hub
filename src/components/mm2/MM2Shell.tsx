@@ -35,7 +35,10 @@ export default function MM2Shell({
       className={`mm2-mode ${social ? "mm2-social-mode " : ""}min-h-screen overflow-x-hidden ${className}`}
     >
       <MM2Navbar />
-      <div className="relative z-10 min-w-0 lg:pl-[288px]">
+      {/* No z-index here. `relative z-10` created a stacking context that
+          trapped the weapon picker (z-100) underneath the control rail (z-50),
+          clipping the modal behind the 288px rail on every desktop viewport. */}
+      <div className="relative min-w-0 lg:pl-[288px]">
         <div
           className={`mm2-shell-measure ${social ? "csbt-app-workspace" : "mm2-shell-body"}`}
           data-measure={measure}

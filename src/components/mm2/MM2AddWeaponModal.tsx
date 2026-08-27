@@ -119,6 +119,19 @@ export default function MM2AddWeaponModal({
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+
+    // The dialog announced itself correctly (role, aria-modal, aria-labelledby)
+    // and moved focus to the search field, but Escape did nothing — the only way
+    // out was the mouse. Keyboard users could open the weapon picker and not
+    // close it.
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+
     const timer = window.setTimeout(
       () => searchInputRef.current?.focus(),
       shouldReduceMotion ? 0 : 100,
@@ -126,9 +139,10 @@ export default function MM2AddWeaponModal({
 
     return () => {
       window.clearTimeout(timer);
+      document.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = previousOverflow;
     };
-  }, [open, shouldReduceMotion]);
+  }, [open, shouldReduceMotion, onClose]);
 
   return (
     <AnimatePresence>
