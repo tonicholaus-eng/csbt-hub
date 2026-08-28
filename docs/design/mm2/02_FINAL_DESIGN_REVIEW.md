@@ -310,3 +310,52 @@ page errors: none
   doc recommends it, but it changes navigation destinations and sends the user
   to Adopt-Me-shaped account surfaces. **That is a product decision and is
   flagged here rather than made quietly.**
+
+---
+
+## 12. Addendum — Batch 8, environmental refinement
+
+Sections 1-11 above describe batches 1-7. Batch 8 came afterwards, was
+interrupted by a VS Code crash, and was preserved in `59259ad`. It is recorded
+in full in `01_IMPLEMENTATION_LOG.md`.
+
+**What it changed.** `/mm2` is now composed as a room rather than as panels on a
+dark page: lit-edge panel seams with real gap depth, an opaque ceiling frame
+with fixture housings, cross-lit side architecture, a warmer floor plane, and a
+cold ambient that reads as distance. The vault became a recess instead of a
+card — no outline, lit along the top edge, sunk into shadow elsewhere — with a
+new alcove and shelf ledge behind the chamber. The trading console became
+mounted hardware with a structural edge facing the vault. The floor and wall
+now continue full-bleed under and behind the station grid.
+
+Also in the checkpoint: the MM2 GCash dataset, regenerated through
+`sync:mm2-master` -> `generate:mm2`. `VALUE` precedence is the generator's
+existing `CSBT_VALUE ?? GCASH_VALUE ?? SOURCE_VALUE`; nothing was hand-edited.
+
+**One defect found and fixed while finishing it.** Below 1024px the mobile dock
+spacer — `body { padding-bottom: 74px }` — sits outside the MM2 shell, so Adopt
+Me's navy `#06111f` painted a band across the foot of every MM2 route, under
+the room floor. Now scoped to the MM2 void via `body:has(.mm2-mode)`, verified
+across 7 MM2 routes and 5 Adopt Me routes at 1023 / 768 / 390.
+
+**Correction to section 7, item 6.** "The homepage vault bay has an empty left
+third" is addressed by batch 8: the alcove and shelf ledge give that third
+architectural content. It is no longer the weakest composition on `/mm2`.
+
+**Unchanged from section 7.** Items 1 (weapon art still not loading), 2 (listing
+detail and Trade Rooms unseen), 3 (no authenticated MM2 surface seen), 4 (ten
+dead MM2 components), 5 (two sub-32px links in shared Adopt Me markup), 7
+(`/mm2/demand`'s uniform browser grid) and 8 (`sitemap.ts`) all still stand.
+
+### Validation re-run after batch 8
+
+| # | Command / check | Result |
+|---|---|---|
+| 1 | `npx tsc --noEmit -p tsconfig.json` | **0 errors** |
+| 2 | `npx eslint .` | **0 errors**, 7 warnings — the same pre-existing set |
+| 3 | `npm test` | **113 pass, 0 fail** |
+| 4 | `npm run data:validate` | 3,382 items, 3,382 unique IDs |
+| 5 | `npm run data:validate:mm2` | 1,099 items |
+| 6 | `npm run build` | see below |
+| 7 | Responsive sweep, `/mm2` × 6 widths | no horizontal overflow, no page errors |
+| 8 | Body-background scoping, 12 routes × 3 widths | MM2 `rgb(5,6,9)`, Adopt Me `rgb(6,17,31)` |

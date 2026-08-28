@@ -2,6 +2,8 @@ import { Buffer } from "node:buffer";
 
 import { NextRequest, NextResponse } from "next/server";
 
+import { parseNichGameId } from "@/lib/nich/game/types";
+
 import {
   buildVisionLocalPrompt,
   consolidateTradeSlotDetections,
@@ -542,6 +544,34 @@ export async function POST(request: NextRequest) {
   const minuteQuotaError = await consumeVisionMinuteQuota(request);
   if (minuteQuotaError) {
     return NextResponse.json({ ok: false, runId, message: minuteQuotaError } satisfies NichVisionApiResponse, { status: 429 });
+  }
+
+  /**
+   * Screenshot recognition is game-scoped.
+   *
+   * Everything below this point — the prompt, the candidate audit, the trade
+   * session builder and the item resolver it calls — is Adopt Me's. Running an
+   * MM2 screenshot through it would fuzzy-match MM2 weapon names against the
+   * Adopt Me pet catalog, which is exactly the failure this architecture
+   * forbids. Until MM2 vision exists, an MM2 screenshot is declined rather than
+   * misread.
+   *
+   * The caller states the game in a header; a missing header stays Adopt Me
+   * only because this endpoint has always been Adopt Me and no MM2 client
+   * exists yet. An explicit "mm2" is refused, never silently downgraded.
+   */
+  const requestedGame = parseNichGameId(request.headers.get("x-nich-game") ?? "adopt-me");
+  if (requestedGame !== "adopt-me") {
+    return NextResponse.json(
+      {
+        ok: false,
+        runId,
+        message:
+          "Screenshot recognition is only available for Adopt Me right now. " +
+          "For MM2, type the weapons and I'll run the trade from the MM2 catalog.",
+      } satisfies NichVisionApiResponse,
+      { status: 501 },
+    );
   }
 
   const mimeType = (request.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();

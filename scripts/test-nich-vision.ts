@@ -42,6 +42,7 @@ const prompt = buildVisionLocalPrompt("TRADE", verifiedTrade);
 expect(prompt === "WFL me FR Frost Dragon them FR Owl + 2x NR Turtle", `Unexpected screenshot trade prompt: ${prompt}`);
 
 const response = routeNichMessage({
+  gameId: "adopt-me",
   message: prompt ?? "",
   context: initialNichContext,
 });
@@ -111,7 +112,7 @@ const noPotionNeon = [
   }),
 ];
 const noPotionPrompt = buildVisionLocalPrompt("TRADE", noPotionNeon) ?? "";
-const noPotionResponse = routeNichMessage({ message: noPotionPrompt, context: initialNichContext });
+const noPotionResponse = routeNichMessage({ gameId: "adopt-me", message: noPotionPrompt, context: initialNichContext });
 expect(noPotionResponse.tradeComparison?.offered.variant === "neon", "Explicit no-potion Neon recognition must preserve the Neon variant.");
 
 

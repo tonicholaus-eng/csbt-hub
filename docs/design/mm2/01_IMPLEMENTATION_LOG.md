@@ -235,6 +235,81 @@ violet Nich launcher and the amber account gate. No MM2 crimson anywhere.
 
 ---
 
+## Batch 8 — Environmental refinement · `59259ad` (+ post-crash completion)
+
+This batch was interrupted by a VS Code crash. The commit `59259ad`
+("checkpoint: MM2 GCash data and latest design refinement") preserved it. What
+follows records both the checkpointed work and the completion afterwards.
+
+### The intent
+
+Batches 1-7 made MM2 legible, accessible and MM2-coloured. The homepage still
+read as *panels arranged on a dark page*. This batch treats `/mm2` as a room the
+panels are installed in: surfaces that catch light, seams with real depth, and
+mass that continues past the edge of each card.
+
+### What the checkpoint contains
+
+**`MM2HQHome.module.css` — the room** (307 insertions, 126 deletions)
+
+| Element | Before | After |
+|---|---|---|
+| `.scene` | two red washes on flat near-black | distant cold ambient for depth, motivated red room light from the vault, and a wall-mass -> floor-mass vertical ramp |
+| `.facilityWalls` | hairline seams at .005-.016 alpha | seams built as *lit edge + dark gap*, plus recessed panel masses between them |
+| `.ceilingFrame` | `opacity: .82`, flat | opaque, with fixture bays reading as separate housings and a real cast shadow |
+| `.leftArchitecture` / `.rightArchitecture` | `opacity: .45`, pulled 6.5% off-canvas | `opacity: .78`, pulled in to 3.5%, cross-lit so the column has a lit face and a shadow face |
+| `.floorPlane` | `opacity: .42` | `opacity: .66`, warmer at the horizon, seam rhythm matching the wall |
+| `.coolDepth` | small, low, right | larger and raised to the ceiling line, so the cold fill reads as distance rather than a stray blue blob |
+| `.tradingConsole` | a bordered card | mounted hardware: a structural edge on the side facing the vault, dissolving into the room on the outer sides |
+| `.vaultInstallation` | a bordered card | a recess: no outline, lit along the top where the housing catches room light, sunk into shadow on every other side |
+| `.vaultArchitecture::before/::after` | *(new)* | a deeper alcove behind the left of the chamber, and a shelf ledge below it lit from the chamber side |
+| `.operations::before/::after` | a faint 2% bleed | the floor plane and the wall continue full-bleed under and behind the stations, carrying the same seam rhythm |
+| `.facilityHeader` | two hairline borders | a sign catching the same room light as the vault, with a cast shadow beneath it |
+
+**`globals.css` — the control rail** now reads as a wall the room is lit
+against: deeper falloff, a stronger lit inner edge.
+
+**MM2 GCash dataset.** `source-data/mm2-trading-data.xlsx` was updated and run
+through the real pipeline (`sync:mm2-master` -> `generate:mm2`), populating
+`GCASH_VALUE` across the catalog. `VALUE` follows the precedence the generator
+already defined, `CSBT_VALUE ?? GCASH_VALUE ?? SOURCE_VALUE`
+(`scripts/generate-mm2-items.js:305`) — unchanged semantics, so many items now
+resolve to their GCash figure. No value was hand-edited and no generated file
+was patched directly. `mm2Meta.generatedAt` moved to 2026-08-27.
+
+### Completed after the crash
+
+1. **A stale duplicate declaration.** `.vaultArchitecture::after` carried
+   `height: 12px` immediately followed by `height: 10px` — a mid-edit leftover.
+   The `12px` was already dead (last declaration wins), so removing it is a
+   no-op visually and the shelf stays at 10px.
+
+2. **Adopt Me's page background was showing under MM2 below 1024px.** The mobile
+   dock spacer is `body { padding-bottom: 74px }` (`globals.css:843`, inside
+   `@media (max-width: 1023px)`), and that strip sits *outside* the MM2 shell —
+   `.mm2-mode` is on `<main>`. So every MM2 route painted a navy `#06111f` band
+   across the foot of the page, directly under the room floor, at every mobile
+   and tablet width. Measured: `getComputedStyle(document.body).backgroundColor`
+   was `rgb(6, 17, 31)` on `/mm2` at 390px.
+
+   Fixed with a `body:has(.mm2-mode)` rule inside the same breakpoint, carrying
+   the MM2 void onto the body. Verified after: all 7 MM2 routes report
+   `rgb(5, 6, 9)` at 1023 / 768 / 390; all 5 Adopt Me routes still report
+   `rgb(6, 17, 31)` at the same widths; `/mm2` at 1024 is deliberately
+   unaffected, because no dock spacer exists above the breakpoint.
+
+### Responsive
+
+The new environmental layers were checked at 1920 / 1600 / 1440 / 1366 / 768 /
+390 in Chromium: **no horizontal overflow at any width, no page errors.** The
+full-bleed `-50vw` floor and wall planes are clipped by `.scene`'s
+`overflow: hidden`, and the alcove and shelf sit behind the vault artwork at
+mobile, where the existing `max-width: 760px` block already damps the
+architecture layers to `opacity: .2`. No additional mobile tuning was needed,
+and none was invented.
+
+---
+
 ## Known console error (pre-existing)
 
 `/mm2/exchange`, `/mm2/trade-opinions` and `/mm2/lounge` each log one

@@ -110,7 +110,6 @@ export default function MM2WeaponDetails({
             src={image}
             size={184}
             radius={24}
-            markScale={0.3}
             className="shrink-0"
           />
 

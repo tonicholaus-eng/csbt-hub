@@ -141,20 +141,3 @@ const TONES: Record<string, MM2RarityTone> = {
 export function mm2RarityTone(category?: string | null): MM2RarityTone {
   return TONES[(category ?? "").toUpperCase()] ?? NEUTRAL;
 }
-
-/**
- * The mark shown on a weapon plate when the catalog art cannot be fetched.
- * Initials of the first two significant words, else the first two letters.
- */
-export function mm2WeaponMark(name: string): string {
-  const words = name
-    .replace(/[()]/g, " ")
-    .split(/\s+/)
-    .filter((word) => /[a-z0-9]/i.test(word));
-
-  if (words.length >= 2) {
-    return (words[0][0] + words[1][0]).toUpperCase();
-  }
-
-  return (words[0] ?? name).slice(0, 2).toUpperCase();
-}

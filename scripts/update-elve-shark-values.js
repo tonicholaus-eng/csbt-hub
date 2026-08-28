@@ -5,6 +5,7 @@ const { chromium } = require("playwright");
 const {
   ELVE_URL,
   createSnapshotFromHtml,
+  createSnapshotFromItems,
   mergeSnapshotItems,
   rawItemToSnapshotItem,
   readJsonIfPresent,
@@ -27,27 +28,15 @@ const EXTRA_CATEGORY_TABS = [
   { label: "Other", category: "OTHER", optional: true },
 ];
 
-function normalizeKey(value) {
-  return String(value ?? "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
-}
 
-function objectLooksLikeItem(value) {
+function objectLooksLikeItem(value, fallbackCategory = null) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
 
-  const keys = new Set(Object.keys(value).map(normalizeKey));
-  const hasName = ["name", "itemname", "title"].some((key) => keys.has(key));
-  const hasValue = [
-    "rvalue",
-    "value",
-    "regularvalue",
-    "sharkvalue",
-    "nvalue",
-    "mvalue",
-  ].some((key) => keys.has(key));
-
-  return hasName && hasValue;
+  const converted = rawItemToSnapshotItem(value, fallbackCategory);
+  return Boolean(
+    converted &&
+      (converted.normal !== null || converted.neon !== null || converted.mega !== null),
+  );
 }
 
 function collectItemObjects(value, fallbackCategory, output, seen = new WeakSet(), depth = 0) {
@@ -91,7 +80,7 @@ function collectItemObjects(value, fallbackCategory, output, seen = new WeakSet(
   if (seen.has(value)) return;
   seen.add(value);
 
-  if (objectLooksLikeItem(value)) {
+  if (objectLooksLikeItem(value, fallbackCategory)) {
     const converted = rawItemToSnapshotItem(value, fallbackCategory);
     if (converted) output.push(converted);
   }
@@ -165,6 +154,39 @@ function collectFromNextFlightHtml(html, fallbackCategory = null) {
   }
 
   return found;
+}
+
+async function collectBrowserState(page, fallbackCategory, output) {
+  const payloads = await page.evaluate(() => {
+    const result = [];
+
+    if (Array.isArray(window.__next_f)) result.push(window.__next_f);
+    if (window.__NEXT_DATA__) result.push(window.__NEXT_DATA__);
+
+    for (const script of Array.from(document.querySelectorAll("script"))) {
+      const text = script.textContent?.trim();
+      if (!text || text.length > 8_000_000) continue;
+
+      const type = String(script.getAttribute("type") ?? "").toLowerCase();
+      if (
+        type.includes("json") ||
+        text.includes("initialPets") ||
+        text.includes("rvalue") ||
+        text.includes("nvalue") ||
+        text.includes("mvalue") ||
+        text.includes("sharkValue") ||
+        text.includes("regularValue")
+      ) {
+        result.push(text);
+      }
+    }
+
+    return result;
+  }).catch(() => []);
+
+  for (const payload of payloads) {
+    collectItemObjects(payload, fallbackCategory, output);
+  }
 }
 
 async function clickCategory(page, label) {
@@ -312,27 +334,23 @@ async function fetchElveData() {
     const status = response.status();
     if (status < 200 || status >= 400) throw new Error(`Elvebredd returned HTTP ${status}.`);
 
-    try {
-      await page.waitForFunction(
-        () => document.documentElement.innerHTML.includes("initialPets"),
-        { timeout: 60_000 },
-      );
-    } catch {
-      console.warn("The initialPets marker was not detected immediately. Checking the complete page HTML.");
-    }
+    // Give the client app a moment to hydrate. Elvebredd has changed its
+    // Next.js payload shape before, so `initialPets` is no longer treated as a
+    // required marker.
+    await page.waitForTimeout(2_500);
+    await page.waitForLoadState("networkidle", { timeout: 8_000 }).catch(() => {});
 
     let html = await page.content();
     if (html.length < 100_000) {
       throw new Error(`Elvebredd response was unexpectedly small (${html.length} characters).`);
     }
-    if (!html.includes("initialPets")) {
-      throw new Error("Elvebredd page did not contain the initialPets payload.");
-    }
 
     console.log(`Elvebredd page loaded successfully (${html.length} characters).`);
 
-    // Inspect every Next.js flight chunk, not only the legacy initialPets object.
+    // Inspect server-rendered Next.js flight chunks and hydrated browser state.
+    // This works with both the old `initialPets` shape and newer RSC/API shapes.
     capturedItems.push(...collectFromNextFlightHtml(html));
+    await collectBrowserState(page, null, capturedItems);
 
     for (const tab of EXTRA_CATEGORY_TABS) {
       activeFallbackCategory = tab.category;
@@ -350,6 +368,7 @@ async function fetchElveData() {
       // Some builds inject RSC data into the page after a tab switch.
       const categoryHtml = await page.content();
       capturedItems.push(...collectFromNextFlightHtml(categoryHtml, tab.category));
+      await collectBrowserState(page, tab.category, capturedItems);
     }
 
     activeFallbackCategory = null;
@@ -358,11 +377,63 @@ async function fetchElveData() {
     // Final page HTML in case the app appended lazy chunks after the last tab.
     html = await page.content();
     capturedItems.push(...collectFromNextFlightHtml(html));
+    await collectBrowserState(page, null, capturedItems);
 
     return { html, capturedItems, diagnostics };
   } finally {
     await browser.close();
   }
+}
+
+function mergeFreshWithPrevious(previousSnapshot, freshItems) {
+  if (!previousSnapshot?.items?.length) {
+    return {
+      items: mergeSnapshotItems([], freshItems),
+      preservedCategories: [],
+      freshCategoryCounts: countByCategory(freshItems),
+    };
+  }
+
+  const previousByCategory = new Map();
+  const freshByCategory = new Map();
+
+  for (const item of previousSnapshot.items) {
+    const list = previousByCategory.get(item.category) ?? [];
+    list.push(item);
+    previousByCategory.set(item.category, list);
+  }
+  for (const item of freshItems) {
+    const list = freshByCategory.get(item.category) ?? [];
+    list.push(item);
+    freshByCategory.set(item.category, list);
+  }
+
+  const categories = new Set([...previousByCategory.keys(), ...freshByCategory.keys()]);
+  const merged = [];
+  const preservedCategories = [];
+
+  for (const category of categories) {
+    const previous = previousByCategory.get(category) ?? [];
+    const fresh = mergeSnapshotItems([], freshByCategory.get(category) ?? []);
+    const threshold = previous.length > 0 ? Math.max(10, Math.floor(previous.length * 0.65)) : 1;
+    const freshLooksComplete = fresh.length >= threshold;
+
+    if (freshLooksComplete) {
+      merged.push(...fresh);
+    } else {
+      // Preserve last-known-good records for categories the redesigned site no
+      // longer exposes completely, while still allowing newly captured items
+      // and fresh values to override cached rows.
+      merged.push(...mergeSnapshotItems(previous, fresh));
+      if (previous.length > 0) preservedCategories.push(category);
+    }
+  }
+
+  return {
+    items: mergeSnapshotItems([], merged),
+    preservedCategories,
+    freshCategoryCounts: countByCategory(freshItems),
+  };
 }
 
 function snapshotsHaveSameValues(previousSnapshot, nextSnapshot) {
@@ -383,13 +454,16 @@ function snapshotsHaveSameValues(previousSnapshot, nextSnapshot) {
 }
 
 function fallbackToLastKnownGoodSnapshot(previousSnapshot, error) {
-  if (!previousSnapshot) throw error;
+  if (previousSnapshot) {
+    validateSnapshot(previousSnapshot, null);
+    console.warn("Elvebredd refresh did not complete. The last-known-good snapshot was left unchanged.");
+    console.warn(`Cached records: ${previousSnapshot.recordCount ?? previousSnapshot.items.length}`);
+    console.warn(`Cached fetchedAt: ${previousSnapshot.fetchedAt ?? "unknown"}`);
+  }
 
-  validateSnapshot(previousSnapshot, null);
-  console.warn("Elvebredd could not be checked. Using the last-known-good snapshot.");
-  console.warn(error instanceof Error ? error.message : String(error));
-  console.warn(`Cached records: ${previousSnapshot.recordCount ?? previousSnapshot.items.length}`);
-  console.warn(`Cached source version: ${previousSnapshot.sourceVersion ?? "unknown"}`);
+  // Fail the command instead of returning success with stale data. This keeps
+  // `npm run refresh:values` from syncing an old cache into the master XLSX.
+  throw error;
 }
 
 async function main() {
@@ -403,10 +477,39 @@ async function main() {
     return;
   }
 
-  const snapshot = createSnapshotFromHtml(fetched.html);
-  snapshot.items = mergeSnapshotItems(snapshot.items, fetched.capturedItems);
+  let legacySnapshot = null;
+  try {
+    legacySnapshot = createSnapshotFromHtml(fetched.html);
+  } catch (error) {
+    console.warn(
+      "Legacy Elve initialPets payload was not found. Using browser/RSC/API capture instead.",
+    );
+    console.warn(error instanceof Error ? error.message : String(error));
+  }
+
+  const browserFreshItems = mergeSnapshotItems([], fetched.capturedItems).filter(
+    (item) => item.normal !== null || item.neon !== null || item.mega !== null,
+  );
+  const freshItems = mergeSnapshotItems(legacySnapshot?.items ?? [], browserFreshItems);
+
+  if (freshItems.length === 0) {
+    fallbackToLastKnownGoodSnapshot(
+      previousSnapshot,
+      new Error("Elvebredd loaded, but no value-bearing items could be extracted from the current page/API payloads."),
+    );
+    return;
+  }
+
+  const mergedResult = mergeFreshWithPrevious(previousSnapshot, freshItems);
+  const snapshot = createSnapshotFromItems(mergedResult.items, {
+    fetchedAt: new Date().toISOString(),
+    sourceVersion: legacySnapshot?.sourceVersion ?? previousSnapshot?.sourceVersion ?? null,
+    captureMode: legacySnapshot ? "legacy+browser" : "browser-rsc-api",
+  });
   snapshot.recordCount = snapshot.items.length;
   snapshot.categoryCounts = countByCategory(snapshot.items);
+  snapshot.freshCategoryCounts = mergedResult.freshCategoryCounts;
+  snapshot.preservedCategories = mergedResult.preservedCategories;
   snapshot.fetchDiagnosticsFile = path.basename(diagnosticsPath);
 
   fs.writeFileSync(
@@ -415,7 +518,11 @@ async function main() {
       {
         fetchedAt: snapshot.fetchedAt,
         sourceVersion: snapshot.sourceVersion,
+        captureMode: snapshot.captureMode,
         categoryCounts: snapshot.categoryCounts,
+        freshCategoryCounts: snapshot.freshCategoryCounts,
+        preservedCategories: snapshot.preservedCategories,
+        freshCandidates: freshItems.length,
         network: fetched.diagnostics,
       },
       null,
@@ -424,13 +531,21 @@ async function main() {
     "utf8",
   );
 
-  if (snapshot.unrecognizedTypes?.length) {
-    console.warn(`Unrecognized Elve item types were skipped: ${snapshot.unrecognizedTypes.join(", ")}.`);
-  }
-
   validateSnapshot(snapshot, previousSnapshot);
 
-  console.log("Elve category counts:");
+  console.log(`Fresh Elve candidates captured: ${freshItems.length}`);
+  console.log("Fresh category counts:");
+  for (const [category, count] of Object.entries(snapshot.freshCategoryCounts).sort()) {
+    console.log(`- ${category}: ${count}`);
+  }
+
+  if (snapshot.preservedCategories.length > 0) {
+    console.warn(
+      `Preserved cached records for partially exposed categories: ${snapshot.preservedCategories.join(", ")}.`,
+    );
+  }
+
+  console.log("Final Elve category counts:");
   for (const [category, count] of Object.entries(snapshot.categoryCounts).sort()) {
     console.log(`- ${category}: ${count}`);
   }
@@ -442,15 +557,19 @@ async function main() {
 
   if (missingExpandedCategories.length > 0) {
     throw new Error(
-      `Elve expanded-category capture is incomplete (${missingExpandedCategories.join(", ")}). ` +
+      `Elve snapshot is missing expanded categories (${missingExpandedCategories.join(", ")}). ` +
         `Network diagnostics were saved to ${diagnosticsPath}.`,
     );
   }
 
   if (snapshotsHaveSameValues(previousSnapshot, snapshot)) {
+    // Refresh fetchedAt/diagnostics even when values are unchanged so the local
+    // snapshot no longer looks stale after a successful check.
+    writeSnapshot(snapshot, snapshotPath, backupPath);
     console.log(`Elve Shark values are unchanged (${snapshot.recordCount} records).`);
     console.log(`Checked source version: ${snapshot.sourceVersion ?? "unknown"}`);
     console.log(`Checked at: ${snapshot.fetchedAt}`);
+    console.log(`Refreshed snapshot metadata: ${snapshotPath}`);
     return;
   }
 

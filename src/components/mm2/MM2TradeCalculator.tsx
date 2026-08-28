@@ -24,37 +24,19 @@ import {
   saveRecentTrades,
   type MM2SavedTrade,
 } from "./MM2TradeWorkflow";
+// The value/total/missing rules moved to lib/mm2/tradeMath so MM2 NICH answers
+// "wfl" with the exact arithmetic this calculator shows, rather than a second
+// implementation that can drift. Behaviour here is unchanged.
+import {
+  mm2ItemValue as getItemValue,
+  mm2MissingFor as missingFor,
+  mm2TotalFor as totalFor,
+} from "../../lib/mm2/tradeMath";
 
 type TradeSideType = "your" | "their";
 
-function getItemValue(item: MM2Item, source: MM2ValueSource) {
-  const value = source === "SUPREME" ? item.SOURCE_VALUE : item.GCASH_VALUE;
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
 function createSelectedItem(item: MM2Item): MM2SelectedTradeItem {
   return { id: crypto.randomUUID(), item, quantity: 1 };
-}
-
-function totalFor(items: MM2SelectedTradeItem[], source: MM2ValueSource) {
-  return items.reduce(
-    (total, selectedItem) =>
-      total +
-      (getItemValue(selectedItem.item, source) ?? 0) *
-        Math.max(1, selectedItem.quantity),
-    0,
-  );
-}
-
-function missingFor(items: MM2SelectedTradeItem[], source: MM2ValueSource) {
-  return items.reduce(
-    (count, selectedItem) =>
-      count +
-      (getItemValue(selectedItem.item, source) === null
-        ? Math.max(1, selectedItem.quantity)
-        : 0),
-    0,
-  );
 }
 
 export default function MM2TradeCalculator({ items }: { items: MM2Item[] }) {

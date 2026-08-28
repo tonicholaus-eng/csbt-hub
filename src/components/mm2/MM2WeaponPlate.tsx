@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { mm2RarityTone, mm2WeaponMark } from "../../lib/mm2/rarity";
+import { mm2RarityTone } from "../../lib/mm2/rarity";
 
 /**
  * A weapon display plate.
@@ -14,29 +14,53 @@ import { mm2RarityTone, mm2WeaponMark } from "../../lib/mm2/rarity";
  * source, the failure is at least designed rather than an empty box next to the
  * browser's broken-image glyph.
  *
- * The plate is a lit display case: rarity-tinted light from below, the weapon's
- * initials, and a lit lower rail. If the art does load it covers the plate
- * completely and none of this is seen — no behaviour depends on the failure.
+ * The plate is an empty lit display mount: brushed graphite, rarity-tinted
+ * light from below, a lit lower rail, and MM2's own knife mark etched into the
+ * backing. It carried the weapon's initials until 2026-08-28 — at 60 cards per
+ * page that read as a contact list, not a showroom, so the mark is now fixed
+ * furniture of the mount rather than a stand-in for the item.
  *
- * This invents nothing. It shows the weapon's own name and its own category.
+ * If the art does load it covers the plate completely and none of this is seen
+ * — no behaviour depends on the failure.
+ *
+ * This invents nothing: it shows an empty mount, tinted by the weapon's own
+ * category. The knife is the same glyph the control rail already uses for
+ * Weapon Values, so it reads as CSBT's MM2 mark, not as a claim that this
+ * particular weapon is a knife.
  */
+function MountMark() {
+  return (
+    <svg className="mm2-plate-mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+      {/* blade, guard, grip, pommel — drawn upright, hung at the rail angle */}
+      <g transform="rotate(-38 32 32)">
+        <path d="M32 7.4 35.4 19.6v14.3h-6.8V19.6Z" />
+        <path d="M25.8 34.4h12.4v2.6H25.8z" />
+        <path d="M29.6 37.4h4.8l-.6 13.2h-3.6z" />
+        <path d="M29.2 50.8h5.6v3h-5.6z" />
+      </g>
+    </svg>
+  );
+}
+
 export default function MM2WeaponPlate({
-  name,
   category,
   src,
   size = 76,
   radius = 15,
   className = "",
-  markScale = 0.34,
 }: {
+  /**
+   * Kept on the signature so every call site still names the weapon it is
+   * mounting, and so real art can take an alt text here if it ever resolves.
+   * The mount itself is decorative: the weapon's name is always adjacent.
+   */
   name: string;
   category?: string | null;
   src?: string | null;
-  /** Rendered box size in px. Also drives the fallback mark's size. */
+  /** Rendered box size in px. */
   size?: number;
   radius?: number;
   className?: string;
-  markScale?: number;
 }) {
   // The art is only ever painted once it has actually decoded. Waiting for
   // `onError` is not enough: a failing <img> paints the browser's broken-image
@@ -57,9 +81,7 @@ export default function MM2WeaponPlate({
         ["--mm2-plate-ink" as string]: tone.ink,
       }}
     >
-      <span className="mm2-plate-mark" style={{ fontSize: Math.round(size * markScale) }}>
-        {mm2WeaponMark(name)}
-      </span>
+      <MountMark />
 
       {src && status !== "failed" ? (
         // The source host rejects Next's optimiser (it answers with a bot-check

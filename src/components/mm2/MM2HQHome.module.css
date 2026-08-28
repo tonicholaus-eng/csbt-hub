@@ -1,27 +1,88 @@
+/* ==========================================================================
+   MM2 TRADING HEADQUARTERS — homepage environment
+   --------------------------------------------------------------------------
+   This file replaces the five stacked override layers (base + V11…V14) that
+   had accumulated here. They fought each other: the last layer usually won on
+   opacity while an earlier one still won on geometry, which is why the room
+   read as a dark void with panels floating in it.
+
+   It is now authored once, front to back, in one pass:
+
+     1. tokens
+     2. the room        (ceiling, walls, corridor, floor, light, foreground)
+     3. facility signage (header)
+     4. the three systems (vault, terminal, intel)
+     5. HUD telemetry
+     6. responsive
+     7. motion
+
+   Rule of thumb used throughout: a surface only gets a full rectangular
+   border + opaque background if it is a *console* the operator touches.
+   Everything else is lit, railed or recessed instead.
+   ========================================================================== */
+
 .scene {
-  --red: #e6324d;
-  --red-soft: #b91531;
-  --red-dim: #761124;
-  --graphite: #0c0f15;
-  --graphite-2: #10141b;
-  --steel: #1b2029;
+  /* --- light ------------------------------------------------------------ */
+  --red: #ef3350;
+  --red-hot: #ff6d82;
+  --red-deep: #8e1024;
+  --red-lit: rgba(239, 51, 80, 0.30);
+  --red-wash: rgba(226, 38, 66, 0.14);
+  --cool: rgba(58, 92, 141, 0.30);
+  --cool-deep: rgba(34, 55, 88, 0.55);
+
+  /* --- material --------------------------------------------------------- */
+  --void: #04060a;
+  --steel-0: #070a10;
+  --steel-1: #0c1017;
+  --steel-2: #141924;
+  --steel-3: #1d2430;
+  --seam: rgba(255, 255, 255, 0.055);
+  --seam-soft: rgba(255, 255, 255, 0.028);
+  --edge: rgba(255, 255, 255, 0.085);
+
+  /* --- ink -------------------------------------------------------------- */
+  --ink: #f3f5f9;
+  --ink-2: #c8cfda;
+  --ink-3: #9aa2b1;
+  --ink-4: #7a8290;
+
+  /* Depth of the ceiling zone, and therefore where the HUD band begins. The
+     ceiling, the trusses, the ribs, the conduit and the page's top padding
+     are all derived from this one value so the architecture always clears the
+     signage by the same margin at every viewport, instead of each layer
+     scaling on its own axis and colliding at some widths. */
+  --hq-top: clamp(34px, 3.9vw, 68px);
+
+  /* Depth of the foreground operations deck, and the clearance the telemetry
+     keeps above the bottom edge. The deck's far edge is soft, so it only has
+     to be tall enough to sit under the readouts — it does not need to align
+     to them pixel for pixel. */
+  --deck-h: clamp(190px, 20vh, 260px);
+  --hq-bottom: clamp(64px, 6.4vh, 104px);
+
   position: relative;
+  isolation: isolate;
   min-height: 100vh;
   overflow: hidden;
-  isolation: isolate;
-  color: #f5f6f8;
+  color: var(--ink);
   background:
-    /* distant cold ambient — depth only, never an accent */
-    radial-gradient(ellipse 70% 44% at 78% 6%, rgba(38, 62, 96, .075), transparent 62%),
-    radial-gradient(ellipse 58% 40% at 12% 2%, rgba(30, 48, 74, .05), transparent 66%),
-    /* motivated room light from the vault */
-    radial-gradient(ellipse at 57% 21%, rgba(132, 12, 31, .11), transparent 30%),
-    radial-gradient(ellipse at 86% 38%, rgba(111, 11, 29, .07), transparent 22%),
-    /* wall mass -> floor mass */
-    linear-gradient(180deg, #04060a 0%, #070a10 26%, #06090e 58%, #05070c 84%, #04060a 100%);
+    radial-gradient(ellipse 62% 48% at 34% 58%, rgba(184, 22, 48, 0.13), transparent 72%),
+    radial-gradient(ellipse 46% 40% at 88% 16%, rgba(44, 70, 110, 0.13), transparent 74%),
+    linear-gradient(180deg, #04060a 0%, #070a11 40%, #05070c 74%, #030407 100%);
 }
 
-.facilityEnvironment {
+/* The room is wider than the content column. On desktop the shell pads the
+   page by the 288px control rail; the scene reclaims that space so the walls,
+   ceiling and floor continue *behind* the rail instead of stopping at it. */
+@media (min-width: 1024px) {
+  .scene {
+    margin-left: -288px;
+    padding-left: 288px;
+  }
+}
+
+.environment {
   position: absolute;
   inset: 0;
   z-index: 0;
@@ -29,1041 +90,1832 @@
   pointer-events: none;
 }
 
-.rearWall {
+/* ==========================================================================
+   1. DISTANT — corridor, back wall, cool depth
+   ========================================================================== */
+
+/* The cold end of the room. Warm foreground / cool background is what makes
+   the red read as a light source rather than as a brand colour. */
+.coolDepth {
   position: absolute;
-  inset: 0;
+  left: 8%;
+  right: -8%;
+  top: 4%;
+  height: 52%;
   background:
-    /* vertical panel seams */
-    linear-gradient(90deg,
-      transparent 0 12.9%,
-      rgba(255,255,255,.030) 12.9% 13.0%,
-      rgba(0,0,0,.34) 13.0% 13.5%,
-      transparent 13.5% 33.9%,
-      rgba(255,255,255,.026) 33.9% 34.0%,
-      rgba(0,0,0,.30) 34.0% 34.5%,
-      transparent 34.5% 59.9%,
-      rgba(152, 22, 44, .05) 59.9% 60.05%,
-      rgba(0,0,0,.30) 60.05% 60.5%,
-      transparent 60.5% 82.9%,
-      rgba(255,255,255,.024) 82.9% 83.0%,
-      rgba(0,0,0,.30) 83.0% 83.5%,
-      transparent 83.5%),
-    /* horizontal architectural breaks */
-    linear-gradient(180deg,
-      transparent 0 21.9%,
-      rgba(255,255,255,.024) 21.9% 22.0%,
-      rgba(0,0,0,.28) 22.0% 22.6%,
-      transparent 22.6% 58.9%,
-      rgba(255,255,255,.018) 58.9% 59.0%,
-      rgba(0,0,0,.24) 59.0% 59.6%,
-      transparent 59.6% 80.9%,
-      rgba(140, 18, 38, .038) 80.9% 81.05%,
-      rgba(0,0,0,.26) 81.05% 81.6%,
-      transparent 81.6%),
-    /* recessed panel masses between the seams */
-    linear-gradient(90deg,
-      rgba(255,255,255,.010) 0 13%,
-      rgba(255,255,255,.004) 13% 34%,
-      rgba(255,255,255,.012) 34% 60%,
-      rgba(255,255,255,.005) 60% 83%,
-      rgba(255,255,255,.009) 83%),
-    linear-gradient(180deg, rgba(11,15,21,.42), rgba(4,6,10,.06) 42%, rgba(2,4,7,.40));
-  opacity: 1;
+    radial-gradient(ellipse 44% 60% at 78% 40%, rgba(46, 76, 122, 0.30), transparent 72%),
+    radial-gradient(ellipse 60% 44% at 46% 22%, rgba(30, 51, 84, 0.22), transparent 76%);
+  filter: blur(64px);
 }
 
-.ceilingFrame {
+/* A corridor continuing past the back wall — the room has somewhere to go. */
+.rearCorridor {
   position: absolute;
-  left: 2%;
-  right: 2%;
-  top: -7%;
-  height: 25%;
-  border-bottom: 1px solid rgba(255,255,255,.018);
+  left: 61%;
+  top: 12%;
+  width: min(15vw, 250px);
+  height: 42%;
+  clip-path: polygon(16% 0, 100% 7%, 100% 93%, 16% 100%);
   background:
-    linear-gradient(90deg,
-      rgba(5,7,10,.94) 0 9%,
-      rgba(13,16,21,.30) 9.2% 23%,
-      rgba(24,28,35,.46) 23.2% 33%,
-      rgba(13,16,21,.26) 33.2% 67%,
-      rgba(24,28,35,.46) 67.2% 77%,
-      rgba(13,16,21,.30) 77.2% 91%,
-      rgba(5,7,10,.94) 91.2%),
-    linear-gradient(180deg, rgba(20,24,31,.80), rgba(6,8,12,.18));
-  clip-path: polygon(0 0,100% 0,97% 100%,3% 100%);
+    linear-gradient(90deg, rgba(6, 10, 17, 0.94), rgba(21, 35, 56, 0.6) 46%, rgba(38, 62, 98, 0.42)),
+    linear-gradient(180deg, rgba(48, 78, 122, 0.24), rgba(4, 7, 12, 0.9));
   box-shadow:
-    0 42px 96px rgba(0,0,0,.46),
-    0 2px 0 rgba(0,0,0,.5),
-    inset 0 -1px 0 rgba(187,29,49,.05);
-  opacity: 1;
+    inset 0 0 70px rgba(0, 0, 0, 0.78),
+    0 0 90px rgba(38, 62, 100, 0.22);
 }
 
-.leftArchitecture,
-.rightArchitecture {
+.rearCorridor::before {
+  content: "";
   position: absolute;
-  top: 7%;
-  bottom: 13%;
-  width: min(13vw, 235px);
-  border: 1px solid rgba(255,255,255,.03);
-  background:
-    linear-gradient(90deg, rgba(34,40,50,.30), rgba(9,12,17,.42) 46%, rgba(3,5,8,.52)),
-    linear-gradient(180deg, rgba(26,31,39,.34), rgba(4,6,9,.44)),
-    repeating-linear-gradient(180deg, transparent 0 124px, rgba(255,255,255,.020) 125px 127px, rgba(0,0,0,.30) 127px 129px);
+  left: 22%;
+  top: 6%;
+  bottom: 6%;
+  width: 2px;
+  background: linear-gradient(180deg, transparent, rgba(108, 158, 220, 0.5), rgba(108, 158, 220, 0.12), transparent);
+  box-shadow: 0 0 22px rgba(84, 130, 190, 0.4);
+}
+
+/* Distant practical lights down the corridor. */
+.rearCorridor::after {
+  content: "";
+  position: absolute;
+  left: 46%;
+  top: 18%;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #8fb6e8;
   box-shadow:
-    inset 0 0 90px rgba(0,0,0,.62),
-    inset -1px 0 0 rgba(255,255,255,.02),
-    0 0 130px rgba(0,0,0,.42);
-  opacity: .78;
+    0 0 10px rgba(143, 182, 232, 0.8),
+    0 92px 0 rgba(143, 182, 232, 0.42),
+    0 92px 12px rgba(143, 182, 232, 0.28),
+    22px 46px 0 rgba(226, 74, 96, 0.5),
+    22px 46px 12px rgba(226, 74, 96, 0.3);
 }
 
-.leftArchitecture {
-  left: -3.5%;
-  clip-path: polygon(21% 0,100% 0,100% 100%,12% 100%,0 90%,0 10%);
-}
-
-.rightArchitecture {
-  right: -3.5%;
-  transform: scaleX(-1);
-  clip-path: polygon(21% 0,100% 0,100% 100%,12% 100%,0 90%,0 10%);
-}
-
-.floorPlane {
+/* Back wall: structural framing, panel courses, weapon-storage architecture. */
+.rearStructure {
   position: absolute;
   left: -4%;
   right: -4%;
-  bottom: -26%;
-  height: 56%;
-  opacity: .66;
-  background:
-    linear-gradient(90deg,
-      transparent 0 17.9%,
-      rgba(255,255,255,.030) 17.9% 18.1%,
-      transparent 18.1% 48.9%,
-      rgba(170, 24, 48, .055) 48.9% 49.1%,
-      transparent 49.1% 81.9%,
-      rgba(255,255,255,.026) 81.9% 82.1%,
-      transparent 82.1%),
-    repeating-linear-gradient(180deg, transparent 0 102px, rgba(255,255,255,.022) 103px 105px),
-    linear-gradient(180deg, rgba(58,16,26,.14), rgba(12,15,21,.5) 34%, rgba(2,3,5,.9));
-  transform: perspective(820px) rotateX(69deg);
-  transform-origin: bottom;
-  mask-image: linear-gradient(to top, #000 0 60%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to top, #000 0 60%, transparent 100%);
-}
-
-.securityLight {
-  position: absolute;
-  left: 37%;
   top: 6%;
-  width: min(55vw, 980px);
-  height: min(48vw, 820px);
-  border-radius: 50%;
-  background: radial-gradient(ellipse at 55% 44%, rgba(185, 18, 42, .09), rgba(101,8,26,.025) 40%, transparent 67%);
-  filter: blur(62px);
-  opacity: .78;
-}
-
-.coolDepth {
-  position: absolute;
-  right: -10%;
-  top: 4%;
-  width: min(40vw, 720px);
-  height: min(34vw, 610px);
-  border-radius: 50%;
-  background: rgba(34, 60, 96, .085);
-  filter: blur(112px);
-}
-
-.environmentEquipment {
-  position: absolute;
-  right: -13%;
-  bottom: -21%;
-  width: min(45vw, 810px);
-  height: min(58vw, 1040px);
-  opacity: .11;
-  filter: saturate(.4) brightness(.36) contrast(1.14);
-}
-
-.environmentEquipmentImage {
-  object-fit: contain;
-  object-position: right bottom;
-}
-
-.roomVignette {
-  position: absolute;
-  inset: 0;
+  height: 48%;
   background:
-    radial-gradient(ellipse at 55% 38%, transparent 0 46%, rgba(1,2,4,.06) 72%, rgba(1,2,4,.22) 100%),
-    linear-gradient(90deg, rgba(1,2,4,.30), transparent 17%, transparent 83%, rgba(1,2,4,.38)),
-    linear-gradient(180deg, rgba(1,2,4,.10), transparent 46%, rgba(1,2,4,.52));
-}
-
-.commandDeck {
-  position: relative;
-  z-index: 1;
-  width: min(100%, 1840px);
-  margin: 0 auto;
-  padding: clamp(20px, 1.8vw, 34px) clamp(22px, 3.4vw, 66px) clamp(56px, 4.4vw, 84px);
-}
-
-.facilityHeader {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 34px;
-  position: relative;
-  min-height: 116px;
-  padding: 17px 26px 20px;
-  border: 0;
-  border-top: 1px solid rgba(255,255,255,.07);
-  background:
-    /* the sign catches the same room light as the vault */
-    linear-gradient(90deg, rgba(150,18,40,.055), transparent 34%),
-    linear-gradient(180deg, rgba(26,31,40,.55), rgba(9,12,17,.42) 46%, rgba(3,5,8,.30));
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.05),
-    inset 0 -30px 48px -34px rgba(0,0,0,.8),
-    0 26px 62px rgba(0,0,0,.42);
-}
-
-.facilityHeader::after {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  left: 2%;
-  right: 2%;
-  bottom: -18px;
-  height: 26px;
-  pointer-events: none;
-  background: radial-gradient(ellipse at 50% 0%, rgba(0,0,0,.62), transparent 72%);
-  filter: blur(9px);
-}
-
-.facilityIdentity {
-  min-width: 0;
-}
-
-.facilityKicker {
-  display: flex;
-  max-width: 660px;
-  align-items: center;
-  gap: 11px;
-  color: #939aa8;
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: .17em;
-  text-transform: uppercase;
-}
-
-.facilityKicker i {
-  width: 38px;
-  height: 1px;
-  background: rgba(224, 46, 68, .26);
-}
-
-.facilityBrand {
-  display: flex;
-  align-items: baseline;
-  gap: 15px;
-  margin-top: 7px;
-  font-size: clamp(44px, 3.7vw, 66px);
-  font-weight: 950;
-  line-height: .9;
-  letter-spacing: -.065em;
-  text-transform: uppercase;
-  filter: drop-shadow(0 14px 28px rgba(0,0,0,.45));
-}
-
-.facilityBrandCsbt {
-  color: #ef344b;
-  text-shadow: 0 -1px rgba(255,178,188,.35), 0 2px #6f0b1d, 0 0 24px rgba(231,47,69,.18);
-}
-
-.facilityBrandHub {
-  color: #d7dade;
-  text-shadow: 0 -1px rgba(255,255,255,.8), 0 2px rgba(56,61,68,.85);
-}
-
-.facilitySubtitle {
-  display: grid;
-  grid-template-columns: 38px auto 1fr;
-  align-items: center;
-  gap: 11px;
-  max-width: 615px;
-  margin-top: 11px;
-}
-
-.facilitySubtitle span {
-  height: 1px;
-  background: linear-gradient(90deg, rgba(231,46,67,.72), transparent);
-}
-
-.facilitySubtitle span:last-child {
-  background: linear-gradient(90deg, rgba(231,46,67,.34), transparent);
-}
-
-.facilitySubtitle strong {
-  color: #aeb3ba;
-  font-size: clamp(9px, .72vw, 12px);
-  font-weight: 850;
-  letter-spacing: .23em;
-  white-space: nowrap;
-}
-
-.headerReadout {
-  display: flex;
-  align-items: stretch;
-  gap: 17px;
-  min-width: 330px;
-  padding: 13px 17px;
-  border: 1px solid rgba(255,255,255,.055);
-  background: rgba(7,9,13,.68);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.02), inset 0 -22px 34px rgba(0,0,0,.13);
-}
-
-.headerReadout > div {
-  display: grid;
-  gap: 4px;
-}
-
-.headerReadout small {
-  color: #939aa8;
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: .14em;
-}
-
-.headerReadout strong {
-  color: #e6e9ee;
-  font-size: 13px;
-  font-weight: 900;
-  letter-spacing: .05em;
-}
-
-.headerReadout > i {
-  width: 1px;
-  background: rgba(255,255,255,.065);
-}
-
-.flagshipDeck {
-  display: grid;
-  grid-template-columns: minmax(680px, 1.52fr) minmax(370px, .68fr);
-  gap: 18px;
-  margin-top: 18px;
-  min-height: clamp(590px, 64vh, 745px);
-}
-
-.vaultInstallation,
-.tradingConsole {
-  position: relative;
-  overflow: hidden;
-}
-
-/* A recess, not a card: no outline of its own, lit along the top edge where
-   the housing catches room light, and sunk into shadow on every other side. */
-.vaultInstallation {
-  border: 0;
-  border-top: 1px solid rgba(255,255,255,.05);
-  box-shadow:
-    inset 0 34px 68px -30px rgba(0,0,0,.92),
-    inset 0 -46px 90px -40px rgba(0,0,0,.86),
-    inset 42px 0 74px -46px rgba(0,0,0,.9),
-    inset -42px 0 74px -46px rgba(0,0,0,.9),
-    inset 0 1px 0 rgba(255,255,255,.035);
-}
-
-/* Mounted hardware: a defined structural edge on the side facing the vault,
-   dissolving into the room on the outer sides. */
-.tradingConsole {
-  border: 1px solid rgba(255,255,255,.05);
-  border-left-color: rgba(226, 52, 74, .16);
-  box-shadow:
-    0 40px 104px rgba(0,0,0,.5),
-    inset 0 1px 0 rgba(255,255,255,.03),
-    inset 1px 0 0 rgba(255,255,255,.02);
-}
-
-.vaultInstallation {
-  isolation: isolate;
-  min-height: 590px;
-  clip-path: polygon(18px 0,100% 0,100% calc(100% - 18px),calc(100% - 18px) 100%,0 100%,0 18px);
-  background:
-    radial-gradient(ellipse at 62% 46%, rgba(178, 16, 42, .12), transparent 36%),
-    /* cavity walls fall away to either side */
-    linear-gradient(90deg, rgba(1,2,4,.86), rgba(17,9,13,.10) 34%, rgba(16,9,13,.08) 70%, rgba(1,2,4,.82)),
-    /* darker at the top of the recess, floor catches the display light */
-    linear-gradient(180deg, rgba(2,3,5,.72), rgba(13,16,22,.32) 30%, rgba(20,12,16,.30) 72%, rgba(2,3,5,.66));
-}
-
-.vaultArchitecture {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-}
-
-/* A deeper alcove behind the left of the chamber: the wall keeps going back. */
-.vaultArchitecture::before {
-  content: "";
-  position: absolute;
-  z-index: 2;
-  left: 11%;
-  right: 46%;
-  top: 17%;
-  bottom: 26%;
-  border: 0;
-  background:
-    linear-gradient(115deg, rgba(0,0,0,.5), rgba(0,0,0,.30) 48%, rgba(0,0,0,.44)),
-    repeating-linear-gradient(180deg, transparent 0 82px, rgba(255,255,255,.012) 83px 84px, rgba(0,0,0,.16) 84px 86px);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.016),
-    inset 1px 0 0 rgba(255,255,255,.012),
-    inset 0 26px 46px -20px rgba(0,0,0,.72),
-    inset 24px 0 48px -24px rgba(0,0,0,.68);
-  clip-path: polygon(0 0, 100% 6%, 100% 94%, 0 100%);
-  -webkit-mask-image: radial-gradient(ellipse 96% 92% at 22% 42%, #000 0 48%, transparent 92%);
-  mask-image: radial-gradient(ellipse 96% 92% at 22% 42%, #000 0 48%, transparent 92%);
-}
-
-/* Shelf ledge below the alcove, lit from the chamber on its right. */
-.vaultArchitecture::after {
-  content: "";
-  position: absolute;
-  z-index: 3;
-  left: 10%;
-  right: 44%;
-  bottom: 21%;
-  height: 12px;
-  height: 10px;
-  background: linear-gradient(180deg, rgba(38,44,55,.34), rgba(4,6,9,.5));
-  box-shadow:
-    0 14px 26px rgba(0,0,0,.55),
-    inset 0 1px 0 rgba(216,52,74,.10);
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 26%, #000 74%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 26%, #000 74%, transparent);
-  clip-path: polygon(0 0, 100% 22%, 100% 100%, 0 100%);
-}
-
-.vaultRearPanel {
-  position: absolute;
-  inset: 8% 7% 10%;
-  border: 0;
-  border-top: 1px solid rgba(255,255,255,.028);
-  background:
+    /* Structural columns, positioned so each one lands under a ceiling beam.
+       The ceiling is inset -6% and this wall -4%, so the percentages differ
+       while the columns line up on screen — the frame reads as continuous
+       from the ceiling down into the back of the room. */
     linear-gradient(90deg,
-      transparent 0 21.9%,
-      rgba(255,255,255,.022) 21.9% 22.05%,
-      rgba(0,0,0,.30) 22.05% 22.6%,
-      transparent 22.6% 50.9%,
-      rgba(172, 24, 48, .05) 50.9% 51.05%,
-      rgba(0,0,0,.26) 51.05% 51.6%,
-      transparent 51.6% 78.9%,
-      rgba(255,255,255,.020) 78.9% 79.05%,
-      rgba(0,0,0,.28) 79.05% 79.6%,
-      transparent 79.6%),
-    repeating-linear-gradient(180deg, transparent 0 96px, rgba(255,255,255,.018) 97px 98px, rgba(0,0,0,.22) 98px 100px),
-    linear-gradient(180deg, rgba(20,13,17,.30), rgba(9,11,16,.22) 42%, rgba(3,5,8,.52));
-  clip-path: polygon(6% 0,94% 0,100% 9%,100% 91%,94% 100%,6% 100%,0 91%,0 9%);
-  box-shadow:
-    inset 0 0 130px rgba(0,0,0,.72),
-    inset 0 3px 0 rgba(0,0,0,.55),
-    inset 0 -2px 0 rgba(255,255,255,.018);
+      transparent 0 4.6%, rgba(255, 255, 255, 0.05) 4.6% 4.95%, rgba(0, 0, 0, 0.5) 4.95% 5.7%, transparent 5.7% 21.4%,
+      rgba(255, 255, 255, 0.042) 21.4% 21.7%, rgba(0, 0, 0, 0.45) 21.7% 22.4%, transparent 22.4% 45.4%,
+      rgba(255, 255, 255, 0.038) 45.4% 45.7%, rgba(0, 0, 0, 0.4) 45.7% 46.4%, transparent 46.4% 69.1%,
+      rgba(255, 255, 255, 0.042) 69.1% 69.4%, rgba(0, 0, 0, 0.45) 69.4% 70.1%, transparent 70.1% 89.6%,
+      rgba(255, 255, 255, 0.05) 89.6% 89.95%, rgba(0, 0, 0, 0.5) 89.95% 90.7%, transparent 90.7%),
+    /* Three panel courses at unequal heights — a wall built in bands, not a
+       tiled texture. The lowest course carries the vault's warm bounce. */
+    linear-gradient(180deg,
+      transparent 0 17%,
+      rgba(255, 255, 255, 0.04) 17% 17.4%,
+      rgba(0, 0, 0, 0.48) 17.4% 19.2%,
+      transparent 19.2% 46%,
+      rgba(255, 255, 255, 0.03) 46% 46.35%,
+      rgba(0, 0, 0, 0.42) 46.35% 47.6%,
+      transparent 47.6% 79%,
+      rgba(232, 56, 82, 0.055) 79% 79.4%,
+      rgba(0, 0, 0, 0.38) 79.4% 80.6%,
+      transparent 80.6%),
+    linear-gradient(180deg, rgba(23, 29, 39, 0.86), rgba(11, 15, 21, 0.5) 62%, rgba(4, 6, 10, 0.1));
+  mask-image: radial-gradient(ellipse 88% 100% at 50% 34%, #000 0 52%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 88% 100% at 50% 34%, #000 0 52%, transparent 100%);
 }
 
-.vaultUpperBeam {
+/* Recessed storage bays cut into the back wall. */
+.rearWallBayLeft,
+.rearWallBayCenter,
+.rearWallBayRight {
+  position: absolute;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background:
+    repeating-linear-gradient(180deg, transparent 0 22px, rgba(255, 255, 255, 0.026) 22px 23px),
+    linear-gradient(180deg, rgba(9, 12, 18, 0.9), rgba(3, 5, 8, 0.96));
+  box-shadow:
+    inset 0 3px 18px rgba(0, 0, 0, 0.9),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.rearWallBayLeft {
+  left: 11%;
+  top: 15%;
+  width: min(11vw, 190px);
+  height: 25%;
+  clip-path: polygon(0 0, 100% 0, 100% 88%, 90% 100%, 0 100%);
+}
+
+.rearWallBayCenter {
+  left: 27.5%;
+  top: 12%;
+  width: min(15vw, 250px);
+  height: 30%;
+  clip-path: polygon(0 0, 100% 0, 100% 90%, 92% 100%, 0 100%);
+}
+
+.rearWallBayRight {
+  right: 10%;
+  top: 16%;
+  width: min(12vw, 210px);
+  height: 24%;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 8% 100%, 0 88%);
+}
+
+/* Lit lower lip on each bay — the wall reads as recessed, not painted on. */
+.rearWallBayLeft::after,
+.rearWallBayCenter::after,
+.rearWallBayRight::after {
+  content: "";
   position: absolute;
   left: 8%;
   right: 8%;
-  top: 3%;
-  height: 62px;
-  border-top: 1px solid rgba(232,45,67,.16);
-  border-bottom: 1px solid rgba(255,255,255,.04);
-  background:
-    linear-gradient(180deg, rgba(30,35,44,.5), rgba(12,9,13,.34) 52%, rgba(4,6,9,.16)),
-    linear-gradient(90deg, transparent, rgba(97,14,29,.22) 42%, transparent 78%);
-  box-shadow: 0 14px 30px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.04);
-  clip-path: polygon(5% 0,95% 0,100% 100%,0 100%);
+  bottom: 6px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(232, 56, 82, 0.42), transparent);
+  box-shadow: 0 0 14px rgba(232, 56, 82, 0.26);
 }
 
-.vaultSideLeft,
-.vaultSideRight {
+.rearWallBayCenter::after {
+  background: linear-gradient(90deg, transparent, rgba(232, 56, 82, 0.55), transparent);
+  box-shadow: 0 0 22px rgba(232, 56, 82, 0.34);
+}
+
+/* Small screens at the far end of the room. */
+.distantMonitorCluster {
   position: absolute;
-  top: 8%;
-  bottom: 9%;
-  width: 84px;
-  border: 1px solid rgba(255,255,255,.035);
+  right: 22%;
+  top: 20%;
+  width: min(8vw, 130px);
+  height: 12%;
+  opacity: 0.5;
   background:
-    repeating-linear-gradient(180deg, transparent 0 65px, rgba(255,255,255,.022) 66px 68px, rgba(0,0,0,.32) 68px 70px),
-    linear-gradient(90deg, rgba(40,46,57,.42), rgba(96,13,26,.16) 44%, rgba(4,6,10,.55));
-  box-shadow:
-    inset 0 0 52px rgba(0,0,0,.5),
-    inset -1px 0 0 rgba(255,255,255,.028),
-    6px 0 26px rgba(0,0,0,.45);
-  opacity: .9;
+    /* three separate screens on a wall bracket, at unequal sizes */
+    linear-gradient(180deg, transparent 0 12%, rgba(0, 0, 0, 0.6) 12% 16%, transparent 16% 62%, rgba(0, 0, 0, 0.6) 62% 66%, transparent 66%),
+    linear-gradient(90deg,
+      rgba(58, 92, 142, 0.32) 0 27%,
+      rgba(0, 0, 0, 0.7) 27% 33%,
+      rgba(58, 92, 142, 0.18) 33% 69%,
+      rgba(0, 0, 0, 0.7) 69% 76%,
+      rgba(196, 54, 78, 0.2) 76% 100%),
+    linear-gradient(180deg, rgba(8, 12, 18, 0.9), rgba(3, 5, 9, 0.95));
+  filter: blur(0.6px);
+  box-shadow: 0 0 40px rgba(46, 76, 122, 0.2);
 }
 
-.vaultSideLeft {
-  left: 2.4%;
-  clip-path: polygon(35% 0,100% 0,100% 100%,18% 100%,0 89%,0 11%);
-}
+/* ==========================================================================
+   2. MID — machinery, racks, recessed screens, side walls
+   ========================================================================== */
 
-.vaultSideRight {
-  right: 2.4%;
-  transform: scaleX(-1);
-  clip-path: polygon(35% 0,100% 0,100% 100%,18% 100%,0 89%,0 11%);
-}
-
-.vaultBase {
+.farMachineLeft,
+.farMachineRight {
   position: absolute;
-  left: 2%;
-  right: 2%;
-  bottom: -16%;
-  height: 42%;
-  border-top: 1px solid rgba(218,39,60,.20);
+  bottom: 34%;
+  height: 22%;
+  width: min(13vw, 220px);
+  opacity: 0.72;
   background:
-    repeating-linear-gradient(90deg, transparent 0 90px, rgba(255,255,255,.024) 91px 93px),
-    repeating-linear-gradient(180deg, transparent 0 70px, rgba(255,255,255,.020) 71px 73px),
-    linear-gradient(180deg, rgba(104,14,30,.16), rgba(16,19,26,.5) 26%, rgba(3,5,8,.86));
-  box-shadow: 0 -12px 34px rgba(0,0,0,.6), inset 0 1px 0 rgba(232,52,74,.10);
-  transform: perspective(520px) rotateX(61deg);
-  transform-origin: bottom;
-  opacity: .92;
+    linear-gradient(180deg, rgba(28, 35, 46, 0.7), rgba(6, 9, 14, 0.94)),
+    /* a housing seam, an access hatch and a pipe run — three features, not a
+       texture */
+    linear-gradient(90deg,
+      transparent 0 23%,
+      rgba(255, 255, 255, 0.03) 23% 23.5%,
+      rgba(0, 0, 0, 0.5) 23.5% 25%,
+      transparent 25% 54%,
+      rgba(255, 255, 255, 0.022) 54% 66%,
+      transparent 66% 78%,
+      rgba(255, 255, 255, 0.035) 78% 79%,
+      rgba(0, 0, 0, 0.4) 79% 80.5%,
+      transparent 80.5%);
+  box-shadow: inset 0 0 44px rgba(0, 0, 0, 0.82);
 }
 
-.vaultContactLight {
+.farMachineLeft {
+  left: 4%;
+  clip-path: polygon(0 34%, 22% 34%, 22% 12%, 58% 12%, 58% 0, 78% 0, 78% 26%, 100% 26%, 100% 100%, 0 100%);
+}
+
+.farMachineRight {
+  right: 5%;
+  clip-path: polygon(0 26%, 26% 26%, 26% 4%, 52% 4%, 52% 18%, 84% 18%, 84% 38%, 100% 38%, 100% 100%, 0 100%);
+}
+
+/* Status LEDs on the machinery — the only green in the room besides ONLINE. */
+.farMachineLeft::after,
+.farMachineRight::after {
+  content: "";
   position: absolute;
-  left: 23%;
-  right: 4%;
-  bottom: 1%;
-  height: 24%;
+  left: 30%;
+  top: 46%;
+  width: 2px;
+  height: 2px;
   border-radius: 50%;
-  background: radial-gradient(ellipse at 62% 62%, rgba(224,40,64,.19), rgba(101,8,26,.055) 44%, transparent 70%);
+  background: #4fc47b;
+  box-shadow:
+    0 0 8px rgba(79, 196, 123, 0.7),
+    14px 0 0 rgba(232, 62, 88, 0.6),
+    14px 0 8px rgba(232, 62, 88, 0.4);
+}
+
+/* Partial weapon racks against the side walls. */
+.weaponRackLeft,
+.weaponRackRight {
+  position: absolute;
+  top: 24%;
+  width: min(11vw, 180px);
+  height: 30%;
+  opacity: 0.34;
+  background:
+    /* Weapons hung at uneven spacing and uneven width — a rack that is
+       partly full, rather than a comb. */
+    linear-gradient(90deg,
+      transparent 0 7%,
+      rgba(255, 255, 255, 0.055) 7% 8.6%,
+      transparent 8.6% 19%,
+      rgba(255, 255, 255, 0.04) 19% 20.2%,
+      transparent 20.2% 26%,
+      rgba(255, 255, 255, 0.06) 26% 28.4%,
+      transparent 28.4% 44%,
+      rgba(255, 255, 255, 0.045) 44% 45.4%,
+      transparent 45.4% 52%,
+      rgba(255, 255, 255, 0.055) 52% 54.2%,
+      transparent 54.2% 71%,
+      rgba(255, 255, 255, 0.038) 71% 72.2%,
+      transparent 72.2% 83%,
+      rgba(255, 255, 255, 0.05) 83% 85%,
+      transparent 85%),
+    /* two shelf rails, not a repeating ladder */
+    linear-gradient(180deg,
+      transparent 0 31%,
+      rgba(255, 255, 255, 0.075) 31% 32%,
+      rgba(0, 0, 0, 0.45) 32% 34.5%,
+      transparent 34.5% 72%,
+      rgba(255, 255, 255, 0.06) 72% 72.9%,
+      rgba(0, 0, 0, 0.4) 72.9% 75%,
+      transparent 75%),
+    linear-gradient(180deg, rgba(16, 21, 29, 0.6), rgba(4, 6, 10, 0.4));
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.7);
+}
+
+.weaponRackLeft {
+  left: 3.5%;
+  clip-path: polygon(8% 0, 100% 4%, 100% 96%, 0 100%, 0 6%);
+}
+
+.weaponRackRight {
+  right: 3.5%;
+  clip-path: polygon(0 4%, 92% 0, 100% 6%, 100% 100%, 0 96%);
+}
+
+/* Wall-set monitors, dark and unlit except for a cold sheen. */
+.recessedScreenLeft,
+.recessedScreenRight {
+  position: absolute;
+  top: 15%;
+  width: min(13vw, 210px);
+  height: 13%;
+  opacity: 0.6;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  background:
+    linear-gradient(168deg, rgba(52, 84, 132, 0.18), transparent 54%),
+    repeating-linear-gradient(180deg, transparent 0 5px, rgba(255, 255, 255, 0.014) 5px 6px),
+    linear-gradient(180deg, rgba(7, 10, 16, 0.92), rgba(2, 4, 7, 0.96));
+  box-shadow:
+    inset 0 0 46px rgba(0, 0, 0, 0.8),
+    0 0 44px rgba(24, 40, 64, 0.3);
+}
+
+.recessedScreenLeft {
+  left: 6.5%;
+  clip-path: polygon(7% 0, 100% 0, 100% 90%, 93% 100%, 0 100%, 0 8%);
+}
+
+.recessedScreenRight {
+  right: 6.5%;
+  clip-path: polygon(0 0, 93% 0, 100% 8%, 100% 100%, 7% 100%, 0 90%);
+}
+
+/* Side walls, angled toward the viewer and cropped hard by the viewport. */
+.sideStructureLeft,
+.sideStructureRight {
+  position: absolute;
+  top: -4%;
+  bottom: 14%;
+  width: min(16vw, 280px);
+  background:
+    repeating-linear-gradient(180deg,
+      transparent 0 84px,
+      rgba(255, 255, 255, 0.045) 84px 85px,
+      rgba(0, 0, 0, 0.5) 85px 90px),
+    linear-gradient(90deg, rgba(34, 42, 55, 0.62), rgba(9, 12, 18, 0.86) 62%, rgba(3, 5, 8, 0.95));
+  box-shadow: inset 0 0 120px rgba(0, 0, 0, 0.8);
+}
+
+.sideStructureLeft {
+  left: -6%;
+  clip-path: polygon(0 0, 100% 9%, 100% 91%, 0 100%);
+}
+
+.sideStructureRight {
+  right: -6%;
+  transform: scaleX(-1);
+  clip-path: polygon(0 0, 100% 9%, 100% 91%, 0 100%);
+}
+
+/* A lit fixture running down each wall — the room has installed lighting. */
+.sideStructureLeft::after,
+.sideStructureRight::after {
+  content: "";
+  position: absolute;
+  right: 6%;
+  top: 22%;
+  bottom: 22%;
+  width: 2px;
+  background: linear-gradient(180deg, transparent, rgba(236, 56, 82, 0.44) 24%, rgba(236, 56, 82, 0.1) 74%, transparent);
+  box-shadow: 0 0 26px rgba(214, 34, 62, 0.28);
+}
+
+/* ==========================================================================
+   3. CEILING — beams and conduit, cropped at the top edge
+   ========================================================================== */
+
+/* The ceiling is anchored to the top of the viewport in px, not to a
+   percentage of the scene. The scene is 1290px tall on a desktop and 2990px
+   tall on a phone, so a percentage put the conduit a third of the way down
+   the page on narrow layouts. Fixed depths also let the top of the page hold
+   a deliberate zone order: architecture, then a clear gap, then the HUD. */
+.ceilingArchitecture {
+  position: absolute;
+  left: -6%;
+  right: -6%;
+  top: -52px;
+  height: calc(var(--hq-top) + 44px);
+  clip-path: polygon(0 0, 100% 0, 94% 100%, 6% 100%);
+  background:
+    /* Five deep structural beams at irregular intervals, each with a lit
+       leading edge, a shadowed body and a dim trailing return. An evenly
+       repeated comb reads as a CSS grid; unequal bays read as a building. */
+    linear-gradient(90deg,
+      transparent 0 6.2%,
+      rgba(255, 255, 255, 0.09) 6.2% 6.45%,
+      rgba(0, 0, 0, 0.78) 6.45% 8.4%,
+      rgba(255, 255, 255, 0.028) 8.4% 8.6%,
+      transparent 8.6% 22.4%,
+      rgba(255, 255, 255, 0.075) 22.4% 22.62%,
+      rgba(0, 0, 0, 0.72) 22.62% 24.2%,
+      rgba(255, 255, 255, 0.024) 24.2% 24.38%,
+      transparent 24.38% 45.6%,
+      rgba(255, 255, 255, 0.088) 45.6% 45.86%,
+      rgba(0, 0, 0, 0.82) 45.86% 48.4%,
+      rgba(255, 255, 255, 0.03) 48.4% 48.6%,
+      transparent 48.6% 68.4%,
+      rgba(255, 255, 255, 0.07) 68.4% 68.6%,
+      rgba(0, 0, 0, 0.72) 68.6% 70.1%,
+      rgba(255, 255, 255, 0.024) 70.1% 70.28%,
+      transparent 70.28% 88.2%,
+      rgba(255, 255, 255, 0.08) 88.2% 88.44%,
+      rgba(0, 0, 0, 0.76) 88.44% 90.4%,
+      rgba(255, 255, 255, 0.028) 90.4% 90.6%,
+      transparent 90.6%),
+    /* The soffits fall away hard toward the room so the ceiling reads as
+       distant and hands the top of the page over to the HUD cleanly. */
+    linear-gradient(180deg, rgba(42, 51, 65, 0.96), rgba(17, 22, 30, 0.62) 44%, rgba(6, 9, 14, 0.14) 78%, transparent);
+  box-shadow: 0 40px 90px rgba(0, 0, 0, 0.7);
+}
+
+/* One structural beam, not two. A single deep member crossing high and part
+   cropped reads as building; a pair of parallel bars 60px apart read as
+   stacked UI dividers, which is most of what made the top band feel busy. */
+.ceilingTrusses {
+  position: absolute;
+  left: -8%;
+  right: -8%;
+  top: -26px;
+  height: calc(var(--hq-top) + 12px);
+  background:
+    linear-gradient(180deg,
+      transparent 0 29%,
+      rgba(255, 255, 255, 0.12) 29% 30%,
+      rgba(33, 40, 53, 0.95) 30% 46%,
+      rgba(0, 0, 0, 0.86) 46% 60%,
+      rgba(232, 56, 82, 0.09) 60% 62%,
+      transparent 62%);
+  clip-path: polygon(0 0, 100% 0, 91% 100%, 9% 100%);
+  opacity: 0.9;
+}
+
+/* Two mechanical rails running front-to-back over the room. */
+.ceilingRibLeft,
+.ceilingRibRight {
+  position: absolute;
+  top: -20px;
+  height: calc(var(--hq-top) + 58px);
+  width: 3px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015) 58%, transparent);
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
+}
+
+.ceilingRibLeft {
+  left: 26%;
+  transform: rotate(6deg);
+  transform-origin: top;
+}
+
+.ceilingRibRight {
+  right: 24%;
+  transform: rotate(-6deg);
+  transform-origin: top;
+}
+
+/* Ventilation / cable conduit with practical lights hung off it. */
+/* Sits above the signage rather than across it — the last piece of
+   architecture before the HUD band begins, and the line the sign hangs under. */
+.overheadConduit {
+  position: absolute;
+  left: -4%;
+  right: -4%;
+  top: calc(var(--hq-top) - 28px);
+  height: 15px;
+  background:
+    linear-gradient(180deg, rgba(58, 68, 84, 0.6), rgba(11, 15, 21, 0.9));
+  box-shadow:
+    0 10px 26px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  clip-path: polygon(0 0, 100% 0, 97% 100%, 3% 100%);
+  /* Crosses the full width now that it clears the signage, so it ties the
+     left and right halves of the top band into one room. */
+  mask-image: linear-gradient(90deg, transparent 0 3%, #000 13%, #000 94%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0 3%, #000 13%, #000 94%, transparent);
+}
+
+.overheadConduit::before,
+.overheadConduit::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  margin-top: 5px;
+}
+
+.overheadConduit::before {
+  left: 46%;
+  background: #f2495f;
+  box-shadow: 0 0 16px rgba(242, 73, 95, 0.75), 0 0 44px rgba(242, 73, 95, 0.3);
+}
+
+/* The only cool practical near the front of the room, held well down so the
+   blue stays an environmental hint rather than a second accent colour. */
+.overheadConduit::after {
+  right: 20%;
+  background: #52739e;
+  box-shadow: 0 0 12px rgba(82, 115, 158, 0.4), 0 0 30px rgba(82, 115, 158, 0.12);
+}
+
+/* ==========================================================================
+   4. FLOOR — the plane every system stands on
+   ========================================================================== */
+
+/* Where the floor meets the back wall. Reads as the horizon. */
+.horizon {
+  position: absolute;
+  left: -6%;
+  right: -6%;
+  top: 45%;
+  height: 90px;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.55), transparent 60%),
+    radial-gradient(ellipse 50% 100% at 38% 0%, rgba(206, 34, 60, 0.2), transparent 74%);
+}
+
+.horizon::after {
+  content: "";
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(255, 255, 255, 0.09) 14%,
+    rgba(239, 51, 80, 0.34) 36%,
+    rgba(255, 255, 255, 0.07) 62%,
+    rgba(96, 138, 196, 0.22) 82%,
+    transparent);
+}
+
+/* The floor.
+
+   Built from a vanishing point rather than from `rotateX`. A rotated plane is
+   the obvious approach and it is what was here before, but perspective
+   collapses it to a ~150px sliver at the bottom of a page this tall, which is
+   exactly why the floor was invisible. Drawing the projection instead —
+   conic rays for the seams that converge on the horizon, and horizontal
+   courses whose spacing opens up toward the viewer — gives a floor that fills
+   the whole lower half of the room and stays predictable at any viewport.
+
+   Vanishing point: 42% across, just above the horizon line. */
+.floorPlane {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 45%;
+  bottom: 0;
+  background:
+    /* the two lit channels recessed either side of the vault runway */
+    conic-gradient(from 0deg at 42% -2%,
+      transparent 0 167.4deg,
+      rgba(239, 51, 80, 0.4) 167.4deg 168.7deg,
+      transparent 168.7deg 191.3deg,
+      rgba(239, 51, 80, 0.4) 191.3deg 192.6deg,
+      transparent 192.6deg),
+    /* Two orders of longitudinal seam converging on the vanishing point:
+       major panel joints every third bay, minor seams between them. The
+       hierarchy is what stops it reading as graph paper. */
+    repeating-conic-gradient(from 91deg at 42% -2%,
+      rgba(255, 255, 255, 0.085) 0 0.28deg,
+      transparent 0.28deg 22.2deg),
+    repeating-conic-gradient(from 91deg at 42% -2%,
+      rgba(255, 255, 255, 0.042) 0 0.2deg,
+      transparent 0.2deg 7.4deg),
+    /* transverse courses, opening up toward the viewer */
+    linear-gradient(180deg,
+      transparent 0 1.8%, rgba(255, 255, 255, 0.05) 1.8% 1.94%,
+      transparent 1.94% 4.2%, rgba(255, 255, 255, 0.05) 4.2% 4.35%,
+      transparent 4.35% 7.2%, rgba(255, 255, 255, 0.05) 7.2% 7.36%,
+      transparent 7.36% 10.9%, rgba(255, 255, 255, 0.05) 10.9% 11.07%,
+      transparent 11.07% 15.4%, rgba(255, 255, 255, 0.05) 15.4% 15.58%,
+      transparent 15.58% 20.8%, rgba(255, 255, 255, 0.05) 20.8% 21%,
+      transparent 21% 27.2%, rgba(255, 255, 255, 0.05) 27.2% 27.42%,
+      transparent 27.42% 34.8%, rgba(255, 255, 255, 0.05) 34.8% 35.04%,
+      transparent 35.04% 43.8%, rgba(255, 255, 255, 0.05) 43.8% 44.06%,
+      transparent 44.06% 54.4%, rgba(255, 255, 255, 0.05) 54.4% 54.68%,
+      transparent 54.68% 66.8%, rgba(255, 255, 255, 0.05) 66.8% 67.1%,
+      transparent 67.1% 81.2%, rgba(255, 255, 255, 0.05) 81.2% 81.52%,
+      transparent 81.52% 97.6%, rgba(255, 255, 255, 0.05) 97.6% 97.94%,
+      transparent 97.94%),
+    /* the light the vault throws across the panels — held back so the seams
+       above it stay legible inside the pool */
+    radial-gradient(ellipse 26% 42% at 42% 44%, rgba(186, 26, 50, 0.16), transparent 76%),
+    /* the material itself: dark graphite, never bright */
+    linear-gradient(180deg,
+      rgba(6, 8, 12, 0.97) 0%,
+      rgba(11, 14, 20, 0.97) 26%,
+      rgba(18, 22, 30, 0.98) 62%,
+      rgba(23, 28, 37, 1) 88%,
+      rgba(16, 20, 27, 1) 100%);
+  /* The floor is revealed by light, not painted on: it is only legible where
+     the vault throws light, and dissolves toward the horizon and the walls. */
+  mask-image: radial-gradient(ellipse 84% 116% at 41% 102%, #000 0 28%, rgba(0, 0, 0, 0.5) 60%, transparent 94%);
+  -webkit-mask-image: radial-gradient(ellipse 84% 116% at 41% 102%, #000 0 28%, rgba(0, 0, 0, 0.5) 60%, transparent 94%);
+}
+
+/* The lit runway leading from the front of the room to the vault dais. */
+.platformRunway {
+  position: absolute;
+  left: 26%;
+  width: min(24vw, 400px);
+  top: 52%;
+  bottom: 2%;
+  clip-path: polygon(34% 0, 66% 0, 100% 100%, 0 100%);
+  background: linear-gradient(180deg, rgba(214, 36, 62, 0.14), rgba(214, 36, 62, 0.05) 44%, transparent 82%);
+  filter: blur(2px);
+  opacity: 0.9;
+}
+
+/* Floor docks: raised plates the side systems sit on. */
+.floorDockLeft,
+.floorDockRight {
+  position: absolute;
+  bottom: 3%;
+  height: 20%;
+  width: min(30vw, 520px);
+  opacity: 0.6;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 60px, rgba(255, 255, 255, 0.03) 60px 61px),
+    linear-gradient(180deg, rgba(30, 37, 49, 0.5), rgba(7, 10, 15, 0.2));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.floorDockLeft {
+  left: -3%;
+  clip-path: polygon(0 26%, 88% 0, 100% 100%, 0 100%);
+}
+
+.floorDockRight {
+  right: -3%;
+  clip-path: polygon(12% 0, 100% 26%, 100% 100%, 0 100%);
+}
+
+/* A lit channel across the front of the floor, under the telemetry HUD. */
+.floorStrips {
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  /* Sits on the open floor behind the deck, not under it. */
+  bottom: calc(var(--deck-h) + 46px);
+  height: 2px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(239, 51, 80, 0.34) 16%,
+    rgba(255, 255, 255, 0.09) 50%,
+    rgba(239, 51, 80, 0.34) 84%,
+    transparent);
+  box-shadow:
+    0 0 24px rgba(239, 51, 80, 0.24),
+    0 16px 50px rgba(200, 26, 52, 0.16);
+}
+
+/* The vault's reflection in the polished floor: a streak that starts hard
+   under the display and stretches toward the viewer, fading as it goes.
+   Narrower and more vertical than a general glow, because that is what a
+   reflection of a tall lit object actually looks like. */
+.floorReflection {
+  position: absolute;
+  left: 21%;
+  right: 45%;
+  bottom: calc(var(--deck-h) - 44px);
+  height: 34%;
+  background: linear-gradient(180deg,
+    rgba(232, 44, 70, 0.32),
+    rgba(186, 26, 52, 0.16) 26%,
+    rgba(120, 12, 30, 0.06) 58%,
+    transparent 88%);
+  filter: blur(22px);
+  opacity: 0.9;
+  /* Light adds, it does not cover. Painted normally this wash sat on top of
+     the floor and flattened the panel seams inside the brightest part of the
+     room — the one place the perspective most needs to read. */
+  mix-blend-mode: screen;
+}
+
+/* ==========================================================================
+   5. LIGHT + AIR
+   ========================================================================== */
+
+/* The vault lamp itself, as a volume of light in the room. */
+.vaultSpill {
+  position: absolute;
+  left: 8%;
+  top: 14%;
+  width: min(56vw, 980px);
+  height: min(60vw, 1000px);
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 48% 50%, rgba(226, 34, 62, 0.24), rgba(120, 10, 28, 0.07) 44%, transparent 72%);
+  filter: blur(70px);
+  mix-blend-mode: screen;
+}
+
+.atmosphericHaze {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(180, 200, 230, 0.02), transparent 22%),
+    radial-gradient(ellipse 70% 40% at 44% 52%, rgba(196, 120, 130, 0.035), transparent 76%);
+}
+
+/* ==========================================================================
+   6. FOREGROUND — cropped objects near the screen edges
+   ========================================================================== */
+
+/* Safety railing across the front of the floor, out of focus and cut off. */
+/* Railing and crates now stand on the floor *behind* the deck and are cropped
+   by its far edge, which is what puts the deck in front of them. */
+.floorRailLeft,
+.floorRailRight {
+  position: absolute;
+  bottom: calc(var(--deck-h) - 24px);
+  height: 9%;
+  width: min(21vw, 330px);
+  opacity: 0.55;
+  filter: blur(1.4px);
+  background:
+    linear-gradient(180deg, transparent 0 16%, rgba(150, 160, 176, 0.16) 16% 18%, transparent 18% 100%),
+    linear-gradient(90deg, transparent 0 18%, rgba(150, 160, 176, 0.13) 18% 19.4%, transparent 19.4% 62%, rgba(150, 160, 176, 0.13) 62% 63.4%, transparent 63.4%);
+}
+
+/* Kept clear of the control rail, which would otherwise hide them entirely
+   now that the room continues behind it. */
+.floorRailLeft {
+  left: 13%;
+  transform: skewY(-4deg);
+}
+
+.floorRailRight {
+  right: 2%;
+  transform: skewY(4deg);
+}
+
+/* Crate and equipment corners entering frame at the bottom corners. */
+.foregroundEquipmentLeft,
+.foregroundEquipmentRight {
+  position: absolute;
+  bottom: calc(var(--deck-h) - 28px);
+  height: 10%;
+  width: min(13vw, 230px);
+  opacity: 0.9;
+  filter: blur(2.2px);
+  background:
+    linear-gradient(180deg, rgba(26, 32, 43, 0.9), rgba(4, 6, 10, 0.98)),
+    repeating-linear-gradient(90deg, transparent 0 26px, rgba(255, 255, 255, 0.03) 26px 27px);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.06);
+}
+
+.foregroundEquipmentLeft {
+  left: 15.5%;
+  clip-path: polygon(0 46%, 62% 18%, 100% 54%, 100% 100%, 0 100%);
+}
+
+.foregroundEquipmentRight {
+  right: 0.5%;
+  clip-path: polygon(0 54%, 38% 18%, 100% 46%, 100% 100%, 0 100%);
+}
+
+/* Warm rim on the crate edge nearest the vault. */
+.foregroundEquipmentLeft::after {
+  content: "";
+  position: absolute;
+  left: 58%;
+  top: 22%;
+  width: 40%;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(236, 56, 82, 0.45), transparent);
+  transform: rotate(16deg);
+}
+
+.vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 78% 72% at 46% 46%, transparent 0 48%, rgba(0, 0, 0, 0.2) 78%, rgba(0, 0, 0, 0.52) 100%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.4), transparent 13%, transparent 88%, rgba(0, 0, 0, 0.42)),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.22), transparent 26%, transparent 78%, rgba(0, 0, 0, 0.4));
+}
+
+/* ==========================================================================
+   6b. FOREGROUND OPERATIONS DECK
+   The near edge of the room and the surface the telemetry is set into. It is
+   architecture, not a panel: it reaches both walls, its far edge tapers away
+   with the room's perspective, the vault's two floor channels run down its
+   face on the room's own vanishing point and terminate at the front lip, and
+   the readouts sit in a shallow recess milled across it.
+
+   Its far edge is deliberately a soft transition — the crisp lit line at the
+   top of the deck is `.telemetryStrip::before`, which is always exactly at
+   the readouts' top edge whatever height the strip resolves to. Nothing here
+   has to line up to the pixel.
+   ========================================================================== */
+
+.foregroundDeck {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--deck-h);
+  /* The far edge is inset and the sides flare out toward the viewer, so the
+     deck recedes into the room instead of ending in a straight bar. */
+  clip-path: polygon(4.5% 0, 95.5% 0, 100% 34%, 100% 100%, 0 100%, 0 34%);
+  background:
+    /* the two lit channels the vault stands between, continuing across the
+       deck on the same vanishing point the floor seams converge on */
+    conic-gradient(from 0deg at 42% -190%,
+      transparent 0 167.2deg,
+      rgba(243, 62, 90, 0.34) 167.2deg 168.9deg,
+      transparent 168.9deg 191.1deg,
+      rgba(243, 62, 90, 0.34) 191.1deg 192.8deg,
+      transparent 192.8deg),
+    /* deck panel joints, on the floor's major seam rays */
+    repeating-conic-gradient(from 91deg at 42% -190%,
+      rgba(255, 255, 255, 0.055) 0 0.24deg,
+      transparent 0.24deg 22.2deg),
+    /* The readout recess. Soft-edged rather than a hard step: the strip's
+       height differs by breakpoint, so a crisp lip would land in the wrong
+       place at some widths — the shadow and the lit return read as milled
+       without having to be aligned to the readouts exactly. */
+    linear-gradient(180deg,
+      transparent 0 9%,
+      rgba(0, 0, 0, 0.34) 17%,
+      rgba(0, 0, 0, 0.2) 40%,
+      rgba(0, 0, 0, 0.12) 62%,
+      rgba(255, 255, 255, 0.05) 72%,
+      transparent 78%),
+    /* a glancing sheen across the metal */
+    linear-gradient(166deg, rgba(255, 255, 255, 0.05), transparent 40%),
+    /* deck material: lit along the far edge, falling into shadow toward the
+       viewer, with the front lip catching light again */
+    linear-gradient(180deg,
+      rgba(34, 42, 55, 0) 0%,
+      rgba(31, 38, 50, 0.88) 16%,
+      rgba(21, 26, 35, 0.96) 40%,
+      rgba(12, 16, 22, 0.99) 74%,
+      rgba(7, 9, 14, 1) 100%);
+}
+
+/* The front lip: the closest surface in the room, and where the scene ends. */
+.foregroundDeck::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 13px;
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.14),
+    rgba(56, 67, 86, 0.95) 18%,
+    rgba(20, 26, 35, 1) 66%,
+    rgba(7, 9, 14, 1));
+  box-shadow: 0 -14px 26px rgba(0, 0, 0, 0.55);
+}
+
+/* ==========================================================================
+   7. FACILITY SIGNAGE — the header, treated as installed branding
+   ========================================================================== */
+
+.hq {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 1820px);
+  margin: 0 auto;
+  /* Top padding is the clearance under the ceiling: the HUD band starts below
+     the architecture instead of tangling with it. Bottom padding is the front
+     face of the deck below the readouts, not open floor. */
+  padding: var(--hq-top) clamp(14px, 1.8vw, 34px) var(--hq-bottom);
+}
+
+/* No card. A structural rail, signage on the left, readouts on the right.
+   The z-index matters: the vault's gantry and pillars are raised (z-index 1 on
+   the zone) and were painting over the wordmark, greying out "HUB". Facility
+   signage always sits in front of facility structure. */
+.commandHeader {
+  position: relative;
+  z-index: 6;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 40px;
+  padding: 0 4px 14px;
+}
+
+/* A soft scrim, not a card: the room's ceiling panels and side structures run
+   behind the signage, and without this the readouts lose contrast wherever a
+   lit panel passes under them. No visible edge — it is masked out on all
+   sides. */
+.commandHeader::before {
+  content: "";
+  position: absolute;
+  /* Local to the signage, not spanning the page. A scrim reaching from the
+     wordmark to the readouts is the shape of a navbar, and reads as one even
+     at low contrast — the room is allowed to run between them instead. */
+  inset: -34px auto -4px -26px;
+  width: min(46%, 560px);
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(3, 5, 9, 0.24), rgba(3, 5, 9, 0.5) 44%, rgba(3, 5, 9, 0.2));
+  mask-image: radial-gradient(ellipse 96% 120% at 32% 50%, #000 0 30%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 96% 120% at 32% 50%, #000 0 30%, transparent 100%);
+}
+
+/* A short structural tick under the sign, not a rule across the page. The
+   full-width version was the last piece of navbar left up here; the signage
+   and the readout cluster each carry their own framing now. */
+.commandHeader::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  width: min(21%, 250px);
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(239, 51, 80, 0.55), rgba(239, 51, 80, 0.12) 62%, transparent);
+}
+
+.headerBrand {
+  position: relative;
+  min-width: 0;
+}
+
+/* The sign itself: a plate fixed to the wall with a lit top edge, a shadowed
+   lower return and its own cast shadow falling on the wall below it, lit from
+   behind in the room's red. Drawn entirely in gradient stops rather than with
+   a border and a box-shadow, so the horizontal mask can open the right-hand
+   side and stop it closing into a header box. */
+.headerBrand::before {
+  content: "";
+  position: absolute;
+  left: -22px;
+  right: -38px;
+  /* Flush to the underside of the conduit, so the sign reads as hung from the
+     room's structure rather than parked near it. */
+  top: -13px;
+  bottom: -18px;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 64% 76% at 20% 54%, rgba(216, 34, 62, 0.26), transparent 74%),
+    linear-gradient(180deg,
+      transparent 0 3%,
+      rgba(255, 255, 255, 0.14) 3% 4.2%,
+      rgba(27, 34, 46, 0.66) 4.2% 74%,
+      rgba(6, 8, 13, 0.5) 74% 82%,
+      rgba(112, 20, 36, 0.13) 82% 88%,
+      rgba(0, 0, 0, 0.2) 88% 95%,
+      transparent 100%);
+  mask-image: linear-gradient(90deg, #000 0 58%, transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, #000 0 58%, transparent 100%);
+}
+
+.headerEyebrow {
+  position: relative;
+  display: block;
+  color: var(--ink-4);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.22em;
+}
+
+.headerWordmark {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-top: 5px;
+  font-size: clamp(36px, 3.3vw, 56px);
+  font-weight: 950;
+  line-height: 0.88;
+  letter-spacing: -0.06em;
+}
+
+/* Lit sign faces: a hard dark edge under each letter gives the type physical
+   thickness against the plate, and the red half carries the sign's own glow. */
+.headerWordmark strong {
+  color: #f43c53;
+  text-shadow:
+    0 2px 0 rgba(0, 0, 0, 0.5),
+    0 0 38px rgba(239, 50, 76, 0.5);
+}
+
+.headerWordmark b {
+  color: #eef1f5;
+  text-shadow:
+    0 2px 0 rgba(0, 0, 0, 0.55),
+    0 0 26px rgba(190, 205, 225, 0.16);
+}
+
+.headerBrand > small {
+  position: relative;
+  display: block;
+  margin-top: 11px;
+  padding-left: 13px;
+  color: var(--ink-2);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.24em;
+}
+
+/* Signage tick, so the sub-line reads as etched plate rather than a caption. */
+.headerBrand > small::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 2px;
+  bottom: 2px;
+  width: 2px;
+  background: linear-gradient(180deg, rgba(239, 51, 80, 0.8), rgba(239, 51, 80, 0.1));
+}
+
+/* One instrument cluster, not four floating labels: a single rail across the
+   top of the group, cells divided by hairlines off that rail, labels on one
+   baseline and values on another. The status readout used to be the only one
+   of the four wearing a bordered chip, which is what detached it from the
+   rest — it is now a cell like its neighbours, distinguished by its green. */
+.headerStatus {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  padding-top: 12px;
+}
+
+.headerStatus::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06) 16%, rgba(255, 255, 255, 0.14));
+}
+
+.headerStatus > div:not(.livePill) {
+  display: flex;
+  min-width: 152px;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 46px;
+  padding: 8px 20px 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.headerStatus small {
+  color: var(--ink-4);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+}
+
+.headerStatus strong {
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.livePill {
+  display: flex;
+  align-self: flex-end;
+  align-items: center;
+  gap: 8px;
+  padding: 0 20px 1px 0;
+  color: #90d8a8;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.livePill i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #46cf72;
+  box-shadow: 0 0 12px rgba(70, 207, 114, 0.8);
+  animation: statusPulse 3.4s ease-in-out infinite;
+}
+
+.headerMicroClock {
+  display: flex;
+  align-items: flex-end;
+  padding: 8px 0 1px 20px;
+  color: var(--ink-4);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+/* ==========================================================================
+   8. ROOM LAYOUT
+   ========================================================================== */
+
+.commandRoom {
+  display: grid;
+  grid-template-columns: minmax(470px, 1.46fr) minmax(340px, 0.86fr) minmax(300px, 0.7fr);
+  grid-template-areas:
+    "vault terminal intel"
+    "telemetry telemetry telemetry";
+  gap: 0 18px;
+  /* Enough air to separate the HUD band from the section headings, not enough
+     to read as a break — the room starts immediately under the signage. */
+  margin-top: 16px;
+}
+
+.vaultZone,
+.terminalZone,
+.intelZone,
+.telemetryStrip {
+  position: relative;
+  min-width: 0;
+}
+
+/* Depth order: the vault sits deepest in the room, the consoles in front of
+   it, the HUD in front of everything. Nothing shares a plane. */
+.vaultZone { z-index: 1; }
+.terminalZone { z-index: 3; }
+.intelZone { z-index: 3; }
+.telemetryStrip { z-index: 4; }
+
+/* --------------------------------------------------------------------------
+   8a. WEAPON VAULT — an object in the room, not an image in a card
+   -------------------------------------------------------------------------- */
+
+/* Deliberately borderless and background-free: the vault is defined by the
+   architecture and light around it, so its glow can spill into the room and
+   behind the command console. */
+.vaultZone {
+  grid-area: vault;
+  min-height: clamp(620px, 66vh, 790px);
+}
+
+.vaultFrame {
+  position: absolute;
+  inset: -2% -6% -12% -8%;
+  pointer-events: none;
+}
+
+/* Overhead gantry the display hangs from, cropped by the zone. */
+.vaultArch {
+  position: absolute;
+  left: 22%;
+  right: 22%;
+  top: 3.4%;
+  height: 62px;
+  clip-path: polygon(11% 0, 89% 0, 100% 100%, 0 100%);
+  /* A beam with section, not a plate: bright top chord catching the ceiling
+     light, dark web, shadowed underside. At rgba(44,53,68,.82) flat it read
+     as a grey card sitting behind the vault label. */
+  background: linear-gradient(180deg,
+    rgba(58, 69, 87, 0.62),
+    rgba(24, 30, 40, 0.8) 30%,
+    rgba(9, 12, 18, 0.86) 72%,
+    rgba(5, 7, 11, 0.4));
+  box-shadow:
+    0 22px 44px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.13),
+    inset 0 -1px 0 rgba(240, 56, 82, 0.28);
+}
+
+.vaultArch::after {
+  content: "";
+  position: absolute;
+  left: 16%;
+  right: 16%;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(240, 56, 82, 0.62), transparent);
+  box-shadow: 0 0 24px rgba(240, 56, 82, 0.42);
+}
+
+/* Structural pillars flanking the display. */
+.vaultPillarLeft,
+.vaultPillarRight {
+  position: absolute;
+  top: -2%;
+  bottom: 26%;
+  width: 54px;
+  background:
+    repeating-linear-gradient(180deg,
+      transparent 0 58px,
+      rgba(255, 255, 255, 0.05) 58px 59px,
+      rgba(0, 0, 0, 0.5) 59px 63px),
+    linear-gradient(90deg, rgba(43, 52, 66, 0.66), rgba(7, 10, 15, 0.86));
+  box-shadow: inset 0 0 52px rgba(0, 0, 0, 0.72);
+}
+
+.vaultPillarLeft {
+  left: -3%;
+  clip-path: polygon(30% 0, 100% 3%, 100% 97%, 14% 100%, 0 92%, 0 8%);
+}
+
+.vaultPillarRight {
+  right: -3%;
+  transform: scaleX(-1);
+  clip-path: polygon(30% 0, 100% 3%, 100% 97%, 14% 100%, 0 92%, 0 8%);
+}
+
+/* Red light falling on the pillar face nearest the display. */
+.vaultPillarLeft::after,
+.vaultPillarRight::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 12%;
+  bottom: 12%;
+  width: 22px;
+  background: linear-gradient(90deg, transparent, rgba(233, 44, 72, 0.22));
+}
+
+/* Weapon storage racks behind the display. */
+.vaultRackLeft,
+.vaultRackRight {
+  position: absolute;
+  top: 12%;
+  width: 88px;
+  height: 38%;
+  opacity: 0.34;
+  /* No border. The 1px outline on each rack drew two hard verticals across
+     the vault bay that together read as a big rectangle behind the artwork. */
+  background:
+    repeating-linear-gradient(90deg, transparent 0 13px, rgba(255, 255, 255, 0.05) 13px 15px, transparent 15px 30px),
+    repeating-linear-gradient(180deg, transparent 0 52px, rgba(255, 255, 255, 0.06) 52px 54px, rgba(0, 0, 0, 0.4) 54px 58px),
+    linear-gradient(180deg, rgba(14, 18, 25, 0.7), rgba(4, 6, 10, 0.5));
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.7);
+}
+
+.vaultRackLeft {
+  left: 5%;
+  clip-path: polygon(10% 0, 100% 0, 100% 100%, 0 100%, 0 8%);
+}
+
+.vaultRackRight {
+  right: 5%;
+  clip-path: polygon(0 0, 90% 0, 100% 8%, 100% 100%, 0 100%);
+}
+
+/* Power / data cables dropping from the gantry. */
+.vaultCableLeft,
+.vaultCableRight {
+  position: absolute;
+  top: 7%;
+  width: 1px;
+  height: 46%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.015) 70%, transparent);
+}
+
+.vaultCableLeft {
+  left: 25%;
+  transform: rotate(1.6deg);
+  transform-origin: top;
+}
+
+.vaultCableRight {
+  right: 23%;
+  transform: rotate(-1.6deg);
+  transform-origin: top;
+}
+
+/* Bloom behind the chamber. */
+.vaultBackGlow {
+  position: absolute;
+  left: 14%;
+  right: 12%;
+  top: 12%;
+  bottom: 22%;
+  background: radial-gradient(ellipse at 52% 52%, rgba(236, 40, 68, 0.28), rgba(112, 8, 26, 0.06) 46%, transparent 72%);
+  filter: blur(34px);
+  animation: vaultBreath 7.5s ease-in-out infinite;
+}
+
+/* The dais. This is what makes the artwork stand on something. */
+.vaultDais {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: 12.2%;
+  height: 250px;
+  transform-origin: 50% 100%;
+  transform: perspective(700px) rotateX(64deg);
+  border-radius: 12px;
+  background:
+    /* Four cast plates rather than a tiled grid — a platform assembled from
+       a few big pieces reads heavier than one made of many small ones. */
+    linear-gradient(90deg,
+      transparent 0 24.4%,
+      rgba(255, 255, 255, 0.06) 24.4% 24.7%,
+      rgba(0, 0, 0, 0.5) 24.7% 25.8%,
+      transparent 25.8% 49.5%,
+      rgba(255, 255, 255, 0.07) 49.5% 49.85%,
+      rgba(0, 0, 0, 0.55) 49.85% 51.1%,
+      transparent 51.1% 74.8%,
+      rgba(255, 255, 255, 0.06) 74.8% 75.1%,
+      rgba(0, 0, 0, 0.5) 75.1% 76.2%,
+      transparent 76.2%),
+    linear-gradient(180deg,
+      transparent 0 38%,
+      rgba(255, 255, 255, 0.05) 38% 38.5%,
+      rgba(0, 0, 0, 0.42) 38.5% 40.2%,
+      transparent 40.2% 74%,
+      rgba(255, 255, 255, 0.045) 74% 74.5%,
+      rgba(0, 0, 0, 0.4) 74.5% 76%,
+      transparent 76%),
+    radial-gradient(ellipse 60% 70% at 50% 74%, rgba(214, 34, 62, 0.4), transparent 72%),
+    linear-gradient(180deg, rgba(19, 24, 33, 0.6), rgba(36, 43, 56, 0.96) 46%, rgba(15, 19, 26, 1));
+  box-shadow:
+    0 -2px 0 rgba(255, 255, 255, 0.05) inset,
+    0 40px 90px rgba(0, 0, 0, 0.7);
+}
+
+/* Illuminated rim around the dais edge. */
+.vaultDaisRim {
+  position: absolute;
+  left: 15%;
+  right: 15%;
+  bottom: 12.4%;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(244, 62, 90, 0.85) 26%, rgba(255, 190, 200, 0.9) 50%, rgba(244, 62, 90, 0.85) 74%, transparent);
+  box-shadow:
+    0 0 26px rgba(244, 62, 90, 0.6),
+    0 0 70px rgba(216, 30, 60, 0.35);
+  animation: rimPulse 6s ease-in-out infinite;
+}
+
+/* Contact shadow. Two terms: a tight, near-black core where the display meets
+   the dais, and a wider ambient occlusion around the base. Without the tight
+   core the artwork floats a few centimetres above the platform. */
+.vaultShadow {
+  position: absolute;
+  left: 22%;
+  right: 22%;
+  bottom: 12.6%;
+  height: 66px;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse 42% 46% at 50% 44%, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0.55) 58%, transparent 84%),
+    radial-gradient(ellipse at 50% 50%, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.26) 54%, transparent 80%);
+  filter: blur(11px);
+}
+
+/* The light pool the vault casts on the dais and the floor beyond it. Given a
+   defined hot centre and a readable falloff edge rather than one even haze,
+   so it reads as a lamp throwing light onto a surface. */
+.vaultFloorSpill {
+  position: absolute;
+  left: 6%;
+  right: 4%;
+  bottom: 2%;
+  height: 26%;
+  background:
+    radial-gradient(ellipse 30% 62% at 50% 16%, rgba(255, 96, 122, 0.26), transparent 72%),
+    radial-gradient(ellipse at 50% 22%, rgba(238, 46, 74, 0.3), rgba(112, 10, 28, 0.1) 44%, transparent 74%);
   filter: blur(20px);
 }
 
-.vaultLabel {
-  position: absolute;
-  z-index: 6;
-  top: 25px;
-  left: 29px;
-  display: grid;
-  gap: 4px;
-}
-
-.vaultLabel span {
-  color: #595f68;
-  font-size: 7px;
-  font-weight: 900;
-  letter-spacing: .18em;
-}
-
-.vaultLabel strong {
-  color: #ee5062;
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: .13em;
-}
-
-.vaultInstallation::after {
-  content: "";
+.vaultArt {
   position: absolute;
   z-index: 2;
-  left: 27%;
-  right: 12%;
-  bottom: 7%;
-  height: 68px;
-  pointer-events: none;
-  border-radius: 50%;
-  background: radial-gradient(ellipse at 50% 100%, rgba(0,0,0,.82), rgba(0,0,0,.4) 46%, transparent 72%);
-  filter: blur(16px);
-}
-
-.vaultArtwork {
-  position: absolute;
-  z-index: 3;
-  left: 1%;
+  left: -4%;
   right: -1%;
-  top: 0;
-  bottom: -2%;
-  animation: vaultPresence 10s ease-in-out infinite;
+  top: 18px;
+  bottom: 68px;
 }
 
-.vaultArtworkImage {
+.vaultArtImage {
   object-fit: contain;
-  object-position: 62% 54%;
+  object-position: 52% 52%;
   filter:
-    saturate(1.01)
-    contrast(1.06)
-    brightness(.98)
-    drop-shadow(0 34px 52px rgba(0,0,0,.66))
-    drop-shadow(0 0 28px rgba(224,33,57,.13));
+    saturate(1.04)
+    contrast(1.09)
+    drop-shadow(0 46px 42px rgba(0, 0, 0, 0.78))
+    drop-shadow(0 0 40px rgba(230, 40, 66, 0.22));
+  animation: vaultIdle 9s ease-in-out infinite;
 }
 
-.tradingConsole {
-  display: flex;
-  flex-direction: column;
-  padding: clamp(27px, 2.3vw, 41px);
-  clip-path: polygon(0 0,calc(100% - 17px) 0,100% 17px,100% 100%,0 100%);
-  background:
-    linear-gradient(180deg, rgba(255,255,255,.02), transparent 15%, transparent 80%, rgba(255,255,255,.01)),
-    /* light spilling in from the vault to its left */
-    linear-gradient(90deg, rgba(168,18,42,.075), transparent 28%),
-    radial-gradient(circle at 100% 0%, rgba(161,15,36,.07), transparent 31%),
-    linear-gradient(150deg, rgba(22,26,34,.97), rgba(11,14,19,.98) 46%, rgba(5,7,11,.99));
-}
+/* --- floating HUD labels over the vault ---------------------------------- */
 
-.tradingConsole::before {
-  content: "";
-  position: absolute;
-  inset: 9px;
-  pointer-events: none;
-  border-top: 1px solid rgba(255,255,255,.045);
-  border-left: 1px solid rgba(255,255,255,.03);
-  clip-path: polygon(0 0,calc(100% - 11px) 0,100% 11px,100% 100%,0 100%);
-  -webkit-mask-image: linear-gradient(150deg, #000 0 42%, transparent 76%);
-  mask-image: linear-gradient(150deg, #000 0 42%, transparent 76%);
-}
-
-.consoleTopline {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  color: #939aa8;
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: .15em;
-}
-
-.consoleTopline span:first-child {
-  color: #e85969;
-}
-
-.tradingConsole h1 {
-  margin: 28px 0 0;
-  max-width: 430px;
-  color: #f5f6f8;
-  font-size: clamp(43px, 3.5vw, 62px);
-  font-weight: 930;
-  line-height: .98;
-  letter-spacing: -.055em;
-}
-
-.consoleLead {
-  margin: 19px 0 0;
-  max-width: 460px;
-  color: #a2a7af;
-  font-size: 13px;
-  font-weight: 560;
-  line-height: 1.72;
-}
-
-.consoleActions {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-  gap: 10px;
-  margin-top: 25px;
-}
-
-.primaryAction,
-.secondaryAction,
-.stationAction,
-.signalLink {
-  text-decoration: none;
-}
-
-.primaryAction,
-.secondaryAction {
-  display: flex;
-  min-height: 50px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 0 15px;
-  border: 1px solid rgba(255,255,255,.08);
-  color: #e6e8eb;
-  text-transform: uppercase;
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: .055em;
-  transition: transform 170ms ease, border-color 170ms ease, background 170ms ease, box-shadow 170ms ease;
-}
-
-.primaryAction {
-  border-color: rgba(247,80,98,.37);
-  background: linear-gradient(180deg, #ce203c, #941126);
-  color: #fff;
-  box-shadow: 0 16px 34px rgba(120,7,24,.2), inset 0 1px 0 rgba(255,255,255,.15);
-}
-
-.secondaryAction {
-  background: rgba(6,8,12,.64);
-}
-
-.primaryAction:hover,
-.secondaryAction:hover {
-  transform: translateY(-2px);
-}
-
-.secondaryAction:hover {
-  border-color: rgba(235,56,78,.28);
-  background: rgba(27,9,14,.72);
-}
-
-.marketSignal {
+.zoneHeading {
   position: relative;
-  margin-top: 28px;
-  padding: 18px;
-  border: 0;
-  border-left: 2px solid rgba(226,52,74,.34);
-  background:
-    linear-gradient(90deg, rgba(159,14,35,.05), transparent 46%),
-    linear-gradient(180deg, rgba(3,5,8,.86), rgba(6,8,12,.7));
-  box-shadow:
-    inset 0 14px 26px -14px rgba(0,0,0,.9),
-    inset 0 -14px 26px -14px rgba(0,0,0,.7),
-    inset 0 1px 0 rgba(255,255,255,.014);
-}
-
-.signalHeader {
+  z-index: 8;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  color: #e07484;
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: .12em;
-}
-
-.signalHeader small {
-  color: #939aa8;
-  font-size: 10px;
-  font-weight: 900;
-}
-
-.signalBody {
-  display: grid;
-  gap: 14px;
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px solid rgba(255,255,255,.045);
-}
-
-.signalBody > div:first-child {
-  min-width: 0;
-}
-
-.signalBody small,
-.signalMetrics small {
-  color: #939aa8;
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: .1em;
-}
-
-.signalBody > div:first-child strong {
-  display: block;
-  margin-top: 6px;
-  color: #f0f1f3;
-  font-size: 21px;
-  font-weight: 900;
-  letter-spacing: -.035em;
-}
-
-.signalBody > div:first-child > span {
-  display: block;
-  margin-top: 3px;
-  color: #d98b95;
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: .09em;
-}
-
-.signalMetrics {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 9px;
-  padding-top: 13px;
-  border-top: 1px solid rgba(255,255,255,.04);
-}
-
-.signalMetrics > div {
-  display: grid;
-  min-width: 0;
-  align-content: center;
-  gap: 5px;
-  padding-left: 13px;
-  border-left: 1px solid rgba(255,255,255,.06);
-}
-
-.signalMetrics strong {
-  color: #e6e9ee;
-  font-size: 17px;
-  letter-spacing: -.02em;
-  font-weight: 900;
-}
-
-.signalLink {
-  display: inline-flex;
   min-height: 44px;
   align-items: center;
-  gap: 8px;
-  margin-top: 10px;
-  color: #f0919b;
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: .05em;
-  text-transform: uppercase;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0 10px;
 }
 
-.consoleTelemetry {
-  display: grid;
-  grid-template-columns: 1fr 1px 1fr 1px 1fr;
-  align-items: center;
-  gap: 11px;
-  margin-top: auto;
-  padding-top: 26px;
+/* A rail, not a border box. */
+.zoneHeading::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    rgba(239, 51, 80, 0.6),
+    rgba(239, 51, 80, 0.14) 16%,
+    rgba(255, 255, 255, 0.05) 44%,
+    transparent 92%);
 }
 
-.consoleTelemetry > div {
+.zoneHeading > div:first-child {
   display: grid;
   gap: 4px;
 }
 
-.consoleTelemetry strong {
-  color: #f1f2f4;
-  font-size: 18px;
-  font-weight: 900;
-  letter-spacing: -.035em;
-}
-
-.consoleTelemetry span {
-  color: #939aa8;
-  font-size: 10px;
-  font-weight: 850;
-  letter-spacing: .05em;
-  text-transform: uppercase;
+.zoneHeading strong {
+  color: #f4596d;
+  font-size: 11.5px;
+  font-weight: 950;
+  letter-spacing: 0.12em;
   white-space: nowrap;
 }
 
-.consoleTelemetry i {
-  height: 35px;
-  background: rgba(255,255,255,.05);
+.zoneHeading span {
+  color: var(--ink-4);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.17em;
+  white-space: nowrap;
 }
 
-.operations {
-  position: relative;
-  margin-top: 44px;
-  padding-top: 30px;
-  border-top: 0;
+.headingMeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.operations::before {
-  content: "";
+.headingMeta em {
+  color: var(--ink-4);
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  white-space: nowrap;
+}
+
+/* The two narrow columns drop their secondary tag before the title is allowed
+   to wrap — a two-line "COMMAND / TERMINAL" reads as a broken heading. */
+@media (max-width: 1620px) {
+  .terminalZone .headingMeta em,
+  .intelZone .headingMeta em { display: none; }
+}
+
+.headingStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--ink-2) !important;
+  font-size: 7.5px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.15em !important;
+  clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%);
+}
+
+.headingStatus i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #ef3350;
+  box-shadow: 0 0 9px rgba(239, 51, 80, 0.75);
+  animation: statusPulse 3.4s ease-in-out infinite;
+}
+
+/* Market leader readout: a lit plate hung beside the display, open on three
+   sides so it belongs to the room rather than to a card. */
+.vaultIntel {
   position: absolute;
-  z-index: -1;
-  left: -50vw;
-  right: -50vw;
-  top: -34px;
-  bottom: -140px;
-  background:
-    /* floor plane continuing under the stations */
-    linear-gradient(180deg, rgba(4,6,10,.5) 0 34px, rgba(15,18,25,.30) 34px, rgba(8,11,16,.22) 46%, rgba(3,5,8,.34)),
-    /* the same seam rhythm as the room wall, carried across the floor */
-    linear-gradient(90deg,
-      transparent 0 27.9%,
-      rgba(255,255,255,.016) 27.9% 28.05%,
-      transparent 28.05% 61.9%,
-      rgba(160, 22, 44, .03) 61.9% 62.05%,
-      transparent 62.05%),
-    radial-gradient(ellipse at 52% 0%, rgba(150,16,38,.05), transparent 52%);
-  box-shadow: 0 -30px 70px rgba(0,0,0,.4);
-  -webkit-mask-image: linear-gradient(180deg, transparent, #000 90px, #000 82%, transparent);
-  mask-image: linear-gradient(180deg, transparent, #000 90px, #000 82%, transparent);
+  z-index: 7;
+  left: 4px;
+  top: 108px;
+  width: 176px;
+  padding: 14px 14px 15px;
+  border-left: 2px solid rgba(244, 62, 90, 0.75);
+  background: linear-gradient(90deg, rgba(6, 9, 14, 0.92), rgba(6, 9, 14, 0.44) 82%, transparent);
+  box-shadow: -10px 0 34px rgba(214, 34, 62, 0.14);
 }
 
-/* Wall behind the stations, so the lower page is a continuation of the same
-   room rather than a black field the cards sit on. */
-.operations::after {
-  content: "";
+.vaultIntel::before {
+  content: "MARKET ACTIVE";
   position: absolute;
-  z-index: -2;
-  left: -50vw;
-  right: -50vw;
-  top: 60px;
-  bottom: -140px;
-  pointer-events: none;
-  background:
-    linear-gradient(90deg,
-      transparent 0 15.9%,
-      rgba(255,255,255,.020) 15.9% 16.05%,
-      rgba(0,0,0,.26) 16.05% 16.5%,
-      transparent 16.5% 47.9%,
-      rgba(255,255,255,.016) 47.9% 48.05%,
-      rgba(0,0,0,.24) 48.05% 48.5%,
-      transparent 48.5% 79.9%,
-      rgba(164, 24, 48, .034) 79.9% 80.05%,
-      rgba(0,0,0,.24) 80.05% 80.5%,
-      transparent 80.5%),
-    linear-gradient(180deg, rgba(14,18,25,.34), rgba(6,9,14,.16) 58%, transparent);
-  -webkit-mask-image: linear-gradient(180deg, #000 0 70%, transparent);
-  mask-image: linear-gradient(180deg, #000 0 70%, transparent);
+  right: 12px;
+  top: 12px;
+  color: var(--ink-4);
+  font-size: 6px;
+  font-weight: 900;
+  letter-spacing: 0.2em;
 }
 
-.operationsHeader {
+.vaultIntel > span {
+  color: var(--ink-3);
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+}
+
+.vaultIntel > strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--ink);
+  font-size: 19px;
+  font-weight: 950;
+  letter-spacing: -0.035em;
+}
+
+.vaultIntel > em {
+  display: block;
+  margin-top: 3px;
+  color: #ef5a6d;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.vaultIntel > div {
   display: flex;
   align-items: end;
   justify-content: space-between;
-  gap: 28px;
-  margin-bottom: 14px;
-  padding: 0 4px;
+  gap: 8px;
+  margin-top: 11px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
 }
 
-.operationsHeader > div > span {
-  color: #e07484;
-  font-size: 11px;
+.vaultIntel small {
+  color: var(--ink-4);
+  font-size: 7px;
   font-weight: 900;
-  letter-spacing: .16em;
+  letter-spacing: 0.1em;
 }
 
-.operationsHeader h2 {
-  margin: 6px 0 0;
-  color: #f0f2f4;
-  font-size: clamp(26px, 2vw, 34px);
-  font-weight: 900;
-  letter-spacing: -.045em;
-}
-
-.operationsHeader p {
-  max-width: 520px;
-  margin: 0 0 4px;
-  color: #a8aebb;
+.vaultIntel b {
+  color: var(--ink);
   font-size: 13px;
-  font-weight: 560;
-  line-height: 1.6;
-  text-align: right;
+  font-weight: 950;
 }
 
-.operationsGrid {
+/* Vault status rail. Sits on the dais edge, transparent to the floor light. */
+.vaultFooter {
+  position: absolute;
+  z-index: 8;
+  left: 0;
+  right: 0;
+  bottom: 8px;
   display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 13px;
+  grid-template-columns: 1fr 1px 1fr 1px 1fr;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 2px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
 }
 
-.station {
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
-  border: 1px solid rgba(255,255,255,.055);
-  background: linear-gradient(145deg, rgba(15,18,24,.965), rgba(5,7,11,.995));
-  box-shadow: 0 26px 66px rgba(0,0,0,.31), inset 0 1px 0 rgba(255,255,255,.025);
-  transition: transform 190ms ease, border-color 190ms ease, box-shadow 190ms ease;
+.vaultFooter > div {
+  display: grid;
+  gap: 4px;
 }
 
-.station::before {
+.vaultFooter small {
+  color: var(--ink-4);
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+.vaultFooter strong {
+  color: var(--ink-2);
+  font-size: 9.5px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.vaultFooter > i {
+  height: 24px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* --------------------------------------------------------------------------
+   8b. COMMAND TERMINAL — a console standing on the floor
+   -------------------------------------------------------------------------- */
+
+.terminalZone {
+  grid-area: terminal;
+  display: flex;
+  min-height: clamp(620px, 66vh, 790px);
+  flex-direction: column;
+  padding: 16px 18px 20px;
+}
+
+/* Partial structural framing instead of one rectangle: a lit top rail, a
+   recessed console body that fades out at the floor, and four corner
+   brackets. The console has an edge, not an outline. */
+.terminalConsoleFrame {
+  position: absolute;
+  inset: 0 -2px -22px;
+  pointer-events: none;
+  background:
+    /* Faint brushed variation across the face so it is a machined surface
+       rather than a fill. */
+    linear-gradient(90deg, rgba(255, 255, 255, 0.022), transparent 34%, transparent 76%, rgba(0, 0, 0, 0.22)),
+    /* The face stays light through the whole mode region. It has to: the
+       wells below are cut *into* it, and a recess only reads if the material
+       around it is brighter than the hole. */
+    linear-gradient(180deg,
+      rgba(35, 43, 56, 0.95),
+      rgba(27, 34, 45, 0.96) 46%,
+      rgba(16, 21, 29, 0.94) 76%,
+      rgba(9, 12, 17, 0.7) 92%,
+      rgba(6, 8, 12, 0.4));
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.075),
+    inset 24px 0 60px rgba(196, 24, 50, 0.07),
+    -40px 0 90px rgba(196, 24, 50, 0.09);
+  /* The console has a lit top edge and two side rails, but they dissolve into
+     the floor over the lower third rather than closing into a rectangle.
+     Quick Access carries its own surfaces, so it stays readable through it. */
+  mask-image: linear-gradient(180deg, #000 0 64%, rgba(0, 0, 0, 0.5) 88%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, #000 0 64%, rgba(0, 0, 0, 0.5) 88%, transparent 100%);
+}
+
+/* The console's own light bar, mounted along its top edge. */
+.terminalConsoleFrame::after {
   content: "";
   position: absolute;
-  z-index: 3;
+  left: 8%;
+  right: 8%;
+  top: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(239, 51, 80, 0.55), transparent);
+  box-shadow: 0 0 20px rgba(239, 51, 80, 0.3);
+}
+
+/* Corner brackets. */
+.terminalConsoleFrame i {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.terminalConsoleFrame i:nth-child(1) { left: -1px; top: -1px; border-right: 0; border-bottom: 0; }
+.terminalConsoleFrame i:nth-child(2) { right: -1px; top: -1px; border-left: 0; border-bottom: 0; }
+.terminalConsoleFrame i:nth-child(3) { left: -1px; top: 62%; border-right: 0; border-top: 0; opacity: 0.5; }
+.terminalConsoleFrame i:nth-child(4) { right: -1px; top: 62%; border-left: 0; border-top: 0; opacity: 0.5; }
+
+/* The stack fills the console face rather than leaving a dead shelf above
+   Quick Access. Rows share the height; the selected mode keeps a larger
+   share of it. min-height on the slots stays as a floor for short viewports. */
+.operationStack {
+  display: grid;
+  flex: 1;
+  grid-template-rows: 1.16fr 1fr 1fr 1fr;
+  /* Wide enough that the console face between the wells reads as a surface
+     with its own lit and shadowed edges, not as a hairline. */
+  gap: 12px;
+  margin-top: 14px;
+}
+
+/* Inactive modes are wells milled into the console face, not cards resting on
+   it. The light logic is what sells that: the top edge is the shadow the lip
+   casts into the recess, the bottom edge is the lit return catching room
+   light, the fill is darker than the console around it, and there is no drop
+   shadow — a recess cannot cast one outward. */
+.operationButton {
+  position: relative;
+  display: grid;
+  grid-template-columns: 50px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  min-height: 100px;
+  padding: 22px 14px 14px;
+  overflow: hidden;
+  text-decoration: none;
+  color: var(--ink);
+  border-top: 2px solid rgba(0, 0, 0, 0.9);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.13);
+  /* Never lighter than the console face at any point down the well, or the
+     recess flips and reads as a slab sitting on top again. */
+  background:
+    linear-gradient(180deg, rgba(3, 5, 8, 0.97), rgba(7, 10, 14, 0.96) 46%, rgba(11, 15, 21, 0.95));
+  /* The two outer lines are the console face itself: lit where it turns down
+     into the pocket, shadowed where it comes back up. They are what actually
+     sells the recess — and they are also why these slots carry no clip-path:
+     a chamfer would clip them away, and a milled pocket is square anyway.
+     The cut corner now belongs only to the selected module. */
+  box-shadow:
+    0 -1px 0 rgba(255, 255, 255, 0.1),
+    0 1px 0 rgba(0, 0, 0, 0.55),
+    inset 0 8px 15px -5px rgba(0, 0, 0, 0.95),
+    inset 6px 0 13px -7px rgba(0, 0, 0, 0.88),
+    inset -4px 0 11px -7px rgba(0, 0, 0, 0.62);
+  transition: background 180ms ease, box-shadow 180ms ease;
+}
+
+/* The recess floor picks up a little of the vault's light from the left. */
+.operationButton::before {
+  content: "";
+  position: absolute;
   left: 0;
   top: 0;
-  width: 84px;
-  height: 1px;
-  background: linear-gradient(90deg, rgba(232,49,71,.65), transparent);
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(180deg, transparent, rgba(236, 52, 80, 0.3), transparent);
 }
 
-.station:hover {
-  transform: translateY(-3px);
-  border-color: rgba(235,54,75,.19);
-  box-shadow: 0 34px 78px rgba(0,0,0,.37), inset 0 1px 0 rgba(255,255,255,.032);
+/* Hover lights the inside of the well rather than lifting it out. */
+.operationButton:hover {
+  background:
+    radial-gradient(ellipse 76% 130% at 4% 104%, rgba(196, 28, 56, 0.3), transparent 66%),
+    linear-gradient(180deg, rgba(6, 6, 9, 0.97), rgba(15, 12, 16, 0.96) 56%, rgba(22, 16, 20, 0.95));
+  box-shadow:
+    0 -1px 0 rgba(255, 255, 255, 0.12),
+    0 1px 0 rgba(0, 0, 0, 0.55),
+    inset 0 8px 15px -5px rgba(0, 0, 0, 0.9),
+    inset 6px 0 13px -7px rgba(0, 0, 0, 0.82),
+    inset -4px 0 11px -7px rgba(0, 0, 0, 0.55);
 }
 
-.valuesStation {
-  grid-column: 1 / 13;
-  grid-row: 1;
-  min-height: 268px;
-  clip-path: polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,0 100%);
+.operationButton:hover::before {
+  background: linear-gradient(180deg, transparent, rgba(244, 66, 92, 0.8), transparent);
 }
 
-.calculatorStation { grid-column: 1 / 4; grid-row: 2; min-height: 246px; }
-.exchangeStation { grid-column: 4 / 7; grid-row: 2; min-height: 246px; }
-.opinionsStation { grid-column: 7 / 10; grid-row: 2; min-height: 246px; }
-.loungeStation { grid-column: 10 / 13; grid-row: 2; min-height: 246px; }
-
-.stationArt {
-  object-fit: contain;
-  pointer-events: none;
-  opacity: .68;
-  filter: saturate(.92) contrast(1.07) brightness(.86);
-  transition: transform 260ms ease, opacity 260ms ease, filter 260ms ease;
+/* The selected mode is lit, raised and slightly larger — a game mode that is
+   currently loaded, not a red button. */
+/* The loaded mode is the one module seated proud of the console face: lit top
+   chord, shadowed underside, and a real cast shadow onto the panel behind it.
+   Exactly the inverse of the wells around it. */
+.operationPrimary {
+  z-index: 2;
+  transform: translateX(-8px) scale(1.015);
+  transition: transform 180ms ease, background 180ms ease, box-shadow 180ms ease;
+  min-height: 118px;
+  border-top-color: rgba(255, 143, 162, 0.6);
+  border-bottom-color: rgba(72, 3, 16, 0.85);
+  /* The chamfer belongs to the raised module alone — it reads as a machined
+     bevel on a part that sits proud of the face. */
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.09), transparent 34%),
+    linear-gradient(135deg, rgba(203, 26, 54, 0.98), rgba(126, 12, 32, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 26px 52px rgba(0, 0, 0, 0.5),
+    0 0 42px rgba(224, 34, 62, 0.24),
+    -18px 0 60px rgba(214, 30, 58, 0.14);
+  animation: selectedBreath 5.5s ease-in-out infinite;
 }
 
-.valuesArt { object-position: 88% 52%; transform: scale(1.05); opacity: .8; }
-.calculatorArt { object-position: 158% 60%; transform: scale(1.78); opacity: .76; }
-.exchangeArt { object-position: 160% 60%; transform: scale(1.64); opacity: .74; }
-.opinionsArt { object-position: 151% 50%; transform: scale(1.38); opacity: .72; }
-.loungeArt { object-position: 165% 69%; transform: scale(1.72); opacity: .62; }
-
-.station:hover .stationArt {
-  opacity: .82;
-  filter: saturate(1.02) contrast(1.09) brightness(.94) drop-shadow(0 0 15px rgba(225,36,59,.07));
+.operationPrimary::before {
+  width: 3px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.2));
+  box-shadow: 0 0 18px rgba(255, 180, 190, 0.55);
 }
 
-.station:hover .valuesArt { transform: scale(1.09); }
-.station:hover .calculatorArt { transform: scale(1.83); }
-.station:hover .exchangeArt { transform: scale(1.69); }
-.station:hover .opinionsArt { transform: scale(1.43); }
-.station:hover .loungeArt { transform: scale(1.77); }
+.operationPrimary:hover {
+  transform: translateX(-8px) scale(1.02);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.11), transparent 34%),
+    linear-gradient(135deg, rgba(219, 32, 62, 0.99), rgba(136, 14, 35, 0.97));
+  /* Restated because the base hover turns a slot into a lit recess, and this
+     one is raised — it also has to hold up when the breathing animation is
+     switched off by prefers-reduced-motion. */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 26px 52px rgba(0, 0, 0, 0.5),
+    0 0 48px rgba(226, 36, 64, 0.28),
+    -18px 0 66px rgba(214, 30, 58, 0.16);
+}
 
-.stationShade {
+.operationMeta {
   position: absolute;
-  inset: 0;
-  z-index: 1;
-  background:
-    linear-gradient(90deg, rgba(6,8,12,.997) 0%, rgba(6,8,12,.94) 45%, rgba(6,8,12,.13) 100%),
-    linear-gradient(180deg, transparent 42%, rgba(4,6,9,.86));
-}
-
-.valuesStation .stationShade {
-  background:
-    linear-gradient(90deg, rgba(6,8,12,.998) 0%, rgba(6,8,12,.97) 42%, rgba(6,8,12,.20) 78%, rgba(6,8,12,.05) 100%),
-    linear-gradient(180deg, transparent 62%, rgba(4,6,9,.7));
-}
-
-.stationContent {
-  position: relative;
-  z-index: 4;
-  display: flex;
-  height: 100%;
-  min-height: inherit;
-  flex-direction: column;
-  align-items: flex-start;
-  padding: 20px 21px 18px;
-}
-
-.valuesStation .stationContent {
-  max-width: 620px;
-  padding: 30px 32px 28px;
-}
-
-.stationHeader {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.stationIcon {
+  left: 14px;
+  top: 9px;
   display: inline-flex;
-  width: 43px;
-  height: 43px;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.operationMeta i {
+  color: var(--ink-4);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+}
+
+.operationMeta small {
+  color: var(--ink-3);
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+}
+
+.operationPrimary .operationMeta i {
+  color: #fff;
+  font-size: 15px;
+  text-shadow: 0 0 16px rgba(255, 190, 200, 0.6);
+}
+
+.operationPrimary .operationMeta small {
+  color: #ffd2d9;
+  letter-spacing: 0.2em;
+}
+
+/* An etched plate at the bottom of the well: dark fill, shadowed top lip,
+   lit bottom return — the same light logic as the recess it sits in. */
+.operationIcon {
+  display: flex;
+  width: 46px;
+  height: 46px;
   align-items: center;
   justify-content: center;
-  color: #ef4559;
-  border: 1px solid rgba(234,52,74,.18);
-  background: linear-gradient(145deg, rgba(174,19,40,.12), rgba(25,8,13,.20));
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+  border-top: 1px solid rgba(0, 0, 0, 0.7);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.42), rgba(255, 255, 255, 0.035));
+  box-shadow: inset 0 3px 6px -2px rgba(0, 0, 0, 0.75);
+  color: #e78e9c;
+  clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 0 100%);
 }
 
-.stationIcon svg {
+.operationPrimary .operationIcon {
+  width: 54px;
+  height: 54px;
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.34);
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 0 26px rgba(255, 255, 255, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.operationIcon svg,
+.quickButton svg {
   width: 22px;
   height: 22px;
   fill: none;
@@ -1073,169 +1925,1338 @@
   stroke-linejoin: round;
 }
 
-.stationEyebrow {
-  margin-top: 17px;
-  color: #d98b95;
-  font-size: 10px;
+.operationPrimary .operationIcon svg {
+  width: 26px;
+  height: 26px;
+  stroke-width: 1.8;
+}
+
+.operationCopy {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.operationCopy strong {
+  color: #eceef2;
+  font-size: 14px;
+  font-weight: 950;
+  letter-spacing: -0.02em;
+}
+
+.operationCopy em {
+  color: var(--ink-3);
+  font-size: 9.5px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.operationPrimary .operationCopy strong {
+  color: #fff;
+  font-size: 16px;
+}
+
+.operationPrimary .operationCopy em {
+  color: #f7c9d0;
+}
+
+/* Mode state chip, bottom-right of each slot. */
+.operationState {
+  position: absolute;
+  right: 14px;
+  bottom: 12px;
+  color: var(--ink-4);
+  font-size: 6.5px;
   font-weight: 900;
-  letter-spacing: .14em;
+  letter-spacing: 0.2em;
 }
 
-.station h3 {
-  margin: 5px 0 0;
-  color: #f3f4f6;
-  font-size: 22px;
+.operationPrimary .operationState {
+  padding: 3px 7px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24);
+}
+
+.operationArrow {
+  color: var(--ink-4);
+  font-size: 18px;
+  transition: transform 180ms ease;
+}
+
+.operationPrimary .operationArrow {
+  color: #fff;
+  font-size: 21px;
+}
+
+.operationButton:hover .operationArrow {
+  transform: translateX(3px);
+}
+
+/* Quick access sits on the lower shelf of the console. */
+.quickPanel {
+  position: relative;
+  margin-top: 20px;
+  padding-top: 20px;
+}
+
+.quickPanel::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.11), transparent 80%);
+}
+
+.quickHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink-4);
+  font-size: 7.5px;
   font-weight: 900;
-  letter-spacing: -.035em;
+  letter-spacing: 0.17em;
 }
 
-.valuesStation h3 {
-  font-size: clamp(30px, 2.2vw, 38px);
+.quickHeader i {
+  height: 1px;
+  flex: 1;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.09), transparent);
 }
 
-.station p {
-  max-width: 245px;
-  margin: 8px 0 0;
-  color: #a8aebb;
-  font-size: 13px;
-  font-weight: 560;
-  line-height: 1.6;
+.quickGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 11px;
 }
 
-.valuesStation p {
-  max-width: 430px;
+.quickButton {
+  display: grid;
+  min-height: 76px;
+  place-items: center;
+  align-content: center;
+  gap: 7px;
+  color: var(--ink-2);
+  text-decoration: none;
+  /* Same recess logic as the mode wells, at a smaller scale. */
+  border-top: 1px solid rgba(0, 0, 0, 0.62);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  background: linear-gradient(180deg, rgba(9, 12, 17, 0.88), rgba(19, 24, 32, 0.82));
+  box-shadow: inset 0 4px 9px -3px rgba(0, 0, 0, 0.8);
+  clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 0 100%);
+  transition: background 170ms ease, color 170ms ease, box-shadow 170ms ease;
+}
+
+.quickButton:hover {
+  color: #f5a3ad;
+  background:
+    radial-gradient(ellipse 90% 130% at 50% 118%, rgba(178, 24, 48, 0.34), transparent 70%),
+    linear-gradient(180deg, rgba(12, 12, 17, 0.9), rgba(28, 20, 25, 0.86));
+  box-shadow:
+    inset 0 4px 9px -3px rgba(0, 0, 0, 0.75),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.quickButton > span {
+  display: flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  color: #e4596b;
+}
+
+.quickButton b {
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-align: center;
+}
+
+/* --------------------------------------------------------------------------
+   8c. INTEL — market radar + Nich, mounted on the right wall
+   -------------------------------------------------------------------------- */
+
+.intelZone {
+  grid-area: intel;
+  display: grid;
+  align-content: start;
+  gap: 16px;
+}
+
+/* A display mounted on the wall: glass, a faint radar grid, hairline section
+   rules. No heavy card frame — the mounts and the glass do the work. */
+.marketRadar {
+  position: relative;
+  padding: 14px 16px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.13);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.55);
+  background:
+    /* two glancing reflections off the cover glass, at different angles */
+    linear-gradient(163deg, rgba(255, 255, 255, 0.05), transparent 30%),
+    linear-gradient(196deg, transparent 58%, rgba(255, 255, 255, 0.018) 74%, transparent 88%),
+    /* the display is glass over a dark cavity, not a filled panel */
+    linear-gradient(180deg, rgba(18, 23, 32, 0.86), rgba(6, 9, 14, 0.92));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.11),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+    inset 0 26px 40px -28px rgba(0, 0, 0, 0.9),
+    0 30px 66px rgba(0, 0, 0, 0.52);
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+  overflow: hidden;
+}
+
+/* Concentric range rings instead of a square grid — the grid read as page
+   chrome; rings read as an instrument. Kept near the threshold of visible. */
+.marketRadar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 82% 13%,
+      transparent 0 17%, rgba(255, 255, 255, 0.028) 17% 17.5%, transparent 17.5% 33%,
+      rgba(255, 255, 255, 0.022) 33% 33.5%, transparent 33.5% 54%,
+      rgba(255, 255, 255, 0.016) 54% 54.4%, transparent 54.4%),
+    radial-gradient(circle at 82% 13%, rgba(239, 51, 80, 0.075), transparent 44%);
+}
+
+.marketRadar::after {
+  content: "";
+  position: absolute;
+  right: -30%;
+  top: -34%;
+  width: 78%;
+  aspect-ratio: 1;
+  pointer-events: none;
+  background: conic-gradient(from 0deg, rgba(239, 51, 80, 0.13), transparent 26%);
+  border-radius: 50%;
+  animation: radarSweep 9s linear infinite;
+}
+
+/* The brackets the display is bolted to the wall with: two at the head, two
+   at the foot, each with a bolt seated in it. These sat at top:-8px and were
+   being clipped away entirely by the panel's own `overflow: hidden`, so the
+   display had no visible fixings at all. */
+.radarMounts {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.radarMounts i {
+  position: absolute;
+  top: 0;
+  width: 30px;
+  height: 9px;
+  background: linear-gradient(180deg, rgba(72, 84, 103, 0.82), rgba(11, 15, 22, 0.9));
+  box-shadow:
+    0 3px 8px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  clip-path: polygon(0 0, 100% 0, 84% 100%, 16% 100%);
+}
+
+.radarMounts i::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 3px;
+  width: 3px;
+  height: 3px;
+  margin-left: -1.5px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.62);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.radarMounts i:first-child { left: 13%; }
+.radarMounts i:last-child { right: 13%; }
+
+.radarMounts::before,
+.radarMounts::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  width: 26px;
+  height: 7px;
+  background: linear-gradient(0deg, rgba(60, 70, 87, 0.6), rgba(9, 13, 19, 0.85));
+  clip-path: polygon(16% 0, 84% 0, 100% 100%, 0 100%);
+}
+
+.radarMounts::before { left: 15%; }
+.radarMounts::after { right: 15%; }
+
+.radarLeaders,
+.demandPanel,
+.operationsPanel {
+  position: relative;
+  padding-top: 12px;
   margin-top: 12px;
-  font-size: 14.5px;
-  line-height: 1.66;
+  border-top: 1px solid rgba(255, 255, 255, 0.055);
 }
 
-.stationAction {
+.radarLeaders {
+  margin-top: 4px;
+  border-top: 0;
+}
+
+/* The lower two sections are milled a step down into the display face: a
+   shadow lip at the step, a lit return under it, and the light falling off
+   as it enters the recess. They run to the bezel, so they read as machined
+   sections of one instrument rather than as stacked panels. */
+.demandPanel,
+.operationsPanel {
+  margin-inline: -16px;
+  padding-inline: 16px;
+  padding-bottom: 12px;
+  border-top-color: rgba(0, 0, 0, 0.62);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 10px 16px -12px rgba(0, 0, 0, 0.9);
+}
+
+.operationsPanel { padding-bottom: 2px; }
+
+.panelLabel {
+  margin-bottom: 8px;
+  color: var(--ink-4);
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0.19em;
+}
+
+.leaderRow {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.035);
+}
+
+.leaderRow:first-of-type {
+  border-top: 0;
+}
+
+.leaderRank {
+  color: var(--ink-4);
+  font-size: 9px;
+  font-weight: 950;
+}
+
+.leaderRow > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.leaderRow > div strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 11.5px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leaderMeta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.leaderMeta small {
+  color: var(--ink-4);
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.leaderSignal {
   display: inline-flex;
-  min-width: 152px;
-  min-height: 46px;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 5px;
+  font-size: 6.5px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.leaderSignal i {
+  font-style: normal;
+  font-size: 6px;
+}
+
+.leaderSignalHot {
+  color: #ff8090;
+  background: rgba(214, 30, 58, 0.2);
+}
+
+.leaderSignalWarm {
+  color: #e5a98a;
+  background: rgba(150, 78, 30, 0.18);
+}
+
+.leaderSignalQuiet {
+  color: var(--ink-3);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.leaderRow > b {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: -0.02em;
+}
+
+.demandContent {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.demandRing {
+  position: relative;
+  display: grid;
+  width: 78px;
+  height: 78px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 50%;
+  box-shadow: 0 0 26px rgba(214, 34, 62, 0.18);
+}
+
+.demandRing::after {
+  content: "";
+  position: absolute;
+  inset: 9px;
+  border-radius: 50%;
+  background: #0a0d13;
+  box-shadow: inset 0 0 16px rgba(0, 0, 0, 0.8);
+}
+
+.demandRing > span {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+}
+
+.demandRing strong {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.demandRing small {
+  color: var(--ink-4);
+  font-size: 6px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+}
+
+.demandLegend {
+  display: grid;
+  flex: 1;
+  gap: 6px;
+}
+
+.demandLegend > div {
+  display: grid;
+  grid-template-columns: 7px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.demandLegend i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.highDot {
+  background: #ef334f;
+  box-shadow: 0 0 10px rgba(239, 51, 79, 0.6);
+}
+
+.midDot { background: #9c2438; }
+.lowDot { background: #343b48; }
+
+.demandLegend span {
+  color: var(--ink-3);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+.demandLegend strong {
+  color: var(--ink-2);
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.radarLink {
+  display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 15px;
-  margin-top: auto;
-  padding: 0 14px;
-  border: 1px solid rgba(232,55,76,.24);
-  background: rgba(93,10,23,.10);
-  color: #f0919b;
-  text-transform: uppercase;
-  font-size: 11px;
+  margin-top: 12px;
+  padding: 9px 11px;
+  color: #f2798a;
+  font-size: 8px;
   font-weight: 900;
-  letter-spacing: .055em;
-  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+  letter-spacing: 0.15em;
+  text-decoration: none;
+  border-left: 2px solid rgba(239, 51, 80, 0.6);
+  background: linear-gradient(90deg, rgba(150, 16, 38, 0.26), transparent 88%);
+  transition: background 170ms ease, color 170ms ease;
 }
 
-.stationAction:hover {
-  border-color: rgba(244,77,96,.38);
-  background: rgba(144,14,31,.14);
-  color: #ffc1c7;
+.radarLink:hover {
+  color: #ffd4da;
+  background: linear-gradient(90deg, rgba(186, 20, 46, 0.42), transparent 92%);
 }
 
-@keyframes vaultPresence {
-  0%, 100% { transform: scale(1); filter: brightness(1); }
-  50% { transform: scale(1.008); filter: brightness(1.018); }
+.coverageRow {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.coverageRow > div:first-child {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  color: var(--ink-3);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+.coverageRow strong {
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.coverageTrack {
+  position: relative;
+  height: 4px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.coverageTrack i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(160, 18, 42, 0.9), #ef3350);
+  box-shadow: 0 0 12px rgba(239, 51, 80, 0.5);
+}
+
+.radarMicroStrip {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.045);
+}
+
+.radarMicroStrip span {
+  color: var(--ink-4);
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+}
+
+.radarMicroStrip strong {
+  color: var(--ink-3);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+/* Real category spread, drawn as a micro bar chart. */
+.radarSparkline {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 22px;
+  flex: 1;
+  justify-content: center;
+}
+
+.radarSparkline i {
+  width: 4px;
+  min-height: 3px;
+  background: linear-gradient(180deg, #f2506b, rgba(150, 18, 40, 0.5));
+  box-shadow: 0 0 8px rgba(239, 51, 80, 0.28);
+}
+
+/* --- Nich AI desk: a recessed alcove, not a chat widget ------------------ */
+
+/* The desk and the Market Radar above it are two instruments in one station:
+   same clipped head, same seam language, and a short rail that runs up the
+   shared edge so they read as mounted together rather than stacked. */
+.nichDesk {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  padding: 14px 14px 15px;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.55);
+  background:
+    radial-gradient(ellipse 60% 90% at 92% 60%, rgba(178, 22, 46, 0.22), transparent 70%),
+    linear-gradient(180deg, rgba(14, 18, 26, 0.94), rgba(6, 9, 14, 0.96));
+  box-shadow:
+    inset 0 2px 14px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+}
+
+/* The connection marker back up to the radar. */
+.nichDesk::before {
+  content: "";
+  position: absolute;
+  left: 14px;
+  top: 0;
+  width: 1px;
+  height: 26px;
+  background: linear-gradient(180deg, rgba(239, 51, 80, 0.7), transparent);
+}
+
+.nichCopy {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+}
+
+.nichHeading {
+  display: grid;
+  gap: 5px;
+  padding-right: 84px;
+}
+
+.nichHeading strong {
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+}
+
+.nichHeading strong b { color: #f4596d; }
+
+.nichHeading span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-4);
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+}
+
+.nichHeading span i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #46cf72;
+  box-shadow: 0 0 9px rgba(70, 207, 114, 0.75);
+  animation: statusPulse 3.4s ease-in-out infinite;
+}
+
+.nichCopy p {
+  padding-right: 84px;
+  color: var(--ink-3);
+  font-size: 9.5px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.nichActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* The suggestion chips are <button>s now that the desk answers, so they carry
+   the same treatment as the links rather than inheriting the UA button style. */
+.nichActions a,
+.nichActions button {
+  flex: 1 1 auto;
+  padding: 6px 7px;
+  color: var(--ink-2);
+  font-family: inherit;
+  font-size: 7.5px;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  text-align: center;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.045);
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.nichActions a:hover,
+.nichActions button:hover:not(:disabled) {
+  color: #ffd4da;
+  background: rgba(178, 22, 46, 0.35);
+}
+
+.nichActions button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* The primary action into the full console. */
+.nichOpen {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  color: #fff;
+  font-size: 8.5px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+  text-decoration: none;
+  background: linear-gradient(135deg, rgba(196, 24, 50, 0.95), rgba(120, 12, 30, 0.92));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
+  transition: filter 160ms ease;
+}
+
+.nichOpen:hover { filter: brightness(1.14); }
+.nichOpen b { font-size: 11px; }
+
+/* System footer. Three facts about the architecture, not decoration. */
+.nichFooter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.055);
+  color: var(--ink-4);
+  font-size: 6.5px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+}
+
+.nichFooter i {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(239, 51, 80, 0.6);
+}
+
+.nichInput {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 11px;
+  color: var(--ink-4);
+  font-size: 9px;
+  font-weight: 700;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.42);
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+.nichInput input {
+  min-width: 0;
+  flex: 1;
+  color: var(--ink-2);
+  font-family: inherit;
+  font-size: 9px;
+  font-weight: 700;
+  border: 0;
+  background: transparent;
+  outline: none;
+}
+
+.nichInput input::placeholder {
+  color: var(--ink-4);
+}
+
+.nichInput button {
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  background: transparent;
+}
+
+.nichInput button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.nichInput b {
+  color: #ef5a6d;
+  font-size: 11px;
+}
+
+/* A recessed circular mount with a red rim, masked so the portrait fades into
+   the console instead of sitting in a black box. */
+.nichAvatar {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 74px;
+  height: 74px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 38%, rgba(226, 40, 68, 0.26), rgba(4, 6, 10, 0.92) 70%);
+  box-shadow:
+    inset 0 0 0 1px rgba(239, 51, 80, 0.3),
+    inset 0 6px 18px rgba(0, 0, 0, 0.72),
+    0 0 24px rgba(214, 34, 62, 0.16);
+  animation: nichRimPulse 6.5s ease-in-out infinite;
+}
+
+/* Scan texture over the mount. */
+.nichAvatar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: repeating-linear-gradient(180deg, transparent 0 3px, rgba(0, 0, 0, 0.2) 3px 4px);
+  opacity: 0.45;
+}
+
+/* ONLINE LED on the mount. */
+.nichAvatar::after {
+  content: "";
+  position: absolute;
+  right: 8px;
+  bottom: 9px;
+  z-index: 3;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #46cf72;
+  box-shadow: 0 0 9px rgba(70, 207, 114, 0.8);
+  animation: statusPulse 3.4s ease-in-out infinite;
+}
+
+@keyframes nichRimPulse {
+  0%, 100% {
+    box-shadow:
+      inset 0 0 0 1px rgba(239, 51, 80, 0.3),
+      inset 0 6px 18px rgba(0, 0, 0, 0.72),
+      0 0 24px rgba(214, 34, 62, 0.16);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 1px rgba(239, 51, 80, 0.48),
+      inset 0 6px 18px rgba(0, 0, 0, 0.72),
+      0 0 34px rgba(226, 40, 68, 0.28);
+  }
+}
+
+.nichAvatarImage {
+  object-fit: cover;
+  object-position: 50% 20%;
+  mask-image: radial-gradient(circle at 50% 44%, #000 0 60%, transparent 92%);
+  -webkit-mask-image: radial-gradient(circle at 50% 44%, #000 0 60%, transparent 92%);
+}
+
+/* ==========================================================================
+   9. HUD TELEMETRY — a readout layer lying over the floor
+   ========================================================================== */
+
+.telemetryStrip {
+  grid-area: telemetry;
+  display: grid;
+  /* The community column is wide enough to hold its three links on one row;
+     wrapping them to two was what set the height of the whole strip. */
+  grid-template-columns: 0.9fr repeat(5, minmax(0, 1fr)) 1.35fr;
+  align-items: stretch;
+  /* Close to the scene above it. A wide gap plus a full-width rule was what
+     made this read as a footer rather than as the deck the room stands on. */
+  margin-top: 14px;
+  padding-top: 12px;
+}
+
+/* Not a divider — a lit channel recessed into the floor, brightest where the
+   vault platform stands and falling away across the room, so the strip is
+   read as the next surface down rather than as the top of a new section. */
+.telemetryStrip::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: linear-gradient(90deg,
+    rgba(255, 255, 255, 0.05) 0 5%,
+    rgba(243, 62, 90, 0.7) 21%,
+    rgba(239, 51, 80, 0.26) 36%,
+    rgba(255, 255, 255, 0.085) 58%,
+    rgba(255, 255, 255, 0.04) 84%,
+    transparent);
+  box-shadow: 0 0 18px rgba(239, 51, 80, 0.26);
+}
+
+/* The vault's light reaching the lower deck. Behind the readouts, screened so
+   it lifts the floor seams passing under them instead of covering them. */
+.telemetryStrip::after {
+  content: "";
+  position: absolute;
+  left: -3%;
+  right: 22%;
+  top: -30px;
+  bottom: -46px;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(ellipse 54% 104% at 23% 10%, rgba(198, 30, 56, 0.17), transparent 72%);
+  mix-blend-mode: screen;
+}
+
+.telemetryLead,
+.telemetryCell,
+.telemetryCommunity {
+  display: grid;
+  /* Top-aligned, not centred. Centring let each cell float by its own content
+     height — the community chips wrap to two rows and pushed everything else
+     out of line, so seven readouts sat on five different baselines. */
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  padding: 5px 16px;
+  /* Ticks that fade out at both ends rather than full-height rules — column
+     rules turn a HUD into a table. */
+  border-width: 0 0 0 1px;
+  border-style: solid;
+  border-image: linear-gradient(180deg,
+    transparent,
+    rgba(255, 255, 255, 0.13) 26%,
+    rgba(255, 255, 255, 0.13) 74%,
+    transparent) 1;
+}
+
+.telemetryLead {
+  border-left: 0;
+  padding-left: 2px;
+}
+
+/* Fixed leading so every label occupies the same first row and the values
+   below them start together. */
+.telemetryLead small,
+.telemetryCell small,
+.telemetryCommunity small {
+  color: var(--ink-4);
+  font-size: 7px;
+  line-height: 11px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+}
+
+.telemetryLead > strong {
+  color: #f4596d;
+  font-size: 13px;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+}
+
+.telemetryLead > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-3);
+  font-size: 7.5px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+.telemetryLead > span i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #46cf72;
+  box-shadow: 0 0 9px rgba(70, 207, 114, 0.75);
+  animation: statusPulse 3.4s ease-in-out infinite;
+}
+
+.telemetryCell strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 950;
+  letter-spacing: -0.035em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Word values (the value source name) are set smaller and allowed to wrap;
+   at 20px they truncated to "Supreme V…" in every column under 1600px. */
+.telemetryWord strong {
+  font-size: 14px;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  white-space: normal;
+}
+
+.telemetryCell > span {
+  color: var(--ink-4);
+  font-size: 7.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+/* Meter cells: a real ratio drawn above its caption. */
+.telemetryMeter {
+  position: relative;
+  display: block;
+  padding-top: 9px;
+}
+
+.telemetryMeter::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.telemetryMeter i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(160, 18, 42, 0.9), #ef3350);
+  box-shadow: 0 0 10px rgba(239, 51, 80, 0.5);
+}
+
+.telemetryCommunity > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.telemetryCommunity a {
+  padding: 4px 8px;
+  color: var(--ink-2);
+  font-size: 7.5px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-decoration: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.04);
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.telemetryCommunity a:hover {
+  color: #ffd4da;
+  background: rgba(178, 22, 46, 0.38);
+}
+
+/* ==========================================================================
+   10. RESPONSIVE
+   Desktop is the visual priority. Below it the architecture simplifies and
+   then steps aside; the systems always stay usable.
+   ========================================================================== */
+
+@media (max-width: 1540px) {
+  .commandRoom {
+    grid-template-columns: minmax(420px, 1.34fr) minmax(320px, 0.86fr) minmax(280px, 0.7fr);
+    gap: 0 14px;
+  }
+
+  .vaultIntel { width: 158px; }
+  .operationButton { min-height: 94px; }
+  .operationPrimary { min-height: 110px; }
+}
+
+@media (max-width: 1280px) {
+  /* The community links become a full-width row here, so the strip is ~50px
+     taller and the deck has to reach further up to sit under it. */
+  .scene { --deck-h: clamp(232px, 26vh, 300px); }
+
+  .commandHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+  }
+
+  /* Stacked under the signage the cluster keeps its natural width instead of
+     stretching edge to edge — spread across 1280px the four readouts stopped
+     reading as one instrument and the shared rail ran on past them. */
+  .headerStatus > div:not(.livePill) { min-width: 134px; }
+
+  .commandRoom {
+    grid-template-columns: minmax(0, 1.3fr) minmax(330px, 0.8fr);
+    grid-template-areas:
+      "vault terminal"
+      "intel intel"
+      "telemetry telemetry";
+    gap: 0 16px;
+  }
+
+  /* `start` rather than the default stretch: Nich is a compact station and a
+     stretched one left a panel-shaped hole beside the radar. */
+  .intelZone {
+    grid-template-columns: 1.42fr 1fr;
+    align-items: start;
+    margin-top: 22px;
+  }
+
+  .vaultZone,
+  .terminalZone { min-height: 620px; }
+
+  .telemetryStrip { grid-template-columns: 1fr repeat(5, minmax(0, 1fr)); }
+
+  .telemetryCommunity {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 52px;
+    /* border-image is reset here: it carries the fading vertical tick, and a
+       horizontal border sampling that gradient would render transparent. */
+    border-image: none;
+    border-left: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .telemetryCommunity > div { margin-top: 0; }
+}
+
+@media (max-width: 980px) {
+  .hq { padding: 12px 12px clamp(70px, 9vh, 110px); }
+
+  /* Single column: the telemetry becomes a tall block rather than a strip,
+     and there is no near floor left for a deck to be the front edge of. The
+     floor treatment reverts to its own footing. */
+  .foregroundDeck { display: none; }
+  .scene { --deck-h: 0px; }
+  .floorStrips { bottom: 5.5%; }
+  .floorReflection { bottom: 3%; }
+
+  .commandRoom {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "vault"
+      "terminal"
+      "intel"
+      "telemetry";
+  }
+
+  .vaultZone { min-height: 600px; }
+  .terminalZone { min-height: 0; margin-top: 28px; }
+  .intelZone { grid-template-columns: 1fr 1fr; }
+  .telemetryStrip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+  .telemetryLead {
+    grid-column: 1 / -1;
+    padding-bottom: 12px;
+    border-image: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .telemetryCell:nth-child(2),
+  .telemetryCell:nth-child(5) { border-left: 0; }
+
+  /* The architecture reads at a glance and then gets out of the way. */
+  .rearWallBayLeft,
+  .rearWallBayRight,
+  .distantMonitorCluster,
+  .weaponRackLeft,
+  .weaponRackRight,
+  .recessedScreenLeft,
+  .recessedScreenRight,
+  .ceilingRibLeft,
+  .ceilingRibRight { display: none; }
+
+  .floorRailLeft,
+  .floorRailRight,
+  .foregroundEquipmentLeft,
+  .foregroundEquipmentRight { opacity: 0.3; }
+}
+
+@media (max-width: 720px) {
+  .headerWordmark { font-size: 34px; }
+
+  .headerStatus {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    width: 100%;
+  }
+
+  .livePill {
+    grid-column: 1 / -1;
+    justify-content: center;
+    padding: 2px 0 8px;
+  }
+
+  .headerStatus > div:not(.livePill) {
+    padding: 8px 12px;
+    border-left: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .headerMicroClock { grid-column: 1 / -1; padding: 8px 0 0; }
+
+  .vaultZone { min-height: 470px; }
+
+  .vaultArt {
+    left: -8%;
+    right: -8%;
+    top: 46px;
+    bottom: 86px;
+  }
+
+  .vaultIntel {
+    top: 92px;
+    left: 0;
+    width: 138px;
+    padding: 11px;
+  }
+
+  .vaultIntel > strong { font-size: 15px; }
+  .vaultIntel::before { display: none; }
+
+  .vaultFooter {
+    grid-template-columns: 1fr 1px 1fr;
+    gap: 10px;
+  }
+
+  /* Third readout drops rather than wrapping into an unreadable column. */
+  .vaultFooter > i:last-of-type,
+  .vaultFooter > div:last-child { display: none; }
+
+  .terminalZone { padding: 14px 12px 18px; }
+
+  .operationButton {
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+    min-height: 88px;
+    padding: 22px 12px 12px;
+  }
+
+  .operationPrimary {
+    transform: none;
+    min-height: 100px;
+  }
+
+  .operationPrimary:hover { transform: none; }
+
+  .operationIcon { width: 40px; height: 40px; }
+  .operationPrimary .operationIcon { width: 44px; height: 44px; }
+
+  .quickGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .intelZone { grid-template-columns: 1fr; }
+
+  .nichDesk { grid-template-columns: minmax(0, 1fr) 78px; }
+  .nichAvatar { width: 78px; height: 78px; }
+
+  .telemetryStrip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .telemetryLead,
+  .telemetryCommunity { grid-column: 1 / -1; }
+
+  .telemetryCell { padding: 10px 12px; }
+  .telemetryCell:nth-child(odd) { border-left: 0; }
+  .telemetryCell strong { font-size: 17px; }
+
+  /* Keep the floor and the vault light; drop the rest of the architecture. */
+  .ceilingArchitecture,
+  .ceilingTrusses,
+  .overheadConduit,
+  .sideStructureLeft,
+  .sideStructureRight,
+  .farMachineLeft,
+  .farMachineRight,
+  .rearWallBayCenter,
+  .rearCorridor,
+  .floorDockLeft,
+  .floorDockRight,
+  .foregroundEquipmentLeft,
+  .foregroundEquipmentRight,
+  .floorRailLeft,
+  .floorRailRight { display: none; }
+
+  .floorPlane { opacity: 0.55; }
+  .rearStructure { opacity: 0.5; }
+}
+
+/* ==========================================================================
+   11. MOTION — idle life only, GPU-friendly, opt-out respected
+   ========================================================================== */
+
+@keyframes statusPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+@keyframes vaultBreath {
+  0%, 100% { opacity: 0.86; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.02); }
+}
+
+@keyframes rimPulse {
+  0%, 100% { opacity: 0.82; }
+  50% { opacity: 1; }
+}
+
+@keyframes vaultIdle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes selectedBreath {
+  0%, 100% {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.28),
+      0 26px 52px rgba(0, 0, 0, 0.5),
+      0 0 42px rgba(224, 34, 62, 0.24),
+      -18px 0 60px rgba(214, 30, 58, 0.14);
+  }
+  50% {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.32),
+      0 26px 52px rgba(0, 0, 0, 0.5),
+      0 0 58px rgba(230, 40, 68, 0.34),
+      -18px 0 76px rgba(214, 30, 58, 0.2);
+  }
+}
+
+@keyframes radarSweep {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vaultArtwork { animation: none; }
-  .station,
-  .stationArt,
-  .primaryAction,
-  .secondaryAction { transition: none; }
-}
-
-@media (max-width: 1540px) {
-  .commandDeck { padding-inline: 27px; }
-  .flagshipDeck { grid-template-columns: minmax(590px, 1.45fr) minmax(350px, .72fr); }
-  .tradingConsole h1 { font-size: clamp(40px, 3.4vw, 55px); }
-}
-
-@media (max-width: 1320px) {
-  .facilityHeader { grid-template-columns: 1fr; gap: 12px; }
-  .headerReadout { width: fit-content; min-width: 0; }
-  .flagshipDeck { grid-template-columns: minmax(0, 1.2fr) minmax(330px, .8fr); min-height: 570px; }
-  .vaultInstallation { min-height: 570px; }
-  .consoleActions { grid-template-columns: 1fr; }
-  .signalBody { grid-template-columns: 1fr; }
-  .signalMetrics { border-top: 1px solid rgba(255,255,255,.04); padding-top: 9px; }
-  .signalMetrics > div { border-left: 0; padding-left: 0; }
-  .operationsGrid {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    grid-template-rows: minmax(350px, auto) minmax(220px, auto) minmax(220px, auto);
+  .vaultArtImage,
+  .vaultBackGlow,
+  .vaultDaisRim,
+  .operationPrimary,
+  .marketRadar::after,
+  .livePill i,
+  .headingStatus i,
+  .nichHeading span i,
+  .telemetryLead > span i {
+    animation: none !important;
   }
-  .valuesStation { grid-column: 1 / 7; grid-row: 1; min-height: 300px; }
-  .calculatorStation { grid-column: 1 / 4; grid-row: 2; }
-  .exchangeStation { grid-column: 4 / 7; grid-row: 2; }
-  .opinionsStation { grid-column: 1 / 4; grid-row: 3; }
-  .loungeStation { grid-column: 4 / 7; grid-row: 3; }
-  .valuesArt { object-position: 122% 56%; transform: scale(1.05); }
-  .valuesStation p { max-width: 430px; }
-}
 
-@media (max-width: 1080px) {
-  .commandDeck { padding: 19px 18px 48px; }
-  .facilityHeader { padding-inline: 15px; }
-  .facilityKicker { display: none; }
-  .facilityBrand { margin-top: 0; }
-  .flagshipDeck { grid-template-columns: 1fr; min-height: auto; }
-  .vaultInstallation { min-height: 610px; }
-  .tradingConsole { min-height: 520px; }
-  .consoleActions { grid-template-columns: 1fr 1fr; }
-  .signalBody { grid-template-columns: minmax(0,1fr) auto; }
-  .signalMetrics { border-top: 0; padding-top: 0; }
-  .signalMetrics > div { border-left: 1px solid rgba(255,255,255,.045); padding-left: 10px; }
-  .operationsHeader { align-items: flex-start; flex-direction: column; gap: 8px; }
-  .operationsHeader p { text-align: left; }
-  .leftArchitecture,
-  .rightArchitecture { opacity: .2; }
-  .environmentEquipment { opacity: .03; }
-}
-
-@media (max-width: 760px) {
-  .commandDeck { padding: 14px 12px 36px; }
-  .facilityHeader { min-height: 0; padding: 12px 11px 14px; }
-  .facilityBrand { gap: 10px; font-size: clamp(39px, 13vw, 60px); }
-  .facilitySubtitle { grid-template-columns: 22px minmax(0, auto) 22px; gap: 7px; }
-  .facilitySubtitle strong { overflow: hidden; font-size: 7px; letter-spacing: .13em; text-overflow: ellipsis; }
-  .headerReadout { width: 100%; flex-wrap: wrap; gap: 10px; }
-  .headerReadout > i { display: none; }
-  .flagshipDeck { gap: 11px; margin-top: 11px; }
-  .vaultInstallation { min-height: 465px; clip-path: none; }
-  .vaultArtwork { left: -5%; right: -12%; top: 3%; bottom: -2%; }
-  .vaultRearPanel { inset: 7% 4% 10%; }
-  .vaultSideLeft,
-  .vaultSideRight { width: 44px; }
-  .vaultLabel { top: 17px; left: 17px; }
-  .tradingConsole { min-height: 0; padding: 24px 18px; clip-path: none; }
-  .tradingConsole h1 { margin-top: 21px; font-size: 42px; }
-  .consoleLead { font-size: 12px; }
-  .consoleActions { grid-template-columns: 1fr; }
-  .signalBody { grid-template-columns: 1fr; }
-  .signalMetrics { grid-template-columns: 1fr 1fr; border-top: 1px solid rgba(255,255,255,.04); padding-top: 9px; }
-  .signalMetrics > div { border-left: 0; padding: 7px 0; }
-  .consoleTelemetry { gap: 7px; }
-  .consoleTelemetry strong { font-size: 15px; }
-  .operations { margin-top: 20px; }
-  .operationsGrid { display: grid; grid-template-columns: 1fr; grid-template-rows: none; }
-  .valuesStation,
-  .calculatorStation,
-  .exchangeStation,
-  .opinionsStation,
-  .loungeStation { grid-column: 1; grid-row: auto; min-height: 255px; }
-  .valuesStation { min-height: 320px; clip-path: none; }
-  .valuesStation .stationContent { padding: 22px 20px; }
-  .valuesStation h3 { font-size: 29px; }
-  .valuesArt { object-position: 138% 57%; transform: scale(1.22); }
-  .calculatorArt { object-position: 170% 66%; transform: scale(1.72); }
-  .exchangeArt { object-position: 170% 63%; transform: scale(1.66); }
-  .loungeArt { object-position: 176% 69%; transform: scale(1.7); }
-  .station p { max-width: 245px; }
-  .ceilingFrame,
-  .leftArchitecture,
-  .rightArchitecture { opacity: .2; }
-  .securityLight { opacity: .46; }
-  .floorPlane { opacity: .2; }
+  .operationButton,
+  .operationArrow,
+  .quickButton,
+  .radarLink,
+  .nichActions a,
+  .telemetryCommunity a { transition: none; }
 }

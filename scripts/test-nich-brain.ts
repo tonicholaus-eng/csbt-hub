@@ -10,7 +10,7 @@ function route(
     turnCount: 0,
   },
 ) {
-  return routeNichMessage({ message, context });
+  return routeNichMessage({ gameId: "adopt-me", message, context });
 }
 
 const help = route("What can you do?");

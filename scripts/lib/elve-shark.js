@@ -68,7 +68,12 @@ function toFiniteNumber(value) {
 }
 
 function categoryFromElveType(value) {
-  const type = String(value ?? "")
+  const categoryValue =
+    value && typeof value === "object"
+      ? value.name ?? value.label ?? value.slug ?? value.value ?? value.type ?? ""
+      : value;
+
+  const type = String(categoryValue ?? "")
     .trim()
     .toLowerCase()
     .replace(/[_-]+/g, " ")
@@ -101,8 +106,89 @@ function categoryFromElveType(value) {
 }
 
 
+function readCandidateValue(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "object") return toFiniteNumber(value);
+
+  for (const key of ["value", "sharkValue", "shark_value", "amount", "score"]) {
+    const parsed = toFiniteNumber(value[key]);
+    if (parsed !== null) return parsed;
+  }
+
+  return null;
+}
+
+function variantValue(rawItem, variant) {
+  const directKeys =
+    variant === "normal"
+      ? ["rvalue", "regular", "normal", "regularValue", "regular_value", "normalValue", "normal_value", "sharkValue", "shark_value", "value"]
+      : variant === "neon"
+        ? ["nvalue", "neon", "neonValue", "neon_value"]
+        : ["mvalue", "mega", "megaValue", "mega_value"];
+
+  for (const key of directKeys) {
+    const parsed = readCandidateValue(rawItem?.[key]);
+    if (parsed !== null) return parsed;
+  }
+
+  const containers = [
+    rawItem?.values,
+    rawItem?.sharkValues,
+    rawItem?.shark_values,
+    rawItem?.valueMap,
+    rawItem?.value_map,
+    rawItem?.variants,
+    rawItem?.variantValues,
+    rawItem?.variant_values,
+    rawItem?.shark,
+    rawItem?.value && typeof rawItem.value === "object" ? rawItem.value : null,
+  ];
+
+  const aliases =
+    variant === "normal"
+      ? ["normal", "regular", "reg", "r", "base"]
+      : variant === "neon"
+        ? ["neon", "n"]
+        : ["mega", "megaNeon", "mega_neon", "m"];
+
+  for (const container of containers) {
+    if (!container) continue;
+
+    if (Array.isArray(container)) {
+      for (const entry of container) {
+        if (!entry || typeof entry !== "object") continue;
+        const label = String(entry.variant ?? entry.type ?? entry.name ?? entry.key ?? "")
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z]/g, "");
+        const wanted = aliases.some((alias) => label === alias.toLowerCase().replace(/[^a-z]/g, ""));
+        if (!wanted) continue;
+        const parsed = readCandidateValue(entry);
+        if (parsed !== null) return parsed;
+      }
+      continue;
+    }
+
+    if (typeof container === "object") {
+      for (const alias of aliases) {
+        const parsed = readCandidateValue(container[alias]);
+        if (parsed !== null) return parsed;
+      }
+    }
+  }
+
+  return null;
+}
+
 function rawItemToSnapshotItem(rawItem, fallbackCategory = null) {
   if (!rawItem || typeof rawItem !== "object") return null;
+
+  const nestedItem =
+    rawItem.item && typeof rawItem.item === "object"
+      ? rawItem.item
+      : rawItem.pet && typeof rawItem.pet === "object"
+        ? rawItem.pet
+        : null;
 
   const category =
     categoryFromElveType(
@@ -110,6 +196,10 @@ function rawItemToSnapshotItem(rawItem, fallbackCategory = null) {
         rawItem.category ??
         rawItem.itemType ??
         rawItem.item_type ??
+        rawItem.kind ??
+        nestedItem?.type ??
+        nestedItem?.category ??
+        nestedItem?.itemType ??
         fallbackCategory,
     ) ?? categoryFromElveType(fallbackCategory);
 
@@ -117,32 +207,27 @@ function rawItemToSnapshotItem(rawItem, fallbackCategory = null) {
     rawItem.name ??
       rawItem.itemName ??
       rawItem.item_name ??
+      rawItem.petName ??
+      rawItem.pet_name ??
+      rawItem.displayName ??
+      rawItem.display_name ??
       rawItem.title ??
+      nestedItem?.name ??
+      nestedItem?.itemName ??
+      nestedItem?.title ??
       "",
   ).trim();
 
   if (!category || !name) return null;
 
-  const normal =
-    toFiniteNumber(rawItem.rvalue) ??
-    toFiniteNumber(rawItem.regularValue) ??
-    toFiniteNumber(rawItem.regular_value) ??
-    toFiniteNumber(rawItem.sharkValue) ??
-    toFiniteNumber(rawItem.shark_value) ??
-    toFiniteNumber(rawItem.value);
-
+  const normal = variantValue(rawItem, "normal") ?? (nestedItem ? variantValue(nestedItem, "normal") : null);
   const neon =
     category === "PET"
-      ? toFiniteNumber(rawItem.nvalue) ??
-        toFiniteNumber(rawItem.neonValue) ??
-        toFiniteNumber(rawItem.neon_value)
+      ? variantValue(rawItem, "neon") ?? (nestedItem ? variantValue(nestedItem, "neon") : null)
       : null;
-
   const mega =
     category === "PET"
-      ? toFiniteNumber(rawItem.mvalue) ??
-        toFiniteNumber(rawItem.megaValue) ??
-        toFiniteNumber(rawItem.mega_value)
+      ? variantValue(rawItem, "mega") ?? (nestedItem ? variantValue(nestedItem, "mega") : null)
       : null;
 
   const image =
@@ -150,10 +235,14 @@ function rawItemToSnapshotItem(rawItem, fallbackCategory = null) {
     rawItem.imageUrl ??
     rawItem.image_url ??
     rawItem.icon ??
+    nestedItem?.image ??
+    nestedItem?.imageUrl ??
+    nestedItem?.image_url ??
+    nestedItem?.icon ??
     null;
 
   return {
-    id: rawItem.id ?? rawItem.itemId ?? rawItem.item_id ?? null,
+    id: rawItem.id ?? rawItem.itemId ?? rawItem.item_id ?? nestedItem?.id ?? nestedItem?.itemId ?? null,
     name,
     category,
     image: typeof image === "string" ? image : null,
@@ -163,11 +252,15 @@ function rawItemToSnapshotItem(rawItem, fallbackCategory = null) {
     status:
       typeof rawItem.status === "string"
         ? rawItem.status
-        : null,
+        : typeof nestedItem?.status === "string"
+          ? nestedItem.status
+          : null,
     rarity:
       typeof rawItem.rarity === "string"
         ? rawItem.rarity
-        : null,
+        : typeof nestedItem?.rarity === "string"
+          ? nestedItem.rarity
+          : null,
   };
 }
 
@@ -442,6 +535,35 @@ function createSnapshotFromHtml(
   };
 }
 
+function createSnapshotFromItems(
+  items,
+  {
+    fetchedAt = new Date().toISOString(),
+    sourceVersion = null,
+    captureMode = "browser",
+  } = {},
+) {
+  const normalizedItems = mergeSnapshotItems([], items).filter(
+    (item) =>
+      item?.category &&
+      item?.name &&
+      (item.normal !== null || item.neon !== null || item.mega !== null),
+  );
+
+  return {
+    source: "Elvebredd",
+    valueSystem: "Shark",
+    sourceUrl: ELVE_URL,
+    sourceVersion,
+    fetchedAt,
+    recordCount: normalizedItems.length,
+    supportedCategories: SUPPORTED_CATEGORIES,
+    unrecognizedTypes: [],
+    captureMode,
+    items: normalizedItems,
+  };
+}
+
 function validateSnapshot(
   snapshot,
   previousSnapshot,
@@ -617,6 +739,7 @@ module.exports = {
   rawItemToSnapshotItem,
   buildSnapshotMap,
   createSnapshotFromHtml,
+  createSnapshotFromItems,
   normalizeName,
   readJsonIfPresent,
   validateSnapshot,

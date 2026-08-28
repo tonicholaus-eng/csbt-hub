@@ -108,6 +108,7 @@ function buildRegressionSession(): NichTradeSession {
 
 function run(message: string, activeTrade: NichTradeSession) {
   return routeNichMessage({
+    gameId: "adopt-me",
     message,
     context: {
       recentPets: [],

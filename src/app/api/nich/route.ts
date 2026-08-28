@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import routeNichMessage from "@/components/nich/assistant/brain/router";
+// The route no longer imports either game's brain directly. It talks only to
+// the game dispatcher, which is the single place that knows both exist.
 import type {
-  NichBrainInput,
   NichContextPet,
   NichConversationContext,
   NichIntent,
@@ -11,7 +11,15 @@ import type {
   NichTradeItem,
 } from "@/components/nich/assistant/brain/types";
 import { resetNichContext } from "@/components/nich/assistant/memory/context";
-import { NICH_SYSTEM_PROMPT } from "@/lib/nich/systemPrompt";
+import { buildNichSystemPrompt } from "@/lib/nich/prompts";
+import {
+  nichMissingGameResponse,
+  routeNichForGameSafely,
+  type NichGameRequest,
+} from "@/lib/nich/gameRouter";
+import { parseNichGameId, type NichGameId } from "@/lib/nich/game/types";
+import { sanitizeMM2Context } from "@/lib/nich/mm2/context";
+import { recordNichRoute } from "@/lib/nich/telemetry";
 import { sanitizeNichTradeSession, sanitizeNichUserMemory } from "@/lib/nich/tradeSession";
 
 import { consumeServerQuota } from "@/lib/nich/serverQuota";
@@ -39,6 +47,11 @@ type HistoryMessage = {
 };
 
 type NichRequestBody = {
+  /**
+   * Required. NICH never infers the game from the message: "shark value" is a
+   * real question in both catalogs and the two answers are unrelated.
+   */
+  gameId?: unknown;
   message?: unknown;
   context?: unknown;
   history?: unknown;
@@ -76,6 +89,10 @@ type NichAIStyleMode =
   | "off";
 
 const AI_ALWAYS_SKIPPED_INTENTS = new Set<NichIntent>([
+  // Catalog reads are already exact. Sending them to a model can only make the
+  // number worse, and costs credits to do it.
+  "itemLookup",
+  "catalogSearch",
   "greeting",
   "thanks",
   "goodbye",
@@ -1509,10 +1526,12 @@ async function generateWithOllama({
   message,
   history,
   deterministicResponse,
+  gameId,
 }: {
   message: string;
   history: HistoryMessage[];
   deterministicResponse: NichResponse;
+  gameId: NichGameId;
 }): Promise<GeneratedAIText | null> {
   if (!canUseOllamaOnCurrentRuntime()) {
     console.warn(
@@ -1581,7 +1600,7 @@ async function generateWithOllama({
             {
               role: "system",
               content: [
-                NICH_SYSTEM_PROMPT,
+                buildNichSystemPrompt(gameId),
                 buildAuthoritativeContext(
                   deterministicResponse,
                   message,
@@ -1727,8 +1746,12 @@ function createGeminiCacheKey(
   message: string,
   history: HistoryMessage[],
   deterministicResponse: NichResponse,
+  gameId: NichGameId,
 ) {
   return hashCacheKey([
+    // First component, so an Adopt Me answer can never be served to an MM2
+    // question that happens to use the same words ("shark value").
+    gameId,
     message,
     deterministicResponse.intent,
     deterministicResponse.text,
@@ -1741,10 +1764,12 @@ async function generateWithGeminiUncached({
   message,
   history,
   deterministicResponse,
+  gameId,
 }: {
   message: string;
   history: HistoryMessage[];
   deterministicResponse: NichResponse;
+  gameId: NichGameId;
 }): Promise<GeneratedAIText | null> {
   const apiKey =
     process.env.GEMINI_API_KEY?.trim();
@@ -1803,7 +1828,7 @@ async function generateWithGeminiUncached({
               parts: [
                 {
                   text: [
-                    NICH_SYSTEM_PROMPT,
+                    buildNichSystemPrompt(gameId),
                     buildAuthoritativeContext(
                       deterministicResponse,
                       message,
@@ -1888,13 +1913,15 @@ async function generateWithGemini({
   history,
   deterministicResponse,
   identifier,
+  gameId,
 }: {
   message: string;
   history: HistoryMessage[];
   deterministicResponse: NichResponse;
   identifier: string;
+  gameId: NichGameId;
 }): Promise<GeneratedAIText | null> {
-  const key = createGeminiCacheKey(message, history, deterministicResponse);
+  const key = createGeminiCacheKey(message, history, deterministicResponse, gameId);
   const now = Date.now();
   const cached = aiTextCache.get(key);
 
@@ -1915,6 +1942,7 @@ async function generateWithGemini({
     message,
     history,
     deterministicResponse,
+    gameId,
   }).then((result) => {
     if (result?.text) {
       pruneAITextCache();
@@ -1937,11 +1965,13 @@ async function generateAIText({
   history,
   deterministicResponse,
   identifier,
+  gameId,
 }: {
   message: string;
   history: HistoryMessage[];
   deterministicResponse: NichResponse;
   identifier: string;
+  gameId: NichGameId;
 }): Promise<GeneratedAIText | null> {
   if (
     !shouldUseAI(
@@ -1965,6 +1995,7 @@ async function generateAIText({
       message,
       history,
       deterministicResponse,
+      gameId,
     });
 
   const geminiAttempt = () =>
@@ -1973,6 +2004,7 @@ async function generateAIText({
       history,
       deterministicResponse,
       identifier,
+      gameId,
     });
 
   const attempts:
@@ -2121,13 +2153,33 @@ export async function POST(
     );
   }
 
-  const input: NichBrainInput = {
-    message,
-    context: sanitizeContext(body.context),
-  };
+  /**
+   * The game is established here, by the caller, and never inferred from the
+   * message. A missing or unrecognised game is answered with a refusal rather
+   * than defaulted to Adopt Me: many item names exist in both catalogs with
+   * unrelated values, so a wrong default is a wrong price, not a wrong theme.
+   */
+  const gameId = parseNichGameId(body.gameId);
 
-  const deterministicResponse =
-    routeNichMessage(input);
+  if (!gameId) {
+    recordNichRoute({ gameId: "adopt-me", channel: "LOCAL", kind: "MISSING_GAME_CONTEXT" });
+    return NextResponse.json(
+      {
+        response: nichMissingGameResponse(),
+        mode: "local",
+        error: "A gameId of \"adopt-me\" or \"mm2\" is required.",
+      },
+      { status: 400 },
+    );
+  }
+
+  const gameRequest: NichGameRequest =
+    gameId === "mm2"
+      ? { gameId, message, context: sanitizeMM2Context(body.context) }
+      : { gameId, message, context: sanitizeContext(body.context) };
+
+  const routed = routeNichForGameSafely(gameRequest);
+  const deterministicResponse = routed.response;
 
   if (containsTagalogCurse(message)) {
     const response: NichResponse = {
@@ -2138,6 +2190,8 @@ export async function POST(
     return NextResponse.json({
       response,
       mode: "local",
+      gameId,
+      context: routed.context,
     });
   }
 
@@ -2146,6 +2200,7 @@ export async function POST(
     history: sanitizeHistory(body.history),
     deterministicResponse,
     identifier,
+    gameId,
   });
 
   const responseText =
@@ -2158,10 +2213,29 @@ export async function POST(
   const response: NichResponse = {
     ...deterministicResponse,
     text: responseText,
+    /**
+     * Provenance follows what actually happened.
+     *
+     * A model only ever *rewrites* an answer the deterministic engine already
+     * produced, so when one runs the channel becomes AI — but the structured
+     * payload is carried through untouched, because the numbers in the card
+     * are the engine's and a model is not allowed to change them.
+     */
+    ...(generated && deterministicResponse.meta
+      ? { meta: { ...deterministicResponse.meta, channel: "AI" as const } }
+      : {}),
   };
+
+  if (generated) {
+    recordNichRoute({ gameId, channel: "AI", kind: (deterministicResponse.intent ?? "FALLBACK").toUpperCase() });
+  }
 
   return NextResponse.json({
     response,
     mode: generated?.provider ?? "local",
+    gameId,
+    // The caller stores this under a per-game key. Returning it keeps MM2 turn
+    // state out of the Adopt Me context object entirely.
+    context: routed.context,
   });
 }

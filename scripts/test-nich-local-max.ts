@@ -86,7 +86,7 @@ const localData: NichLocalProfileData = {
 };
 
 function ask(message: string, context: NichConversationContext = {}) {
-  return routeNichMessage({ message, context, localData });
+  return routeNichMessage({ gameId: "adopt-me", message, context, localData });
 }
 
 const lookup = ask("fd value");

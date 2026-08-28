@@ -25,6 +25,7 @@ import type {
   NichResponse,
 } from "./types";
 import { normalizeLocalChatMessage } from "./language";
+import { assertGameContext } from "../../../../lib/nich/game/guard";
 
 function normalizeText(value: string) {
   return value
@@ -929,6 +930,15 @@ function didContextResolverChangeMessage(
 export function routeNichMessage(
   input: NichBrainInput,
 ): NichResponse {
+  /**
+   * Everything reachable from this function reads the Adopt Me catalog:
+   * petLookup, nearbyPets, tradeComparison, localIntelligence and the item
+   * resolver all import `lib/search`. The guard makes that structural fact
+   * enforceable — an MM2 turn that reaches here is a routing bug, and it fails
+   * loudly instead of quietly answering with Adopt Me values.
+   */
+  assertGameContext("adopt-me", input.gameId, "routeNichMessage");
+
   const originalMessage =
     input.message.trim();
   const locallyNormalizedMessage =
@@ -967,6 +977,7 @@ export function routeNichMessage(
 
   const resolvedInput:
     NichBrainInput = {
+      gameId: input.gameId,
       message: normalizeLocalChatMessage(resolution.message),
       context: input.context,
       localData: input.localData,

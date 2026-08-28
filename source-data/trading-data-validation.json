@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-08-18T17:05:51.844Z",
+  "generatedAt": "2026-08-28T12:17:04.036Z",
   "categories": {
-    "PET": 767,
+    "PET": 769,
     "PETWEAR": 938,
     "EGG": 37,
     "VEHICLE": 268,
@@ -12,14 +12,18 @@
     "STICKER": 365,
     "OTHER": 28
   },
-  "total": 3382,
+  "total": 3384,
   "warnings": [
     "2023 Uplift Butterfly: no matching Elve Shark snapshot record; workbook fallback used.",
     "Pet Rock: no matching Elve Shark snapshot record; workbook fallback used.",
     "Pet Rock: skipped because neither GCash nor Elve has a regular value.",
+    "Firework Wings: no matching Elve Shark snapshot record; workbook fallback used.",
     "Firework Wings: skipped because neither GCash nor Elve has a regular value.",
+    "Princess Botties: no matching Elve Shark snapshot record; workbook fallback used.",
     "Princess Botties: skipped because neither GCash nor Elve has a regular value.",
+    "Sea Monster Friend: no matching Elve Shark snapshot record; workbook fallback used.",
     "Sea Monster Friend: skipped because neither GCash nor Elve has a regular value.",
+    "Tutorial Graduation Cap: no matching Elve Shark snapshot record; workbook fallback used.",
     "Tutorial Graduation Cap: skipped because neither GCash nor Elve has a regular value.",
     "nan: ignored Elve helper/placeholder record.",
     "Add: ignored Elve helper/placeholder record.",

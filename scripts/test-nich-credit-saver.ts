@@ -9,7 +9,7 @@ function assert(condition: unknown, message: string): asserts condition {
 }
 
 function ask(message: string, context: NichConversationContext = {}) {
-  return routeNichMessage({ message, context });
+  return routeNichMessage({ gameId: "adopt-me", message, context });
 }
 
 function tradeSignature(message: string) {

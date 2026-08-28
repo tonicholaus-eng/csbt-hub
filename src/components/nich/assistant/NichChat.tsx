@@ -831,6 +831,7 @@ export default function NichChat({
 
       let response: NichResponse =
         routeNichMessage({
+          gameId: "adopt-me",
           message: trimmedMessage,
           context: conversationContext,
           localData: effectiveLocalData,
@@ -891,6 +892,9 @@ export default function NichChat({
               signal:
                 requestController.signal,
               body: JSON.stringify({
+                // This chat surface is the Adopt Me one. The game is stated by
+                // the client, never inferred by the server from the message.
+                gameId: "adopt-me",
                 message: trimmedMessage,
                 context: conversationContext,
                 history,
@@ -1041,6 +1045,7 @@ export default function NichChat({
       recordVisionCorrectionMetric(session, trimmedCommand);
 
       const response = routeNichMessage({
+        gameId: "adopt-me",
         message: trimmedCommand,
         context: {
           ...conversationContext,
@@ -1168,6 +1173,7 @@ export default function NichChat({
 
         if (apiOk && payload.localPrompt) {
           response = routeNichMessage({
+            gameId: "adopt-me",
             // When vision already returned a fully verified TradeSession, use
             // that structured state directly instead of reparsing AI prose.
             message: screenshotTrade ? "recalculate this trade" : payload.localPrompt,

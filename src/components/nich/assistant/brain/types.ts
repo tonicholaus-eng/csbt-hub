@@ -1,4 +1,6 @@
 import type { NichReactionKey } from "../../NichReactions";
+import type { NichGameId } from "../../../../lib/nich/game/types";
+import type { NichResponseMeta } from "../../../../lib/nich/responseMeta";
 import type { ValueType } from "../../../trade/types";
 import type {
   NichTradeSession,
@@ -209,6 +211,10 @@ export type NichIntent =
   | "thanks"
   | "help"
   | "petLookup"
+  /** Game-neutral single-item answer. MM2 uses this instead of `petLookup`. */
+  | "itemLookup"
+  /** Game-neutral ranked/filtered catalog answer. */
+  | "catalogSearch"
   | "nearbyValue"
   | "calculatorHelp"
   | "tradeAdvice"
@@ -237,9 +243,26 @@ export type NichResponse = {
   tradeComparison?: NichTradeComparison;
   tradeSession?: NichTradeSession;
   navigation?: NichNavigationAction;
+  /**
+   * How this answer was produced, and (for MM2) the structured facts behind it.
+   *
+   * Set by the code that produced the answer so the UI never has to infer
+   * provenance from prose. Optional: Adopt Me responses that predate it simply
+   * carry none, and the Adopt Me chat ignores the field entirely.
+   */
+  meta?: NichResponseMeta;
 };
 
+/**
+ * Input to the **Adopt Me** brain.
+ *
+ * `gameId` is required and is checked by `routeNichMessage`, which asserts it
+ * is `"adopt-me"` before touching the Adopt Me catalog. It is not decoration:
+ * every module reachable from here reads `tradingItems.json`, so this type is
+ * the boundary that stops an MM2 turn from ever arriving.
+ */
 export type NichBrainInput = {
+  gameId: NichGameId;
   message: string;
   context: NichConversationContext;
   localData?: NichLocalProfileData;

@@ -1,8 +1,8 @@
 {
   "schemaVersion": 3,
-  "totalItems": 3382,
+  "totalItems": 3384,
   "categoryCounts": {
-    "PET": 767,
+    "PET": 769,
     "PETWEAR": 938,
     "EGG": 37,
     "VEHICLE": 268,
@@ -13,7 +13,7 @@
     "STICKER": 365,
     "OTHER": 28
   },
-  "totalPets": 767,
+  "totalPets": 769,
   "totalPetWear": 938,
   "totalEggs": 37,
   "totalVehicles": 268,
@@ -23,5 +23,5 @@
   "totalToys": 718,
   "totalStickers": 365,
   "totalOther": 28,
-  "generatedAt": "2026-08-18T17:05:51.843Z"
+  "generatedAt": "2026-08-28T12:17:04.035Z"
 }
