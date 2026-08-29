@@ -1,14 +1,15 @@
-CSBT HUB public-browsing auth fix
+CSBT HUB social preview patch
 
-Changed files:
-- src/components/nich/assistant/NichAssistant.tsx
-- src/components/nich/GlobalNichAssistant.tsx
+Changes:
+- Homepage/social title: CSBT HUB | POGI NI NICH
+- Open Graph preview image: public/og-image.png (1200x630)
+- Twitter preview uses the same image
 
-Behavior after this patch:
-- Signed-out visitors are no longer forced into the global Nich account gate.
-- Public pages remain visible and scrollable while Supabase resolves the session.
-- The global Nich assistant no longer blocks browsing for guests.
-- Existing feature-level auth guards remain unchanged (Exchange actions, save/wishlist/alerts, posting/voting, profile features, etc.).
+Extract this ZIP over your CSBT project root and overwrite matching files.
+Then deploy with:
+  git add .
+  git commit -m "Update CSBT HUB social preview"
+  git push origin main
+  npm.cmd run deploy
 
-To apply manually, copy the two files into the same paths in your project.
-Then run your normal build/test/deploy workflow.
+After deployment, use Facebook Sharing Debugger and click Scrape Again for https://csbthub.com.

@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://csbthub.com"),
 
   title: {
-    default: "CSBT HUB | Adopt Me Values, Trades & Demand",
+    default: "CSBT HUB | POGI NI NICH",
     template: "%s | CSBT HUB",
   },
 
@@ -57,7 +57,7 @@ export const metadata: Metadata = {
   publisher: "CSBT HUB",
 
   openGraph: {
-    title: "CSBT HUB | Adopt Me Values, Trades & Demand",
+    title: "CSBT HUB | POGI NI NICH",
     description:
       "Explore Adopt Me values, compare trades, track inventory, follow demand and value history, vote W/F/L, and ask Nich.",
     url: "https://csbthub.com",
@@ -67,20 +67,20 @@ export const metadata: Metadata = {
 
     images: [
       {
-        url: "/logo.png",
-        width: 256,
-        height: 256,
-        alt: "CSBT HUB Logo",
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "CSBT HUB",
       },
     ],
   },
 
   twitter: {
     card: "summary_large_image",
-    title: "CSBT HUB | Adopt Me Values, Trades & Demand",
+    title: "CSBT HUB | POGI NI NICH",
     description:
       "Explore Adopt Me values, compare trades, track inventory, follow demand and value history, vote W/F/L, and ask Nich.",
-    images: ["/logo.png"],
+    images: ["/og-image.png"],
   },
 
   icons: {
