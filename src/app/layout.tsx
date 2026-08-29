@@ -67,7 +67,7 @@ export const metadata: Metadata = {
 
     images: [
       {
-        url: "/og-image.png",
+        url: "/csbt-preview-v3.png",
         width: 1200,
         height: 630,
         alt: "CSBT HUB",
@@ -80,7 +80,7 @@ export const metadata: Metadata = {
     title: "CSBT HUB | POGI NI NICH",
     description:
       "Explore Adopt Me values, compare trades, track inventory, follow demand and value history, vote W/F/L, and ask Nich.",
-    images: ["/og-image.png"],
+    images: ["/csbt-preview-v3.png"],
   },
 
   icons: {
