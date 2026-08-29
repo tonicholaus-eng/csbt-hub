@@ -86,12 +86,13 @@ export default function NichAssistant({ floatingEnabled = true, gameTone }: Prop
     queueMicrotask(() => {
       if (cancelled) return;
 
-      // No account = hard onboarding gate. It cannot be skipped.
+      // Guests can browse the public site normally. Authentication is enforced
+      // by the individual account-specific features that need an identity.
       if (!user) {
         activeUserIdRef.current = null;
         setManualTour(false);
         setFirstRunActive(false);
-        setShowIntro(true);
+        setShowIntro(false);
         return;
       }
 
@@ -178,30 +179,10 @@ export default function NichAssistant({ floatingEnabled = true, gameTone }: Prop
 
   if (!hydrated) return null;
 
-  // Do not leave a clickable gap while Supabase is resolving a session. This is
-  // intentionally a simple loading veil; the full guide appears immediately after.
-  if (authLoading) {
-    return (
-      <div
-        className={`fixed inset-0 z-[119] grid place-items-center backdrop-blur-[3px] ${
-          gameTone === "mm2" ? "mm2-gate-scrim" : "bg-slate-950/80"
-        }`}
-        aria-label="Checking CSBT account"
-      >
-        <div
-          className={`rounded-2xl border px-5 py-4 text-sm font-black text-white shadow-2xl ${
-            gameTone === "mm2"
-              ? "border-[rgba(226,52,74,.30)] bg-[#0c0f16]"
-              : "border-white/10 bg-slate-950/80"
-          }`}
-        >
-          Checking your CSBT account…
-        </div>
-      </div>
-    );
-  }
-
-  const authRequired = !user;
+  // Session resolution is intentionally non-blocking. Public pages render and
+  // remain scrollable while Supabase checks whether a visitor is signed in.
+  // The global Nich surface is a guide/assistant, not an authentication gate.
+  const authRequired = false;
 
   return (
     <>
