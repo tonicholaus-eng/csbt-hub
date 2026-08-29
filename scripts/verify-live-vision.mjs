@@ -1,6 +1,6 @@
-const EXPECTED_VERSION = "vision-v29-cloudflare-inline-data-20260818";
+const EXPECTED_VERSION = "vision-v34-smart-catalog-recognition-20260829";
 const EXPECTED_MODEL = "gemini-3.6-flash";
-const EXPECTED_RELEASE = "csbt-nich-vision-v29-cloudflare-inline-data";
+const EXPECTED_RELEASE = "csbt-nich-vision-v34-smart-catalog-recognition";
 const url = `https://csbthub.com/api/nich/vision?deployCheck=${Date.now()}`;
 
 console.log(`\nChecking live NICH release at ${url} ...`);
@@ -20,7 +20,7 @@ try {
   if (data.recognitionVersion !== EXPECTED_VERSION) problems.push(`recognitionVersion is ${data.recognitionVersion ?? "missing"}, expected ${EXPECTED_VERSION}`);
   if (data.model !== EXPECTED_MODEL) problems.push(`model is ${data.model ?? "missing"}, expected ${EXPECTED_MODEL}`);
   if (data.release !== EXPECTED_RELEASE) problems.push(`release is ${data.release ?? "missing"}, expected ${EXPECTED_RELEASE}`);
-  if (data.transport !== "gemini-inline-data+interactions-v1beta-baseline") problems.push(`transport is ${data.transport ?? "missing"}, expected gemini-inline-data+interactions-v1beta-baseline`);
+  if (data.transport !== "gemini-interactions+cloudflare-workers-ai-vision-fallback") problems.push(`transport is ${data.transport ?? "missing"}, expected gemini-interactions+cloudflare-workers-ai-vision-fallback`);
   if (data.freePlanOptimized !== true) problems.push("freePlanOptimized is not true");
   if (data.thinkingLevel !== "minimal") problems.push(`thinkingLevel is ${data.thinkingLevel ?? "missing"}, expected minimal`);
   if (problems.length) {

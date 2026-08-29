@@ -50,7 +50,7 @@ const NICH_CHAT_STORAGE_VERSION = 2;
 const NICH_CHAT_EXPIRY_MS =
   30 * 60 * 1000;
 const MAX_SAVED_MESSAGES = 60;
-const NICH_VISION_SESSION_CACHE_PREFIX = "csbt-hub:nich-vision:v20-free-plan:";
+const NICH_VISION_SESSION_CACHE_PREFIX = "csbt-hub:nich-vision:v32-intent-choice:";
 const NICH_VISION_SESSION_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 type CachedNichVisionPayload = {

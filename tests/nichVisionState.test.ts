@@ -58,7 +58,7 @@ test("vision catalog verification never accepts an invented canonical item", () 
 });
 
 
-test("high-confidence exact icon is not rejected merely because unscored alternatives were supplied", () => {
+test("single-pass icon-only pet identity requires an independent audit", () => {
   const verified = verifyVisionItem({
     rawName: "Balloon Unicorn",
     side: "YOU",
@@ -71,10 +71,11 @@ test("high-confidence exact icon is not rejected merely because unscored alterna
     variantConfidence: 0.9,
     sideConfidence: 0.95,
     categoryHint: "PET",
-    candidateNames: ["Balloon Unicorn", "Unicorn"],
+    candidateNames: ["Balloon Unicorn"],
   });
   assert.equal(verified.itemName, "Balloon Unicorn");
-  assert.equal(verified.verified, true);
+  assert.equal(verified.verified, false);
+  assert.equal(verified.verificationReason, "visual-audit-required");
 });
 
 test("competitive scored visual alternatives stay unresolved", () => {
@@ -151,7 +152,8 @@ test("uncertain trade slots are still shown by side instead of a generic unreada
   });
   const text = summarizeVisionItems("TRADE", [uncertain]);
   assert.match(text, /YOUR SIDE/);
-  assert.match(text, /Balloon Unicorn/);
+  assert.match(text, /Unknown pet/);
+  assert.match(text, /possible:.*Balloon Unicorn/i);
   assert.match(text, /\?/);
 });
 
@@ -246,12 +248,12 @@ test("cross-pass badge disagreement keeps identity but asks for the variant inst
     rawName: "Balloon Unicorn", side: "YOU", slot: 1, variant: "NORMAL", potion: "FR", quantity: 1,
     confidence: 0.93, itemConfidence: 0.93, variantConfidence: 0.88, sideConfidence: 0.98,
     categoryHint: "PET", candidateNames: ["Balloon Unicorn"], candidateScores: [{ itemName: "Balloon Unicorn", score: 0.93 }],
-  });
+  }, { allowConfusionFamilyConfirmation: true });
   const audit = verifyVisionItem({
     rawName: "Balloon Unicorn", side: "YOU", slot: 1, variant: "NEON", potion: "R", quantity: 1,
     confidence: 0.92, itemConfidence: 0.92, variantConfidence: 0.86, sideConfidence: 0.98,
     categoryHint: "PET", candidateNames: ["Balloon Unicorn"], candidateScores: [{ itemName: "Balloon Unicorn", score: 0.92 }],
-  });
+  }, { allowConfusionFamilyConfirmation: true });
   const [merged] = mergeVisionCrossCheck([first], [audit]);
   assert.equal(merged.verified, true);
   assert.equal(merged.itemName, "Balloon Unicorn");
@@ -277,7 +279,7 @@ test("clear bounding-box geometry overrides a confidently wrong side label", () 
   assert.equal(repaired[1].side, "YOU");
 });
 
-test("decisive ranked candidate can correct an incorrect raw visual name", () => {
+test("audited decisive ranked candidate can correct an incorrect raw visual name", () => {
   const verified = verifyVisionItem({
     rawName: "Unicorn", side: "YOU", slot: 1, variant: "NORMAL", potion: "FR", quantity: 1,
     confidence: 0.9, itemConfidence: 0.9, variantConfidence: 0.92, sideConfidence: 0.98,
@@ -287,7 +289,7 @@ test("decisive ranked candidate can correct an incorrect raw visual name", () =>
       { itemName: "Balloon Unicorn", score: 0.94 },
       { itemName: "Unicorn", score: 0.56 },
     ],
-  });
+  }, { allowConfusionFamilyConfirmation: true });
   assert.equal(verified.itemName, "Balloon Unicorn");
   assert.equal(verified.verified, true);
   assert.equal(verified.verificationReason, "ranked-candidate-high-confidence");
@@ -361,6 +363,26 @@ test("trade detections with unclear side are still shown instead of hidden", () 
   const text = summarizeVisionItems("TRADE", [uncertain]);
   assert.match(text, /SIDE UNCLEAR/);
   assert.match(text, /Cabbit/);
+});
+
+test("unresolved model-only names are not presented as recognized pet identities", () => {
+  const uncertain = verifyVisionItem({
+    rawName: "Throne Skeleton Dog",
+    side: "YOU",
+    slot: 2,
+    variant: "NORMAL",
+    potion: "R",
+    quantity: 1,
+    confidence: 0.48,
+    itemConfidence: 0.48,
+    variantConfidence: 0.8,
+    sideConfidence: 0.97,
+    categoryHint: "PET",
+    candidateNames: ["Skeleton Dog"],
+  });
+  const text = summarizeVisionItems("TRADE", [uncertain]);
+  assert.match(text, /Unknown pet/);
+  assert.doesNotMatch(text, /Throne Skeleton Dog/);
 });
 
 test("empty item vision result does not claim successful recognition", () => {

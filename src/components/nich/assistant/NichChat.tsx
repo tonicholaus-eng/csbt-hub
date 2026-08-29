@@ -24,6 +24,7 @@ import useNichLocalData, {
 import type {
   NichConversationContext,
   NichResponse,
+  NichSuggestion,
   NichTradeComparison,
 } from "./brain/types";
 import {
@@ -47,7 +48,19 @@ import {
   type ChatMessage,
 } from "./NichChatPersistence";
 import type { NichVisionApiResponse } from "../../../lib/nich/vision";
-import type { NichUserMemory } from "../../../lib/nich/tradeSession";
+import {
+  VISION_SLOT_SHEET_MAX_TILES,
+  type VisionSlotRef,
+} from "../../../lib/nich/visionSlots";
+import { buildSlotCropSheet } from "./visionSlotSheet";
+import {
+  inferScreenshotIntent,
+  screenshotRouteMessage,
+  tradeSessionNames,
+  uniqueNames,
+  type NichScreenshotIntent,
+} from "../../../lib/nich/screenshotIntent";
+import type { NichTradeSession, NichUserMemory } from "../../../lib/nich/tradeSession";
 import NichTradeReviewCard from "./NichTradeReviewCard";
 import { useBirthdayEventActive } from "../../../hooks/useBirthdayEventActive";
 import { birthdayEvent, openBirthdayEvent } from "../../../config/birthdayEvent";
@@ -59,6 +72,58 @@ type NichChatProps = {
   variant?: "floating" | "embedded";
   initialPrompt?: string;
 };
+
+type PendingNichScreenshot = {
+  file: File;
+  safeFileName: string;
+  uploadMessageId: string;
+};
+
+type VisionReviewRequest = {
+  intent: NichScreenshotIntent;
+  question: string;
+};
+
+const SCREENSHOT_ACTION_SUGGESTIONS: NichSuggestion[] = [
+  {
+    id: "vision-wfl",
+    label: "W/F/L this trade",
+    message: "W/F/L this trade",
+  },
+  {
+    id: "vision-values",
+    label: "How much are these?",
+    message: "How much are these?",
+  },
+  {
+    id: "vision-identify",
+    label: "What pets/items are these?",
+    message: "What pets/items are these?",
+  },
+  {
+    id: "vision-demand",
+    label: "Check demand",
+    message: "What is the demand for these?",
+  },
+];
+
+function recognitionSummary(
+  names: string[],
+  unresolvedCount: number,
+) {
+  const listed = uniqueNames(names);
+  if (!listed.length && unresolvedCount) {
+    return `I found the item slots, but ${unresolvedCount} ${unresolvedCount === 1 ? "item is" : "items are"} still uncertain. Tap Edit on any slot and search the CSBT catalog to correct it.`;
+  }
+  if (!listed.length) {
+    return "I couldn’t identify a catalog item confidently from that screenshot. Try a clearer crop or use Edit when a review slot is available.";
+  }
+
+  const summary = `I recognized: ${listed.join(", ")}.`;
+  return unresolvedCount
+    ? `${summary}\n\n${unresolvedCount} ${unresolvedCount === 1 ? "slot still needs" : "slots still need"} confirmation. You can tap Edit and search the CSBT catalog.`
+    : `${summary}\n\nYou can still tap Edit on any item if I got one wrong.`;
+}
 
 function formatMessageTime(
   timestamp: number,
@@ -339,16 +404,27 @@ async function prepareNichScreenshot(file: File): Promise<NichPreparedScreenshot
   return { primary: file, fallbackZoom: null, width: 1, height: 1 };
 }
 
+/**
+ * Bumped whenever recognition semantics change. It is part of the session cache
+ * key, so an old (possibly wrong) cached recognition can never be replayed after
+ * a pipeline fix.
+ */
+const NICH_VISION_CLIENT_VERSION = "vision-v34-smart-catalog-recognition-20260829";
+
 async function postNichVisionScreenshot(
   file: File,
   width: number,
   height: number,
   clientVersion: string,
-  mode: "primary" | "trade-zoom-fallback",
+  mode: "primary" | "trade-zoom-fallback" | "slot-crops",
   signal: AbortSignal,
+  intent: NichScreenshotIntent,
+  options?: { stage?: "layout" | "slots"; manifestHeader?: string },
 ) {
   const visionHash = await getVisionFileHash(file);
-  const cachedPayload = mode === "primary" ? readVisionSessionCache(visionHash) : null;
+  const stage = options?.stage ?? "layout";
+  const visionCacheKey = visionHash ? `${clientVersion}:${visionHash}:${intent}:${stage}` : null;
+  const cachedPayload = mode !== "trade-zoom-fallback" ? readVisionSessionCache(visionCacheKey) : null;
   if (cachedPayload) {
     return { payload: cachedPayload, apiOk: cachedPayload.ok };
   }
@@ -365,6 +441,9 @@ async function postNichVisionScreenshot(
       "X-Nich-Image-Width": String(width),
       "X-Nich-Image-Height": String(height),
       "X-Nich-Vision-Mode": mode,
+      "X-Nich-Vision-Intent": intent,
+      "X-Nich-Vision-Stage": stage,
+      ...(options?.manifestHeader ? { "X-Nich-Vision-Manifest": options.manifestHeader } : {}),
       ...(visionHash ? { "X-Nich-Vision-Hash": visionHash } : {}),
     },
   });
@@ -377,8 +456,32 @@ async function postNichVisionScreenshot(
   }
 
   const apiOk = apiResponse.ok && payload.ok;
-  if (apiOk && mode === "primary") writeVisionSessionCache(visionHash, payload);
+  if (apiOk && mode !== "trade-zoom-fallback") writeVisionSessionCache(visionCacheKey, payload);
   return { payload, apiOk };
+}
+
+/**
+ * Slot references for the crop pass, taken from the layout pass's bounding
+ * boxes. Slots without a usable box are skipped rather than guessed at.
+ */
+function slotRefsFromLayout(payload: NichVisionApiResponse): VisionSlotRef[] {
+  return (payload.items ?? [])
+    .filter((item) => item.box && item.box.width > 0.005 && item.box.height > 0.005)
+    .map((item, index) => ({
+      side: item.side,
+      slot: item.slot ?? index + 1,
+      box: item.box!,
+      variantHint: item.variant,
+      potionHint: item.potion,
+      categoryHint: item.category ?? item.categoryHint,
+      identityHints: [...new Set([
+        ...(item.itemName ? [item.itemName] : []),
+        ...(item.rawName ? [item.rawName] : []),
+        ...(item.candidateNames ?? []),
+        ...(item.alternatives ?? []),
+      ].map((name) => name.trim()).filter((name) => name && !/^unknown|unidentified/i.test(name)))].slice(0, 5),
+    }))
+    .slice(0, VISION_SLOT_SHEET_MAX_TILES);
 }
 
 function shouldAutoRetryWithTradeZoom(payload: NichVisionApiResponse) {
@@ -394,7 +497,13 @@ function shouldAutoRetryWithTradeZoom(payload: NichVisionApiResponse) {
   // tiny slots. Only spend a second Gemini request when a trade has a small,
   // actionable unresolved set; this keeps normal screenshots on the cheap path.
   const unresolved = payload.tradeSession?.unresolvedSlots.length ?? 0;
-  return Boolean(payload.tradeSession && unresolved > 0 && unresolved <= 3);
+  const total = payload.tradeSession
+    ? payload.tradeSession.userSide.length + payload.tradeSession.theirSide.length
+    : 0;
+  // If the slot-crop pass could not run (usually missing/weak boxes), the zoom
+  // fallback is our rescue path. v33 only retried up to 3 unresolved slots,
+  // which meant a 4-9 item trade full of Unknown cards never got a second look.
+  return Boolean(payload.tradeSession && unresolved > 0 && unresolved <= Math.max(9, total));
 }
 
 function visionPayloadQuality(payload: NichVisionApiResponse) {
@@ -473,6 +582,9 @@ export default function NichChat({
   const [input, setInput] = useState("");
   const [initialPromptApplied, setInitialPromptApplied] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [isVisionProcessing, setIsVisionProcessing] = useState(false);
+  const [pendingScreenshot, setPendingScreenshot] =
+    useState<PendingNichScreenshot | null>(null);
   const [messages, setMessages] =
     useState<ChatMessage[]>(initialMessages);
 
@@ -503,6 +615,8 @@ export default function NichChat({
   const navigationTimeoutRef = useRef<number | null>(null);
   const copyResetTimeoutRef = useRef<number | null>(null);
   const requestSequenceRef = useRef(0);
+  const visionReviewRequestRef =
+    useRef<Map<string, VisionReviewRequest>>(new Map());
 
   useEffect(() => {
     if (!initialPrompt || initialPromptApplied) return;
@@ -540,6 +654,9 @@ export default function NichChat({
 
     setInput("");
     setIsTyping(false);
+    setIsVisionProcessing(false);
+    setPendingScreenshot(null);
+    visionReviewRequestRef.current.clear();
     setMessages([
       {
         ...initialMessages[0],
@@ -664,6 +781,10 @@ export default function NichChat({
   );
 
   const latestSuggestions = useMemo(() => {
+    if (pendingScreenshot) {
+      return SCREENSHOT_ACTION_SUGGESTIONS;
+    }
+
     for (
       let index = messages.length - 1;
       index >= 0;
@@ -675,12 +796,15 @@ export default function NichChat({
         message.sender === "nich" &&
         message.suggestions?.length
       ) {
-        return message.suggestions;
+        const nonVisionSuggestions = message.suggestions.filter(
+          (suggestion) => !suggestion.id.startsWith("vision-"),
+        );
+        if (nonVisionSuggestions.length) return nonVisionSuggestions;
       }
     }
 
     return initialSuggestions;
-  }, [messages]);
+  }, [messages, pendingScreenshot]);
 
   useEffect(() => {
     const savedChat = readSavedChat();
@@ -1037,6 +1161,166 @@ export default function NichChat({
     ],
   );
 
+  const resolveVisionResponse = useCallback(
+    ({
+      question,
+      intent,
+      tradeSession,
+      recentPets,
+      baseContext,
+    }: {
+      question: string;
+      intent: NichScreenshotIntent;
+      tradeSession?: NichTradeSession;
+      recentPets: NonNullable<NichConversationContext["recentPets"]>;
+      baseContext: NichConversationContext;
+    }): NichResponse => {
+      const confirmedNames = uniqueNames([
+        ...tradeSessionNames(tradeSession),
+        ...recentPets.map((pet) => pet.petName),
+      ]);
+      const unresolvedCount = tradeSession?.unresolvedSlots.length ?? 0;
+      const activeContext: NichConversationContext = {
+        ...baseContext,
+        activeTrade: tradeSession,
+        recentPets,
+        lastPetName: recentPets.length === 1 ? recentPets[0].petName : undefined,
+        lastVariant: recentPets.length === 1 ? recentPets[0].variant : undefined,
+        lastTradeComparison: undefined,
+        ...(tradeSession ? { lastValueSource: tradeSession.valueSystem } : {}),
+        lastUpdatedAt: Date.now(),
+      };
+
+      if (intent === "IDENTIFY") {
+        return {
+          text: recognitionSummary(confirmedNames, unresolvedCount),
+          intent: "petLookup",
+          reaction: unresolvedCount ? "search" : "celebrate",
+          localConfidence: 1,
+          aiEligible: false,
+          typingDuration: 220,
+          tradeSession,
+          context: activeContext,
+        };
+      }
+
+      if (tradeSession && unresolvedCount > 0) {
+        const text =
+          intent === "WFL"
+            ? `I found the trade, but ${unresolvedCount} ${unresolvedCount === 1 ? "slot needs" : "slots need"} confirmation before I calculate W/F/L. Tap Edit on any wrong item and search the CSBT catalog.`
+            : intent === "VALUES"
+              ? `I found the items, but ${unresolvedCount} ${unresolvedCount === 1 ? "slot needs" : "slots need"} confirmation before I give you the values. Tap Edit on any wrong item and search the CSBT catalog.`
+              : intent === "DEMAND"
+                ? `I found the items, but ${unresolvedCount} ${unresolvedCount === 1 ? "slot needs" : "slots need"} confirmation before I compare demand. Tap Edit on any wrong item and search the CSBT catalog.`
+                : recognitionSummary(confirmedNames, unresolvedCount);
+
+        return {
+          text,
+          intent: intent === "WFL" ? "tradeComparison" : "petLookup",
+          reaction: "search",
+          localConfidence: 1,
+          aiEligible: false,
+          typingDuration: 220,
+          tradeSession,
+          context: activeContext,
+        };
+      }
+
+      if (intent === "WFL") {
+        if (!tradeSession) {
+          return {
+            text: "I couldn’t find a clear two-sided trade in that screenshot. Try a tighter crop of the trade window, or choose “How much are these?” if you only want item values.",
+            intent: "fallback",
+            reaction: "searchEmpty",
+            localConfidence: 1,
+            aiEligible: false,
+            typingDuration: 220,
+            context: activeContext,
+          };
+        }
+
+        const routed = routeNichMessage({
+          gameId: "adopt-me",
+          message: "W/F/L this trade",
+          context: activeContext,
+          localData,
+        });
+        return {
+          ...routed,
+          aiEligible: false,
+          localConfidence: 1,
+          tradeSession: routed.tradeSession ?? tradeSession,
+          context: {
+            ...activeContext,
+            ...routed.context,
+            activeTrade: routed.tradeSession ?? tradeSession,
+          },
+        };
+      }
+
+      if (intent === "VALUES" || intent === "DEMAND") {
+        if (!confirmedNames.length) {
+          return {
+            text:
+              intent === "VALUES"
+                ? "I couldn’t identify any CSBT catalog items confidently enough to price them. Try a clearer crop, or use the item editor if a review card appears."
+                : "I couldn’t identify any CSBT catalog items confidently enough to check demand. Try a clearer crop, or use the item editor if a review card appears.",
+            intent: "fallback",
+            reaction: "searchEmpty",
+            localConfidence: 1,
+            aiEligible: false,
+            typingDuration: 220,
+            tradeSession,
+            context: activeContext,
+          };
+        }
+
+        // Avoid the active-trade correction router for a value/demand request:
+        // we want the same recognized items, but not an automatic W/F/L result.
+        const lookupContext: NichConversationContext = {
+          ...activeContext,
+          activeTrade: undefined,
+        };
+        const routed = routeNichMessage({
+          gameId: "adopt-me",
+          message: screenshotRouteMessage(intent, question, confirmedNames),
+          context: lookupContext,
+          localData,
+        });
+        return {
+          ...routed,
+          aiEligible: false,
+          localConfidence: 1,
+          tradeSession,
+          context: {
+            ...activeContext,
+            ...routed.context,
+            activeTrade: tradeSession,
+            recentPets,
+          },
+        };
+      }
+
+      const routed = routeNichMessage({
+        gameId: "adopt-me",
+        message: screenshotRouteMessage(intent, question, confirmedNames),
+        context: activeContext,
+        localData,
+      });
+      return {
+        ...routed,
+        tradeSession: routed.tradeSession ?? tradeSession,
+        context: {
+          ...activeContext,
+          ...routed.context,
+          activeTrade: routed.tradeSession ?? tradeSession,
+          recentPets,
+        },
+      };
+    },
+    [localData],
+  );
+
   const applyTradeReviewCommand = useCallback(
     (messageId: string, session: NonNullable<ChatMessage["tradeSession"]>, command: string) => {
       const trimmedCommand = command.trim();
@@ -1044,7 +1328,7 @@ export default function NichChat({
 
       recordVisionCorrectionMetric(session, trimmedCommand);
 
-      const response = routeNichMessage({
+      const correctionResponse = routeNichMessage({
         gameId: "adopt-me",
         message: trimmedCommand,
         context: {
@@ -1055,17 +1339,48 @@ export default function NichChat({
         localData,
       });
 
+      if (!correctionResponse.tradeSession) return;
+
+      const updatedSession = correctionResponse.tradeSession;
+      const reviewRequest = visionReviewRequestRef.current.get(messageId);
+      const recentPets: NonNullable<NichConversationContext["recentPets"]> =
+        [...updatedSession.userSide, ...updatedSession.theirSide]
+          .filter((slot) => slot.status === "CONFIRMED" && slot.canonicalName)
+          .map((slot) => ({
+            petName: slot.canonicalName!,
+            ...(slot.mega
+              ? { variant: "mega" as const }
+              : slot.neon
+                ? { variant: "neon" as const }
+                : { variant: "normal" as const }),
+          }));
+
+      const response = reviewRequest
+        ? resolveVisionResponse({
+            question: reviewRequest.question,
+            intent: reviewRequest.intent,
+            tradeSession: updatedSession,
+            recentPets,
+            baseContext: {
+              ...conversationContext,
+              activeTrade: updatedSession,
+              lastValueSource: updatedSession.valueSystem,
+            },
+          })
+        : correctionResponse;
+
       // Review-card actions are UI edits, not chat turns. Update the existing
       // recognition card in place so confirming/correcting several slots does
-      // not spam a new user bubble + NICH response for every click.
-      if (!response.tradeSession) return;
-
+      // not spam a new user bubble + NICH response for every click. For
+      // screenshot-driven flows, re-run the ORIGINAL selected goal (W/F/L,
+      // values, identify, demand) after each correction instead of silently
+      // switching to W/F/L.
       setMessages((currentMessages) => currentMessages.map((message) => {
         if (message.id !== messageId) return message;
         return {
           ...message,
           text: response.text,
-          tradeSession: response.tradeSession,
+          tradeSession: response.tradeSession ?? updatedSession,
           tradeComparison: response.tradeComparison,
           intent: response.intent,
           suggestions: response.suggestions,
@@ -1080,36 +1395,97 @@ export default function NichChat({
         void persistNichUserMemoryToSupabase(localData.userId, updatedMemory);
       }
     },
-    [conversationContext, localData],
+    [conversationContext, localData, resolveVisionResponse],
   );
 
-  const analyzeScreenshot = useCallback(
-    async (file: File) => {
+  const queueScreenshot = useCallback(
+    (file: File) => {
       if (isTyping) return;
 
-      const requestId = requestSequenceRef.current + 1;
-      requestSequenceRef.current = requestId;
+      if (file.size > 12 * 1024 * 1024) {
+        setMessages((currentMessages) => [
+          ...currentMessages,
+          {
+            id: createMessageId(),
+            sender: "nich",
+            text: "That image is too large. Please use a screenshot under 12 MB.",
+            createdAt: Date.now(),
+            intent: "fallback",
+          },
+        ]);
+        react("searchEmpty");
+        return;
+      }
 
       const safeFileName = file.name.length > 54
         ? `${file.name.slice(0, 28)}…${file.name.slice(-18)}`
         : file.name;
-      const userMessage: ChatMessage = {
-        id: createMessageId(),
-        sender: "user",
-        text: `📷 Screenshot uploaded: ${safeFileName}`,
-        createdAt: Date.now(),
-      };
+      const uploadMessageId = createMessageId();
+      const chooserMessageId = createMessageId();
 
-      setMessages((currentMessages) => [...currentMessages, userMessage]);
+      setPendingScreenshot({
+        file,
+        safeFileName,
+        uploadMessageId,
+      });
+      setInput("");
+      setIsVisionProcessing(false);
+      setMessages((currentMessages) => [
+        ...currentMessages,
+        {
+          id: uploadMessageId,
+          sender: "user",
+          text: `📷 Screenshot attached: ${safeFileName}`,
+          createdAt: Date.now(),
+        },
+        {
+          id: chooserMessageId,
+          sender: "nich",
+          text: "What do you want me to check from this screenshot?",
+          createdAt: Date.now(),
+          intent: "help",
+          suggestions: SCREENSHOT_ACTION_SUGGESTIONS,
+        },
+      ]);
+      react("idle");
+
+      window.requestAnimationFrame(() => {
+        inputRef.current?.focus();
+      });
+    },
+    [isTyping, react],
+  );
+
+  const answerPendingScreenshot = useCallback(
+    async (questionText: string) => {
+      const pending = pendingScreenshot;
+      const question = questionText.trim();
+      if (!pending || !question || isTyping) return;
+
+      const intent = inferScreenshotIntent(question);
+      const requestId = requestSequenceRef.current + 1;
+      requestSequenceRef.current = requestId;
+
+      // The image is not sent to any vision model until the user has selected
+      // an intent (or typed a custom question). This restores the old NICH flow:
+      // attach -> choose what you want -> then analyze.
+      setPendingScreenshot(null);
+      setInput("");
+      setIsVisionProcessing(true);
       setIsTyping(true);
+      setMessages((currentMessages) => [
+        ...currentMessages,
+        {
+          id: createMessageId(),
+          sender: "user",
+          text: question,
+          createdAt: Date.now(),
+        },
+      ]);
       react("search");
 
       try {
-        if (file.size > 12 * 1024 * 1024) {
-          throw new Error("That image is too large. Please use a screenshot under 12 MB.");
-        }
-
-        const prepared = await prepareNichScreenshot(file);
+        const prepared = await prepareNichScreenshot(pending.file);
         const optimized = prepared.primary;
 
         let payload: NichVisionApiResponse;
@@ -1118,32 +1494,75 @@ export default function NichChat({
         const timeout = window.setTimeout(() => controller.abort(), 92_000);
 
         try {
+          // PASS 1 — layout. Finds the occupied slots and their bounding boxes.
+          // Its pet names are treated as hypotheses only.
           const primaryAttempt = await postNichVisionScreenshot(
             optimized,
             prepared.width,
             prepared.height,
-            "vision-v29-cloudflare-inline-data-20260818",
+            NICH_VISION_CLIENT_VERSION,
             "primary",
             controller.signal,
+            intent,
           );
           payload = primaryAttempt.payload;
           apiOk = primaryAttempt.apiOk;
 
-          if (prepared.fallbackZoom && shouldAutoRetryWithTradeZoom(payload)) {
+          // PASS 2 — identity from enlarged slot crops. Each detected slot is cut
+          // from the ORIGINAL screenshot and enlarged onto one contact sheet, so
+          // identity is decided from artwork that is actually legible.
+          let slotStageSucceeded = false;
+          const slotRefs = apiOk ? slotRefsFromLayout(payload) : [];
+          if (slotRefs.length) {
+            const sheet = await buildSlotCropSheet(pending.file, slotRefs, {
+              imageType: payload.imageType ?? "TRADE",
+              layoutConfidence: payload.layoutConfidence ?? payload.debug?.layoutConfidence ?? 0.8,
+            });
+            if (sheet) {
+              const layoutPayload = payload;
+              const slotAttempt = await postNichVisionScreenshot(
+                sheet.file,
+                sheet.width,
+                sheet.height,
+                NICH_VISION_CLIENT_VERSION,
+                "slot-crops",
+                controller.signal,
+                intent,
+                { stage: "slots", manifestHeader: sheet.manifestHeader },
+              );
+              if (slotAttempt.apiOk) {
+                payload = slotAttempt.payload;
+                apiOk = true;
+                slotStageSucceeded = true;
+              } else {
+                // The crop pass is an accuracy upgrade, not a hard requirement.
+                // Falling back keeps the layout result, which stays conservative
+                // about identities on its own.
+                payload = layoutPayload;
+              }
+            }
+          }
+
+          // Once the crop pass has run, never let the cheaper whole-image zoom
+          // retry overwrite it. That retry scores payloads by how few slots are
+          // unresolved, which would reward a confident wrong read over an honest
+          // "needs confirmation".
+          if (!slotStageSucceeded && prepared.fallbackZoom && shouldAutoRetryWithTradeZoom(payload)) {
             const primaryPayload = payload;
             const primaryApiOk = apiOk;
             const fallbackAttempt = await postNichVisionScreenshot(
               prepared.fallbackZoom.file,
               prepared.fallbackZoom.width,
               prepared.fallbackZoom.height,
-              "vision-v29-cloudflare-inline-data-20260818",
+              NICH_VISION_CLIENT_VERSION,
               "trade-zoom-fallback",
               controller.signal,
+              intent,
             );
-            // Never replace a good full-image result with a worse crop result.
-            // Prefer the crop only when it actually reduces uncertainty / keeps
-            // at least as much useful trade structure.
-            if (fallbackAttempt.apiOk && visionPayloadQuality(fallbackAttempt.payload) > visionPayloadQuality(primaryPayload)) {
+            if (
+              fallbackAttempt.apiOk &&
+              visionPayloadQuality(fallbackAttempt.payload) > visionPayloadQuality(primaryPayload)
+            ) {
               payload = fallbackAttempt.payload;
               apiOk = true;
             } else {
@@ -1157,70 +1576,66 @@ export default function NichChat({
 
         if (requestSequenceRef.current !== requestId) return;
 
-        let response: NichResponse;
+        if (!apiOk) {
+          setMessages((currentMessages) => [
+            ...currentMessages,
+            {
+              id: createMessageId(),
+              sender: "nich",
+              text:
+                payload.message ||
+                "Nich couldn’t analyze that screenshot. Try a clearer crop or type the item/trade manually.",
+              createdAt: Date.now(),
+              intent: "fallback",
+            },
+          ]);
+          react("searchEmpty");
+          return;
+        }
+
         const screenshotTrade = payload.tradeSession
           ? {
               ...payload.tradeSession,
-              valueSystem: conversationContext.lastValueSource
-                ?? conversationContext.userMemory?.preferredValueSource
-                ?? localData.nichMemory?.preferredValueSource
-                ?? payload.tradeSession.valueSystem,
+              valueSystem:
+                conversationContext.lastValueSource ??
+                conversationContext.userMemory?.preferredValueSource ??
+                localData.nichMemory?.preferredValueSource ??
+                payload.tradeSession.valueSystem,
             }
           : undefined;
-        const screenshotContext = screenshotTrade
-          ? { ...conversationContext, activeTrade: screenshotTrade, lastValueSource: screenshotTrade.valueSystem }
-          : conversationContext;
 
-        if (apiOk && payload.localPrompt) {
-          response = routeNichMessage({
-            gameId: "adopt-me",
-            // When vision already returned a fully verified TradeSession, use
-            // that structured state directly instead of reparsing AI prose.
-            message: screenshotTrade ? "recalculate this trade" : payload.localPrompt,
-            context: screenshotContext,
-            localData,
-          });
-          const finalTrade = screenshotTrade
-            ? { ...screenshotTrade, conversationState: response.tradeComparison ? "CALCULATED" as const : screenshotTrade.conversationState }
-            : undefined;
-          response = {
-            ...response,
-            aiEligible: false,
-            localConfidence: 1,
-            ...(finalTrade ? { tradeSession: finalTrade } : {}),
-            context: {
-              ...response.context,
-              ...(finalTrade ? { activeTrade: finalTrade, lastValueSource: finalTrade.valueSystem } : {}),
-            },
-            text: payload.imageType === "TRADE"
-              ? response.text
-              : [payload.message, "", response.text].filter(Boolean).join("\n"),
-          };
-        } else if (apiOk && screenshotTrade) {
-          response = {
-            text: payload.message || "I recognized most of the trade. Confirm the highlighted item and I’ll continue automatically.",
-            intent: "tradeComparison",
-            reaction: "search",
-            aiEligible: false,
-            localConfidence: 1,
-            typingDuration: 240,
-            tradeSession: screenshotTrade,
-            context: {
-              activeTrade: screenshotTrade,
-              lastValueSource: screenshotTrade.valueSystem,
-              lastIntent: "tradeComparison",
-            },
-          };
-        } else {
-          response = {
-            text: payload.message || "Nich couldn’t analyze that screenshot. Your chat is still here — try a clearer crop or type the trade manually.",
-            intent: "fallback",
-            reaction: "searchEmpty",
-            aiEligible: false,
-            localConfidence: 1,
-            typingDuration: 240,
-          };
-        }
+        const verifiedItems = (payload.items ?? [])
+          .filter((item) => item.verified && item.itemName)
+          .slice(0, 18);
+
+        const recentPets: NonNullable<NichConversationContext["recentPets"]> =
+          verifiedItems.map((item) => ({
+            petName: item.itemName!,
+            ...(item.variant === "NEON"
+              ? { variant: "neon" as const }
+              : item.variant === "MEGA"
+                ? { variant: "mega" as const }
+                : { variant: "normal" as const }),
+          }));
+
+        const baseContext: NichConversationContext = {
+          ...conversationContext,
+          activeTrade: screenshotTrade,
+          recentPets,
+          lastPetName: recentPets.length === 1 ? recentPets[0].petName : undefined,
+          lastVariant: recentPets.length === 1 ? recentPets[0].variant : undefined,
+          lastTradeComparison: undefined,
+          ...(screenshotTrade ? { lastValueSource: screenshotTrade.valueSystem } : {}),
+          lastUpdatedAt: Date.now(),
+        };
+
+        const response = resolveVisionResponse({
+          question,
+          intent,
+          tradeSession: screenshotTrade,
+          recentPets,
+          baseContext,
+        });
 
         const nichMessage: ChatMessage = {
           id: createMessageId(),
@@ -1230,17 +1645,34 @@ export default function NichChat({
           suggestions: response.suggestions,
           intent: response.intent,
           tradeComparison: response.tradeComparison,
-          tradeSession: response.tradeSession,
+          tradeSession: response.tradeSession ?? screenshotTrade,
         };
 
+        if (nichMessage.tradeSession) {
+          visionReviewRequestRef.current.set(nichMessage.id, {
+            intent,
+            question,
+          });
+        }
+
         setMessages((currentMessages) => [...currentMessages, nichMessage]);
-        setConversationContext((currentContext) => updateNichContext(currentContext, response));
+        setConversationContext((currentContext) =>
+          updateNichContext(currentContext, response),
+        );
+
+        const updatedMemory = response.context?.userMemory;
+        if (updatedMemory) {
+          saveNichUserMemory(updatedMemory, localData.userId);
+          void persistNichUserMemoryToSupabase(localData.userId, updatedMemory);
+        }
+
         react(response.reaction);
       } catch (error) {
         if (requestSequenceRef.current !== requestId) return;
-        const message = error instanceof Error && error.message
-          ? error.message
-          : "Nich couldn’t analyze that screenshot. Try again or type the trade manually.";
+        const message =
+          error instanceof Error && error.message
+            ? error.message
+            : "Nich couldn’t analyze that screenshot. Try again or type the trade manually.";
         setMessages((currentMessages) => [
           ...currentMessages,
           {
@@ -1253,17 +1685,37 @@ export default function NichChat({
         ]);
         react("searchEmpty");
       } finally {
-        if (requestSequenceRef.current === requestId) setIsTyping(false);
+        if (requestSequenceRef.current === requestId) {
+          setIsVisionProcessing(false);
+          setIsTyping(false);
+        }
       }
     },
-    [conversationContext, isTyping, localData, react],
+    [
+      conversationContext,
+      isTyping,
+      localData,
+      pendingScreenshot,
+      react,
+      resolveVisionResponse,
+    ],
   );
+
+  const submitCurrentInput = useCallback(() => {
+    const trimmed = input.trim();
+    if (!trimmed || isTyping) return;
+    if (pendingScreenshot) {
+      void answerPendingScreenshot(trimmed);
+      return;
+    }
+    void sendMessage(trimmed);
+  }, [answerPendingScreenshot, input, isTyping, pendingScreenshot, sendMessage]);
 
   function handleSubmit(
     event: FormEvent<HTMLFormElement>,
   ) {
     event.preventDefault();
-    sendMessage(input);
+    submitCurrentInput();
   }
 
   const chatClasses = isEmbedded
@@ -1510,7 +1962,7 @@ export default function NichChat({
 
                 <p className="mt-1 flex items-center gap-2 text-xs font-semibold text-[var(--foreground-muted)]">
                   <span className={`h-1.5 w-1.5 rounded-full ${isTyping ? "bg-[var(--purple)]" : "bg-[var(--green)]"}`} aria-hidden="true" />
-                  {isTyping ? "Analyzing with CSBT data…" : "Local-first · Built around CSBT market data"}
+                  {isVisionProcessing ? "Reading screenshot for your selected check…" : isTyping ? "Analyzing with CSBT data…" : "Local-first · Built around CSBT market data"}
                 </p>
               </div>
 
@@ -1697,7 +2149,7 @@ export default function NichChat({
                 );
               })}
 
-              {isTyping && (
+              {isTyping && !isVisionProcessing && (
                 <motion.div
                   initial={{
                     opacity: 0,
@@ -1794,11 +2246,13 @@ export default function NichChat({
                     <button
                       key={suggestion.id}
                       type="button"
-                      onClick={() =>
-                        sendMessage(
-                          suggestion.message,
-                        )
-                      }
+                      onClick={() => {
+                        if (pendingScreenshot && suggestion.id.startsWith("vision-")) {
+                          void answerPendingScreenshot(suggestion.message);
+                          return;
+                        }
+                        void sendMessage(suggestion.message);
+                      }}
                       disabled={isTyping}
                       className="nich-smart-chip shrink-0 rounded-full px-3.5 py-2.5 text-[11px] font-black transition disabled:cursor-not-allowed disabled:opacity-50"
                     >
@@ -1828,7 +2282,7 @@ export default function NichChat({
                 onChange={(event) => {
                   const file = event.currentTarget.files?.[0];
                   event.currentTarget.value = "";
-                  if (file) void analyzeScreenshot(file);
+                  if (file) queueScreenshot(file);
                 }}
               />
 
@@ -1855,7 +2309,7 @@ export default function NichChat({
                     !event.shiftKey
                   ) {
                     event.preventDefault();
-                    sendMessage(input);
+                    submitCurrentInput();
                   }
                 }}
                 placeholder="Ask Nich about CSBT..."
@@ -1880,7 +2334,7 @@ export default function NichChat({
             </div>
 
             <p className="nich-smart-note mt-3 flex items-center justify-center gap-1.5 text-center text-xs font-semibold">
-              <span aria-hidden="true">◇</span> Uploaded screenshots are processed by Gemini · Vision v28 Local-Test. Avoid private chats or personal information. Values and W/F/L still come from CSBT.
+              <span aria-hidden="true">◇</span> Attach a screenshot, choose what you want checked, then NICH analyzes it. Wrong item? Tap Edit and search the CSBT catalog. Values and W/F/L still come from CSBT.
             </p>
           </form>
         </motion.aside>

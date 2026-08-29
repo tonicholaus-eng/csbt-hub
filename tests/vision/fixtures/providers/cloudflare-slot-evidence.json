@@ -1,0 +1,8 @@
+{
+  "items": [
+    { "label": "Y1", "species": "dragon", "colors": "white, blue", "details": ["icy spikes", "large wings"], "facing": "side-facing", "name": "Frost Dragon", "candidates": [{ "name": "Frost Dragon" }, { "name": "Frost Fury" }], "confidence": 72, "neon": "true", "mega": "false", "fly": "yes", "ride": "yes", "modifierConfidence": "88%" },
+    { "label": "Y2", "species": "dragon", "colors": "green", "details": "multiple heads", "name": "Hydra", "confidence": "0.61", "neon": "no", "mega": "no", "fly": "no", "ride": "yes", "modifierConfidence": 80 },
+    { "label": "T1", "species": "dog", "colors": ["orange", "white"], "details": ["fluffy coat", "small"], "name": "Pomeranian", "confidence": "64%", "neon": "false", "mega": "false", "fly": "false", "ride": "false", "modifierConfidence": 0.7 },
+    { "label": "T2", "species": "cat", "colors": [], "details": [], "name": "", "confidence": 24, "neon": "unknown", "mega": "unknown", "fly": "unknown", "ride": "unknown", "modifierConfidence": 20 }
+  ]
+}

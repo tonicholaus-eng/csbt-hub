@@ -126,6 +126,10 @@ export type VisionTradeItemLike = {
   databaseConfidence: number;
   verified: boolean;
   alternatives: string[];
+  /** v33 catalog-constrained decision. Absent for legacy/single-pass results. */
+  recognitionStatus?: "ACCEPTED" | "NEEDS_CONFIRMATION" | "UNKNOWN";
+  /** Ranked real catalog entries to offer the user for an uncertain slot. */
+  topCandidates?: Array<{ itemId: string; itemName: string; score: number }>;
   candidateScores?: Array<{ itemName: string; score: number }>;
   visualEvidence?: string;
   visibleText?: string;
@@ -134,7 +138,7 @@ export type VisionTradeItemLike = {
 };
 
 export const NICH_TRADE_SESSION_VERSION = "trade-session-v2-20260816";
-export const NICH_VISION_PROMPT_VERSION = "nich-vision-prompt-v8-multiview-candidate-audit-20260817";
+export const NICH_VISION_PROMPT_VERSION = "nich-vision-prompt-v10-smart-catalog-recognition-20260829";
 export const NICH_CATALOG_VERSION = `catalog-${tradingMeta.totalItems}-${tradingMeta.generatedAt}`;
 
 function clamp01(value: unknown) {
@@ -183,6 +187,9 @@ function buildCandidateList(item: VisionTradeItemLike): NichTradeCandidate[] {
   };
 
   if (item.itemName) push(item.itemName, "VISION", Math.max(item.confidence, item.databaseConfidence));
+  // Ranked catalog candidates carry real retrieval scores; prefer them over the
+  // flat alternative-name list so the UI can order suggestions meaningfully.
+  for (const candidate of item.topCandidates ?? []) push(candidate.itemName, "CATALOG", clamp01(candidate.score));
   for (const name of item.alternatives) push(name, "VISION", Math.max(0.25, item.confidence - candidates.length * 0.12));
   return candidates.slice(0, 6);
 }
@@ -201,9 +208,15 @@ function createSlot(
   const identityReady = Boolean(item.verified && item.itemId && item.itemName);
   const variantReady = item.variant !== "UNKNOWN" && (!requiresPotionCertainty || item.potion !== "UNKNOWN");
   const overall = Math.min(itemConfidence || 0, variantConfidence || 0, sideConfidence || 0);
+  // A medium-confidence identity keeps its best catalog guess visible so the user
+  // can confirm it in one click. Only a slot with no catalog identity at all is
+  // UNRESOLVED; neither state is ever used for a calculation.
+  const hasCatalogGuess = Boolean(
+    item.itemId && item.itemName && item.recognitionStatus === "NEEDS_CONFIRMATION",
+  );
   const status: NichTradeSlotStatus = identityReady && variantReady && overall >= 0.72
     ? "CONFIRMED"
-    : identityReady
+    : identityReady || hasCatalogGuess
       ? "UNCERTAIN"
       : "UNRESOLVED";
 
@@ -302,6 +315,31 @@ export function createTradeSessionFromVision(args: {
 
 export function getTradeSlots(session: NichTradeSession) {
   return [...session.userSide, ...session.theirSide];
+}
+
+/**
+ * The single canonical source for "how much did we recognize".
+ *
+ * The review card used to derive its empty state per column, so a screenshot
+ * whose slots all landed on one side rendered slot rows next to the words
+ * "No items detected." Every count the UI shows now comes from here.
+ */
+export function describeRecognitionCounts(session: NichTradeSession) {
+  const detected = session.userSide.length + session.theirSide.length;
+  const needsConfirmation = session.unresolvedSlots.length;
+  return {
+    detected,
+    needsConfirmation,
+    confirmed: detected - needsConfirmation,
+    hasDetections: detected > 0,
+    /** Shown inside an empty column; never claims nothing was detected overall. */
+    emptySideLabel: detected > 0 ? "No items on this side." : "No items detected.",
+    headline: detected === 0
+      ? "No items detected"
+      : needsConfirmation
+        ? `${detected} item${detected === 1 ? "" : "s"} detected · ${needsConfirmation} need${needsConfirmation === 1 ? "s" : ""} confirmation before I calculate this trade`
+        : `${detected} item${detected === 1 ? "" : "s"} detected · recognition confirmed`,
+  };
 }
 
 export function findTradeSlot(session: NichTradeSession, slotId: string) {

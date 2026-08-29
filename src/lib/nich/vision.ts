@@ -1,5 +1,14 @@
 import { getItem, searchVisionItems } from "../search";
 import type { NichTradeSession } from "./tradeSession";
+import {
+  applySessionCorrectionBoost,
+  decideSlotIdentity,
+  retrieveCatalogCandidates,
+  type NichCatalogCandidate,
+  type NichCatalogMatchVote,
+  type NichRecognitionStatus,
+  type NichVisualEvidence,
+} from "./visionRecognition";
 
 export type NichVisionImageType =
   | "TRADE"
@@ -42,6 +51,16 @@ export type NichVisionRawItem = {
   /** Normalized 0..1 bounding box when the model can localize the slot. */
   box?: { x: number; y: number; width: number; height: number };
   slot?: number;
+
+  /**
+   * Structured visual evidence (v33+). The model describes the artwork instead
+   * of naming it; the CSBT catalog supplies the identity. `rawName` remains one
+   * low-trust naming signal, never ground truth.
+   */
+  animalType?: string;
+  bodyColors?: string[];
+  features?: string[];
+  orientation?: string;
 };
 
 export type NichVisionModelResult = {
@@ -61,6 +80,17 @@ export type NichVisionVerifiedItem = NichVisionRawItem & {
   verified: boolean;
   alternatives: string[];
   verificationReason?: string;
+
+  /** Catalog-constrained recognition decision, when the evidence pipeline produced one. */
+  recognitionStatus?: NichRecognitionStatus;
+  /** Real CSBT catalog entries offered to the user for an uncertain slot. */
+  topCandidates?: Array<{
+    itemId: string;
+    itemName: string;
+    score: number;
+    rarity: string | null;
+    image: string;
+  }>;
 };
 
 export type NichVisionApiResponse = {
@@ -76,16 +106,34 @@ export type NichVisionApiResponse = {
   promptVersion?: string;
   catalogVersion?: string;
   cacheStatus?: "HIT" | "MISS" | "SESSION_HIT";
+  /** Grid-geometry confidence, needed by the client to plan the slot-crop pass. */
+  layoutConfidence?: number;
   image?: { width: number; height: number; bytes: number; mimeType: string; detailIncluded?: boolean; recoveryZoomsIncluded?: boolean };
+  /**
+   * Development-only recognition diagnostics. The route only attaches this when
+   * NODE_ENV !== production (or NICH_VISION_DEBUG=true), so production users
+   * never receive candidate scores or model reasoning.
+   */
   debug?: {
     model: string;
     layoutConfidence: number;
     uncertainSlots: string[];
     focusedRecheckUsed: boolean;
     fastRecoveryUsed?: boolean;
+    cloudflareFallbackUsed?: boolean;
+    /** Cloudflare was used as a second-opinion identity pass while Gemini remained primary. */
+    cloudflareSupplementUsed?: boolean;
+    /** Fraction of slots that carried at least one identity hypothesis before supplementing. */
+    identityCoverageBeforeSupplement?: number;
     emptyTradeRecoveryUsed?: boolean;
     identityAuditSucceeded?: boolean;
     multiViewUsed?: boolean;
+    stage?: "layout" | "slots";
+    slotCropSheetUsed?: boolean;
+    catalogImageMatchUsed?: boolean;
+    catalogMatches?: Array<Record<string, unknown>>;
+    /** Per-slot: evidence, ranked candidates, chosen id, confidence, reason. */
+    slots?: Array<Record<string, unknown>>;
   };
   usage?: {
     promptTokens?: number;
@@ -174,11 +222,14 @@ export function repairTradeGeometry(items: NichVisionRawItem[], imageType: NichV
   return repaired;
 }
 
-export function consolidateTradeSlotDetections(items: NichVisionRawItem[], imageType: NichVisionImageType) {
+export function consolidateTradeSlotDetections<T extends NichVisionRawItem>(
+  items: T[],
+  imageType: NichVisionImageType,
+): T[] {
   if (imageType !== "TRADE") return items;
 
-  const grouped = new Map<string, NichVisionRawItem[]>();
-  const passthrough: NichVisionRawItem[] = [];
+  const grouped = new Map<string, T[]>();
+  const passthrough: T[] = [];
   for (const item of items) {
     if (item.side === "NONE" || !item.slot) {
       passthrough.push(item);
@@ -190,7 +241,7 @@ export function consolidateTradeSlotDetections(items: NichVisionRawItem[], image
     grouped.set(key, bucket);
   }
 
-  const consolidated: NichVisionRawItem[] = [];
+  const consolidated: T[] = [];
   for (const bucket of grouped.values()) {
     if (bucket.length === 1) {
       consolidated.push(bucket[0]);
@@ -372,9 +423,15 @@ export function verifyVisionItem(raw: NichVisionRawItem, options?: { allowConfus
   // catalog even when Gemini returned an exact canonical name. Exact Map lookups
   // and exact candidateNames are enough in that common path; only pay for fuzzy
   // search when neither produced a catalog candidate.
-  const searched = rawName && !exact && modelCandidateItems.length === 0
-    ? searchVisionItems(rawName, 12).filter((item) => categoryMatches(item, raw.categoryHint))
+  const searchedAll = rawName && !exact && modelCandidateItems.length === 0
+    ? searchVisionItems(rawName, 12)
     : [];
+  const searchedInCategory = searchedAll.filter((item) => categoryMatches(item, raw.categoryHint));
+  // Layout-stage category reads are hints, not truth. If a strong name/spacing
+  // match only exists outside the guessed category (e.g. pet wear inside a trade
+  // slot first labelled PET), keep it as a candidate rather than returning an
+  // empty identity. Fuzzy names are still never auto-verified here.
+  const searched = searchedInCategory.length ? searchedInCategory : searchedAll.slice(0, 4);
   const scoredCandidates = (raw.candidateScores ?? [])
     .map((entry) => ({ itemName: entry.itemName, name: normalizeName(entry.itemName), score: clampConfidence(entry.score) }))
     .sort((a, b) => b.score - a.score);
@@ -473,28 +530,37 @@ export function verifyVisionItem(raw: NichVisionRawItem, options?: { allowConfus
     verificationReason = "specificity-ambiguous";
   } else if (modelExpressedAmbiguity) {
     verificationReason = "model-reported-alternatives";
+  } else if (String(best?.CATEGORY ?? raw.categoryHint ?? "") === "PET" && !textConfirmed && !options?.allowConfusionFamilyConfirmation) {
+    // A single model pass is not enough to canonically name an icon-only pet.
+    // Require the independent focused audit (or visible item-name text) before
+    // marking a pet identity as verified. This deliberately prefers an
+    // "Unknown item" confirmation step over a confident hallucination.
+    verificationReason = "visual-audit-required";
   } else if (best) {
     const decisiveScoredCandidate = Boolean(
       decisiveScoredRow?.item.ID === best.ID
       && topScore >= 0.82
       && (scoredCandidates.length === 1 || scoreMargin >= 0.2),
     );
-    const threshold = textConfirmed ? 0.64 : decisiveScoredCandidate ? 0.76 : exact?.ID === best.ID ? 0.84 : 0.88;
+    const threshold = textConfirmed ? 0.68 : decisiveScoredCandidate ? 0.88 : exact?.ID === best.ID ? 0.91 : 0.94;
     const identitySignal = decisiveScoredRow?.item.ID === best.ID
       ? Math.max(aiConfidence, decisiveScoredRow.entry.score)
       : aiConfidence;
-    verified = identitySignal >= threshold && (exact?.ID === best.ID || decisiveScoredCandidate || databaseConfidence >= 0.82);
+    // Text similarity must never compensate for weak visual evidence. A name the
+    // model invented ("Undead Jousting Horse") can fuzzy-match a real catalog
+    // entry at high string similarity; accepting that is exactly how a confident
+    // hallucination used to reach the UI. Only an exact catalog name, legible
+    // in-game text, or a decisively ranked candidate may confirm an identity.
+    verified = identitySignal >= threshold && (exact?.ID === best.ID || decisiveScoredCandidate);
     verificationReason = verified
       ? textConfirmed
         ? "exact-visible-text"
         : decisiveScoredCandidate && exact?.ID !== best.ID
           ? "ranked-candidate-high-confidence"
-          : exact?.ID === best.ID
-            ? "exact-high-confidence"
-            : "fuzzy-high-confidence"
+          : "exact-high-confidence"
       : exact?.ID === best.ID
         ? "exact-low-confidence"
-        : "fuzzy-low-confidence";
+        : "fuzzy-name-not-in-catalog";
   }
 
   const confusionItems = confusionCandidates
@@ -530,6 +596,115 @@ export function verifyVisionItem(raw: NichVisionRawItem, options?: { allowConfus
     verified,
     alternatives,
     verificationReason,
+  };
+}
+
+/**
+ * Turn a raw slot reading into structured visual evidence.
+ *
+ * `rawName` is carried as `freeFormName`, which the retriever treats as a
+ * LOW-TRUST signal: it only helps when it resolves to an exact catalog entry.
+ */
+export function buildVisualEvidence(raw: NichVisionRawItem): NichVisualEvidence {
+  return {
+    ...(raw.animalType ? { animalType: raw.animalType } : {}),
+    bodyColors: raw.bodyColors ?? [],
+    features: [
+      ...(raw.features ?? []),
+      ...(raw.visualEvidence ? [raw.visualEvidence] : []),
+    ],
+    ...(raw.orientation ? { orientation: raw.orientation } : {}),
+    ...(raw.visibleText ? { visibleText: raw.visibleText } : {}),
+    ...(raw.rawName ? { freeFormName: raw.rawName } : {}),
+    ...(raw.visualEvidence ? { description: raw.visualEvidence } : {}),
+    // The provider's own best guess (`rawName`) is candidate EVIDENCE and is
+    // ranked alongside its explicit hypotheses. Retrieval only rewards it when
+    // it resolves to a real catalog entry, and the naming channel is counted
+    // once however many fields repeat the same guess.
+    possibleCatalogNames: [...new Set([
+      ...(raw.candidateScores ?? []).slice().sort((a, b) => b.score - a.score).map((entry) => entry.itemName),
+      ...(raw.candidateNames ?? []),
+      ...(raw.rawName ? [raw.rawName] : []),
+    ].map((name) => name.trim()).filter(Boolean))],
+    visualConfidence: clampConfidence(raw.itemConfidence ?? raw.confidence),
+  };
+}
+
+/**
+ * Catalog-constrained slot recognition (v33).
+ *
+ * SLOT DETECTION -> VISUAL ANALYSIS -> CATALOG-CONSTRAINED CANDIDATES ->
+ * VISUAL VERIFICATION -> CONFIDENCE -> USER CONFIRMATION IF NEEDED.
+ *
+ * The returned item is verified only when `decideSlotIdentity` accepted it. An
+ * uncertain slot keeps its real catalog candidates and is explicitly left for
+ * user confirmation rather than being assigned a plausible pet name.
+ */
+export function verifyVisionItemFromEvidence(
+  raw: NichVisionRawItem,
+  options?: {
+    verification?: NichCatalogMatchVote | null;
+    sessionCorrectedItemIds?: string[];
+  },
+): NichVisionVerifiedItem {
+  const evidence = buildVisualEvidence(raw);
+  const category = raw.categoryHint && raw.categoryHint !== "UNKNOWN" ? raw.categoryHint : undefined;
+  const retrieved = retrieveCatalogCandidates(evidence, { category, limit: 6 });
+  const candidates: NichCatalogCandidate[] = applySessionCorrectionBoost(
+    retrieved,
+    options?.sessionCorrectedItemIds ?? [],
+  );
+
+  const decision = decideSlotIdentity({
+    evidence,
+    candidates,
+    verification: options?.verification ?? null,
+  });
+
+  // Curated lookalike families still need an artwork-level decision. Without one
+  // an accepted identity inside a confusion family drops back to confirmation.
+  const confusionFamily = decision.itemName ? getVisionConfusionCandidates(decision.itemName) : [];
+  const unauditedConfusion = decision.status === "ACCEPTED"
+    && confusionFamily.length > 1
+    && decision.reason !== "exact-visible-item-name"
+    && decision.reason !== "catalog-image-match";
+
+  const status: NichRecognitionStatus = unauditedConfusion ? "NEEDS_CONFIRMATION" : decision.status;
+  const confidence = unauditedConfusion ? Math.min(decision.confidence, 0.69) : decision.confidence;
+
+  const familyItems = confusionFamily
+    .map((name) => getItem(name))
+    .filter((item): item is NonNullable<ReturnType<typeof getItem>> => Boolean(item))
+    .filter((item) => item.ID !== decision.itemId);
+
+  const alternatives = [...new Set([
+    ...familyItems.map((item) => item.NAME),
+    ...decision.topCandidates.filter((candidate) => candidate.itemId !== decision.itemId).map((candidate) => candidate.itemName),
+  ])].slice(0, 4);
+
+  return {
+    ...raw,
+    rawName: raw.rawName.trim(),
+    confidence,
+    itemConfidence: confidence,
+    variantConfidence: clampConfidence(raw.variantConfidence ?? raw.confidence),
+    sideConfidence: clampConfidence(raw.sideConfidence ?? raw.confidence),
+    quantity: Math.max(1, Math.min(18, Math.floor(Number(raw.quantity) || 1))),
+    ...(decision.itemId && decision.itemName
+      ? { itemId: decision.itemId, itemName: decision.itemName, category: decision.category ?? "OTHER" }
+      : {}),
+    databaseConfidence: decision.itemId ? confidence : 0,
+    verified: status === "ACCEPTED",
+    alternatives,
+    verificationReason: unauditedConfusion ? "visual-confusion-family" : decision.reason,
+    recognitionStatus: status,
+    topCandidates: decision.topCandidates.slice(0, 5).map((candidate) => ({
+      itemId: candidate.itemId,
+      itemName: candidate.itemName,
+      score: candidate.score,
+      rarity: candidate.rarity,
+      image: candidate.image,
+    })),
   };
 }
 
@@ -583,6 +758,26 @@ export function mergeVisionCrossCheck(original: NichVisionVerifiedItem[], focuse
         visualEvidence: rechecked.visualEvidence || item.visualEvidence,
         candidateNames: [...new Set([...(item.candidateNames ?? []), ...(rechecked.candidateNames ?? [])])].slice(0, 6),
         candidateScores: rechecked.candidateScores?.length ? rechecked.candidateScores : item.candidateScores,
+      };
+    }
+
+    if (!sameCanonical && rechecked.verified && rechecked.verificationReason === "exact-visible-text") return rechecked;
+
+    if (!sameCanonical && rechecked.verified) {
+      const alternatives = [...new Set([
+        rechecked.itemName,
+        item.itemName,
+        ...(item.alternatives ?? []),
+        ...(rechecked.alternatives ?? []),
+      ].filter((name): name is string => Boolean(name)))].slice(0, 5);
+      return {
+        ...item,
+        verified: false,
+        confidence: Math.min(Math.max(item.confidence, rechecked.confidence), 0.69),
+        itemConfidence: Math.min(Math.max(originalIdentity, recheckedIdentity), 0.69),
+        alternatives,
+        candidateNames: alternatives,
+        verificationReason: "cross-pass-disagreement",
       };
     }
 
@@ -743,9 +938,21 @@ export function summarizeVisionItems(
     return reasons.length ? reasons.join("/") : "recognition";
   };
 
+  const unknownLabel = (item: NichVisionVerifiedItem) =>
+    String(item.category ?? item.categoryHint ?? "") === "PET" ? "Unknown pet" : "Unknown item";
+
   const display = (item: NichVisionVerifiedItem) => {
-    const primary = (item.itemName ?? item.rawName) || "Unknown item";
-    const token = item.verified ? formatVisionTradeToken(item) : `${variantPrefix(item)}${primary}`.trim();
+    // A catalog-resolved tentative identity is useful information. Never echo a
+    // model-only rawName, but do show the REAL catalog candidate with (?) so the
+    // user can confirm/correct it in one click instead of seeing "Unknown" for
+    // every medium-confidence slot.
+    const tentative = !item.verified && item.recognitionStatus === "NEEDS_CONFIRMATION" && item.itemName;
+    const primary = item.verified && item.itemName
+      ? item.itemName
+      : tentative
+        ? `${item.itemName} (?)`
+        : unknownLabel(item);
+    const token = item.verified ? formatVisionTradeToken(item) : primary;
     const slot = item.slot ? `Slot ${item.slot}: ` : "";
     return `${item.verified ? "✓" : "?"} ${slot}${token}`;
   };
@@ -799,9 +1006,14 @@ export function summarizeVisionItems(
     for (const item of uncertain.slice(0, 8)) {
       const side = item.side === "YOU" ? "Your" : item.side === "THEM" ? "Their" : "Detected";
       const slot = item.slot ? ` slot ${item.slot}` : " item";
-      const primary = (item.itemName ?? item.rawName) || "Unknown item";
-      const alternatives = item.alternatives.length ? ` | possible: ${item.alternatives.slice(0, 4).join(" / ")}` : "";
-      lines.push(`• ${side}${slot}: ${variantPrefix(item)}${primary} [unclear: ${uncertaintyReason(item)}]${alternatives}`.trim());
+      const primary = item.verified && item.itemName ? item.itemName : unknownLabel(item);
+      const possibleNames = [...new Set([
+        ...(!item.verified && item.itemName ? [item.itemName] : []),
+        ...(item.topCandidates ?? []).map((candidate) => candidate.itemName),
+        ...item.alternatives,
+      ])].slice(0, 4);
+      const alternatives = possibleNames.length ? ` | possible: ${possibleNames.join(" / ")}` : "";
+      lines.push(`• ${side}${slot}: ${primary} [unclear: ${uncertaintyReason(item)}]${alternatives}`.trim());
     }
     lines.push("Reply with only the correction, e.g. “my slot 2 is Frostbite Bear” or “their slot 1 is MFR Cabbit”.");
   }

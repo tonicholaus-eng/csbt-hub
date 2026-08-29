@@ -1,6 +1,7 @@
 import { Buffer } from "node:buffer";
 
 import { NextRequest, NextResponse } from "next/server";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import { parseNichGameId } from "@/lib/nich/game/types";
 
@@ -29,6 +30,19 @@ import {
   NICH_VISION_PROMPT_VERSION,
 } from "@/lib/nich/tradeSession";
 import { consumeServerQuota } from "@/lib/nich/serverQuota";
+import {
+  decodeSlotManifest,
+  slotTileLabel,
+  type VisionSlotManifest,
+  type VisionSlotManifestEntry,
+} from "@/lib/nich/visionSlots";
+import { type NichCatalogMatchVote } from "@/lib/nich/visionRecognition";
+import {
+  normalizeProviderSlotEvidence,
+  type VisionSlotEvidence,
+} from "@/lib/nich/visionProviderSchema";
+import { runSlotRecognitionPipeline } from "@/lib/nich/visionSlotPipeline";
+import { getItemById } from "@/lib/search";
 
 export const runtime = "nodejs";
 export const maxDuration = 90;
@@ -47,8 +61,22 @@ const CATEGORY_HINTS = new Set<NichVisionCategory>([
   "PET", "PETWEAR", "EGG", "VEHICLE", "FOOD", "GIFT", "STROLLER", "TOY", "STICKER", "OTHER", "UNKNOWN",
 ]);
 
-const VISION_PIPELINE_VERSION = "vision-v29-cloudflare-inline-data-20260818";
-const VISION_RELEASE = "csbt-nich-vision-v29-cloudflare-inline-data";
+const VISION_PIPELINE_VERSION = "vision-v34-smart-catalog-recognition-20260829";
+const VISION_RELEASE = "csbt-nich-vision-v34-smart-catalog-recognition";
+const CLOUDFLARE_VISION_MODEL = "@cf/meta/llama-4-scout-17b-16e-instruct";
+
+/** Two-stage recognition: LAYOUT finds slots, SLOTS identifies enlarged crops. */
+type VisionStage = "layout" | "slots";
+
+/**
+ * Catalog-image verification is the precision backstop: the crop is compared
+ * against real CSBT catalog artwork instead of being named freely. It costs one
+ * extra model call per ambiguous slot, so it is capped hard.
+ */
+const CATALOG_MATCH_MAX_SLOTS = 3;
+const CATALOG_MATCH_MAX_CANDIDATES = 4;
+const CATALOG_IMAGE_MAX_BYTES = 400_000;
+const CATALOG_IMAGE_FETCH_TIMEOUT_MS = 3_500;
 
 type ImageDimensions = { width: number; height: number };
 
@@ -93,6 +121,15 @@ type VisionCallResult = {
   payload: GeminiVisionPayload;
 };
 
+type CloudflareAiBinding = {
+  run: (model: string, input: Record<string, unknown>) => Promise<unknown>;
+};
+
+type CloudflareAiResponse = {
+  response?: unknown;
+  result?: unknown;
+};
+
 function parseNumberSetting(value: string | undefined, fallback: number, minimum: number, maximum: number) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return fallback;
@@ -106,11 +143,17 @@ function getClientIdentifier(request: NextRequest) {
     || "unknown";
 }
 
-async function consumeVisionMinuteQuota(request: NextRequest) {
+/**
+ * One screenshot now costs two requests (layout, then slot crops). Each stage
+ * gets its OWN quota namespace at the same limit, so a normal user still gets
+ * the configured number of screenshots per minute/day, while a caller hitting
+ * either stage directly is still capped.
+ */
+async function consumeVisionMinuteQuota(request: NextRequest, stage: string) {
   const identifier = getClientIdentifier(request);
   const perMinute = Math.floor(parseNumberSetting(process.env.NICH_GEMINI_VISION_RATE_LIMIT, DEFAULT_RATE_LIMIT, 1, 60));
   const allowed = await consumeServerQuota({
-    namespace: "nich-vision-minute",
+    namespace: `nich-vision-minute-${stage}`,
     identifier,
     limit: perMinute,
     windowSeconds: Math.floor(RATE_LIMIT_WINDOW_MS / 1000),
@@ -118,10 +161,10 @@ async function consumeVisionMinuteQuota(request: NextRequest) {
   return allowed ? null : "Too many screenshot analyses. Please wait a minute and try again.";
 }
 
-async function consumeVisionDailyGeminiQuota(identifier: string) {
+async function consumeVisionDailyGeminiQuota(identifier: string, stage: string) {
   const dailyLimit = Math.floor(parseNumberSetting(process.env.NICH_GEMINI_VISION_DAILY_LIMIT, DEFAULT_DAILY_LIMIT, 1, 100_000));
   const allowed = await consumeServerQuota({
-    namespace: "nich-gemini-vision-daily",
+    namespace: `nich-gemini-vision-daily-${stage}`,
     identifier,
     limit: dailyLimit,
     windowSeconds: 24 * 60 * 60,
@@ -132,6 +175,15 @@ async function consumeVisionDailyGeminiQuota(identifier: string) {
 function clamp01(value: unknown) {
   const number = Number(value);
   return Number.isFinite(number) ? Math.max(0, Math.min(1, number)) : 0;
+}
+
+function sanitizeStringList(value: unknown, maxItems: number, maxLength: number) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((entry): entry is string => typeof entry === "string")
+    .map((entry) => entry.trim().slice(0, maxLength))
+    .filter(Boolean)
+    .slice(0, maxItems);
 }
 
 function sanitizeBox(value: unknown) {
@@ -189,6 +241,10 @@ function sanitizeModelResult(value: unknown): NichVisionModelResult | null {
       ...(candidateScores.length ? { candidateScores } : {}),
       ...(typeof item.visualEvidence === "string" ? { visualEvidence: item.visualEvidence.slice(0, 300) } : {}),
       ...(typeof item.visibleText === "string" ? { visibleText: item.visibleText.slice(0, 220) } : {}),
+      ...(typeof item.animalType === "string" ? { animalType: item.animalType.slice(0, 60) } : {}),
+      ...(Array.isArray(item.bodyColors) ? { bodyColors: sanitizeStringList(item.bodyColors, 5, 24) } : {}),
+      ...(Array.isArray(item.features) ? { features: sanitizeStringList(item.features, 6, 80) } : {}),
+      ...(typeof item.orientation === "string" ? { orientation: item.orientation.slice(0, 40) } : {}),
       ...(box ? { box } : {}),
       ...(Number.isFinite(slotNumber) ? { slot: Math.max(1, Math.min(18, Math.floor(slotNumber))) } : {}),
     } satisfies NichVisionRawItem];
@@ -284,6 +340,41 @@ function safeGeminiErrorDetail(payload: GeminiVisionPayload) {
   return typeof recorded?.message === "string" ? recorded.message : undefined;
 }
 
+function isGeminiLocationRestriction(status: number, detail: string) {
+  if (status !== 400) return false;
+  const normalized = detail.toLowerCase();
+  return normalized.includes("user location is not supported")
+    || normalized.includes("not available in your current location")
+    || normalized.includes("location is not supported")
+    || normalized.includes("unsupported location")
+    || (normalized.includes("failed_precondition") && normalized.includes("location"));
+}
+
+function extractCloudflareAiText(payload: unknown) {
+  if (typeof payload === "string") return payload.trim();
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return "";
+  const record = payload as CloudflareAiResponse;
+  if (typeof record.response === "string") return record.response.trim();
+  if (typeof record.result === "string") return record.result.trim();
+  if (record.result && typeof record.result === "object" && !Array.isArray(record.result)) {
+    const nested = record.result as CloudflareAiResponse;
+    if (typeof nested.response === "string") return nested.response.trim();
+  }
+  return "";
+}
+
+function getWorkersAiBinding(): CloudflareAiBinding | null {
+  try {
+    const context = getCloudflareContext();
+    const env = context.env as unknown as { AI?: CloudflareAiBinding };
+    return env.AI ?? null;
+  } catch {
+    // Local `next dev` can run without Cloudflare bindings. In production the
+    // binding is provided by wrangler.jsonc.
+    return null;
+  }
+}
+
 // v26+ uses prompt-enforced compact JSON through the baseline Interactions
 // request. The old response-schema constants were intentionally removed so
 // production lint stays clean and there is no misleading dead configuration.
@@ -301,10 +392,11 @@ const EMPTY_TRADE_RECOVERY_PROMPT = [
   "First inspect the layout. If it visibly contains two opposing Adopt Me/value-calculator trade grids, set imageType=TRADE and find EVERY visibly occupied item/pet slot even if you cannot identify the exact pet.",
   "If it is genuinely not a trade, do not force a trade result: return the correct imageType and only items that are visibly defensible.",
   "LEFT grid=YOU, RIGHT grid=THEM. Return one item record per occupied slot in row-major order on each side.",
-  "If exact identity is unclear, rawName must be a short visual description such as 'blue round pet' and itemConfidence must be low. Do not omit the slot and do not invent a pet name.",
+  "Before declaring either side empty, inspect every cell in BOTH grids carefully; trades often have 3-4 items on one side and only 1 small item on the other.",
+  "If exact identity is unclear but one or more real Adopt Me items are plausible, keep the best plausible name in rawName/candidateNames with LOW itemConfidence; uncertainty should lower confidence, not erase useful candidates. If you genuinely cannot narrow it at all, use a short visual description such as 'blue round pet'. Do not omit the slot and do not invent fantasy names.",
   "Read N/M/F/R badges separately from identity. N=NEON, M=MEGA, F=Fly, R=Ride, FR=Fly+Ride.",
   "Ignore empty/+ cells, buttons, usernames, arrows, center totals, prices, and browser/app chrome.",
-  "Return normalized bounding boxes when possible so local geometry can recover the side and slot.",
+  "A normalized bounding box is REQUIRED for every occupied slot so local geometry can recover LEFT=YOU / RIGHT=THEM and the browser can enlarge each icon for recognition.",
 ].join("\n");
 
 
@@ -316,7 +408,8 @@ const VISION_PROMPT = [
   "2) For TRADE: LEFT grid=YOU and RIGHT grid=THEM unless visible labels clearly prove otherwise. Slot order is row-major independently on each side.",
   "3) Return exactly one item for each occupied slot. Ignore empty/+ cells, buttons, usernames, arrows, prices, center totals, browser chrome, and unrelated UI.",
   "4) Pet identity and N/M/F/R badges are separate evidence. N=NEON, M=MEGA, F=Fly, R=Ride, FR=Fly+Ride. Never turn R into Red Dragon or FR into Frost Dragon.",
-  "5) Use exact canonical Adopt Me names only when the artwork supports them. If two pets are plausible, lower confidence and return up to 3 candidateNames instead of bluffing.",
+  "5) Give USEFUL identity hypotheses without pretending they are certain. rawName is your single best visual guess when one exists; candidateNames should contain up to 5 plausible Adopt Me names, best first. NICH treats these only as low-trust evidence and resolves them against the real CSBT catalog, so a tentative real guess is useful while an invented fantasy name is not. If you cannot narrow the icon at all, use a short visual description and low confidence instead. Always also fill animalType, bodyColors, features and orientation from what you can actually see.",
+  "5b) A box is REQUIRED for every occupied slot: normalized x/y/width/height covering the pet icon plus its badge corner. NICH crops and enlarges each box before deciding the identity, so an accurate box matters more than a confident name.",
   "6) For side/layout confidence, use grid geometry. A blurry pet does not make the trade grid unclear. For trades, always include slot numbers independently on each side.",
   "8) For INVENTORY use side=NONE and ignore tabs/currency/buttons. Only use quantity>1 when a visible count proves it.",
   "9) For ITEM use side=NONE; readable item-name text is stronger evidence than a vague icon guess.",
@@ -326,12 +419,219 @@ const VISION_PROMPT = [
   "Valid trade UIs include the blue in-game Adopt Me window and calculator/value-site layouts with two opposing 3x3 grids, including coral/pink grids with a center numeric total.",
 ].join("\n");
 
+type ScreenshotVisionIntent = "WFL" | "VALUES" | "IDENTIFY" | "DEMAND" | "GENERAL";
+
+function parseScreenshotVisionIntent(value: string | null): ScreenshotVisionIntent {
+  switch ((value ?? "").trim().toUpperCase()) {
+    case "WFL":
+    case "VALUES":
+    case "IDENTIFY":
+    case "DEMAND":
+      return (value ?? "").trim().toUpperCase() as ScreenshotVisionIntent;
+    default:
+      return "GENERAL";
+  }
+}
+
+function promptForScreenshotIntent(basePrompt: string, intent: ScreenshotVisionIntent) {
+  const focus =
+    intent === "WFL"
+      ? [
+          "USER GOAL: W/F/L trade check.",
+          "Prioritize proving the two-sided trade layout, detecting EVERY occupied slot on both sides, and keeping side/slot geometry exact.",
+          "Do not guess pet identities to complete the trade. If identity is uncertain, return the occupied slot with low confidence and candidateNames.",
+        ]
+      : intent === "VALUES"
+        ? [
+            "USER GOAL: item values.",
+            "Identify every relevant visible Adopt Me item accurately, whether the screenshot is a trade, inventory, or item grid.",
+            "Do not force a trade classification just because several items are visible. Exact catalog identity matters more than producing a complete answer.",
+          ]
+        : intent === "IDENTIFY"
+          ? [
+              "USER GOAL: identify the visible pets/items.",
+              "Focus on exact catalog identity. Be conservative: an uncertain icon must remain low-confidence with candidateNames rather than receiving a plausible invented name.",
+              "Do not infer W/F/L, values, or demand.",
+            ]
+          : intent === "DEMAND"
+            ? [
+                "USER GOAL: demand check.",
+                "Identify every relevant visible Adopt Me item accurately. Demand will be looked up locally after vision.",
+                "Do not invent demand or values and do not force a trade classification.",
+              ]
+            : [
+                "USER GOAL: general screenshot question.",
+                "Identify visible Adopt Me items conservatively and preserve the real image layout. Do not assume the user wants W/F/L.",
+              ];
+
+  return `${basePrompt}\n\n${focus.join("\\n")}`;
+}
+
+
 function plainJsonPrompt(basePrompt: string) {
   return `${basePrompt}
 Return ONLY one valid JSON object. No markdown fences or commentary.
 Use exactly this compact shape:
-{"imageType":"TRADE|INVENTORY|ITEM|OTHER","layoutConfidence":0.0,"youOccupiedSlots":0,"themOccupiedSlots":0,"items":[{"rawName":"visible item name or short visual description","side":"YOU|THEM|NONE","variant":"NORMAL|NEON|MEGA|UNKNOWN","potion":"NONE|F|R|FR|UNKNOWN","quantity":1,"confidence":0.0,"categoryHint":"PET|PETWEAR|EGG|VEHICLE|FOOD|GIFT|STROLLER|TOY|STICKER|OTHER|UNKNOWN","candidateNames":[],"slot":1}]}
-For TRADE, include one item object for every occupied slot even when identity is uncertain.`;
+{"imageType":"TRADE|INVENTORY|ITEM|OTHER","layoutConfidence":0.0,"youOccupiedSlots":0,"themOccupiedSlots":0,"items":[{"rawName":"visible item name or short visual description","side":"YOU|THEM|NONE","variant":"NORMAL|NEON|MEGA|UNKNOWN","potion":"NONE|F|R|FR|UNKNOWN","quantity":1,"confidence":0.0,"categoryHint":"PET|PETWEAR|EGG|VEHICLE|FOOD|GIFT|STROLLER|TOY|STICKER|OTHER|UNKNOWN","candidateNames":[],"animalType":"","bodyColors":[],"features":[],"orientation":"","box":{"x":0.0,"y":0.0,"width":0.0,"height":0.0},"slot":1}]}
+For TRADE, include one item object for every occupied slot even when identity is uncertain, and always include its box.`;
+}
+
+/* ------------------------------------------------------------------------- *
+ * Stage 2 — enlarged slot crops
+ *
+ * The browser crops every detected slot from the ORIGINAL bitmap and lays the
+ * crops out on one labelled contact sheet, so each pet occupies a few hundred
+ * pixels instead of a few dozen. This pass reads that sheet.
+ *
+ * It must produce EVIDENCE, not identities. Identity is resolved afterwards,
+ * strictly against the CSBT catalog, by verifyVisionItemFromEvidence().
+ * ------------------------------------------------------------------------- */
+
+function slotEvidenceIdentityCoverage(evidence: VisionSlotEvidence[], expectedTiles: number) {
+  if (!expectedTiles) return 0;
+  const named = evidence.filter((entry) => Boolean(entry.rawSuggestedName || entry.candidateNames.length)).length;
+  return named / expectedTiles;
+}
+
+function mergeProviderSlotEvidence(primary: VisionSlotEvidence[], secondary: VisionSlotEvidence[]) {
+  const byTile = new Map(secondary.map((entry) => [entry.tile, entry]));
+  const merged = primary.map((entry) => {
+    const other = byTile.get(entry.tile);
+    if (!other) return entry;
+    byTile.delete(entry.tile);
+    const candidateNames = [...new Set([
+      ...(entry.rawSuggestedName ? [entry.rawSuggestedName] : []),
+      ...entry.candidateNames,
+      ...(other.rawSuggestedName ? [other.rawSuggestedName] : []),
+      ...other.candidateNames,
+    ].map((name) => name.trim()).filter(Boolean))].slice(0, 7);
+    const preferOtherName = !entry.rawSuggestedName && Boolean(other.rawSuggestedName);
+    const primaryBadgeWins = entry.badgeConfidence >= other.badgeConfidence;
+    return {
+      ...entry,
+      ...(preferOtherName ? { rawSuggestedName: other.rawSuggestedName } : {}),
+      description: [entry.description, other.description].filter(Boolean).join(" | ").slice(0, 300),
+      animalType: entry.animalType || other.animalType,
+      bodyColors: [...new Set([...entry.bodyColors, ...other.bodyColors])].slice(0, 5),
+      features: [...new Set([...entry.features, ...other.features])].slice(0, 7),
+      orientation: entry.orientation || other.orientation,
+      visibleText: entry.visibleText || other.visibleText,
+      candidateNames,
+      visualConfidence: Math.max(entry.visualConfidence, other.visualConfidence * 0.96),
+      modifiers: primaryBadgeWins ? entry.modifiers : other.modifiers,
+      badgeConfidence: Math.max(entry.badgeConfidence, other.badgeConfidence),
+      // Keep the primary provider label for diagnostics; the description/candidate
+      // union still records that a supplemental provider was used at route level.
+      provider: entry.provider,
+    } satisfies VisionSlotEvidence;
+  });
+  return [...merged, ...byTile.values()];
+}
+
+function buildSlotEvidencePrompt(tiles: VisionSlotManifestEntry[]) {
+  const labels = tiles.map((tile) => tile.tile);
+  const priorHintLines = tiles
+    .filter((tile) => tile.identityHints?.length)
+    .map((tile) => `${tile.tile}: ${tile.identityHints!.join(" | ")}`);
+  return [
+    "This image is a contact sheet of enlarged Adopt Me trade/inventory slot crops. Each tile is labelled above it.",
+    `Analyze exactly these tiles and no others: ${labels.join(", ")}.`,
+    ...(priorHintLines.length
+      ? [
+          "",
+          "LOW-TRUST WHOLE-IMAGE HYPOTHESES from the earlier layout pass are listed below. They are clues, NOT answers. Challenge them against the enlarged artwork; keep a matching one when it truly fits, replace it when the crop supports something else, and never copy one blindly.",
+          ...priorHintLines,
+        ]
+      : []),
+    "",
+    "TASK A — VISUAL EVIDENCE (per tile). Describe what the artwork actually shows. Do NOT try to be the authority on the pet's name:",
+    "  animalType: the creature category you can see, e.g. dragon, dog, cat, bird, bug, fish, horse, bear, monkey, rabbit, undead.",
+    "  bodyColors: 1-3 dominant colours actually visible.",
+    "  features: short concrete observations, e.g. 'long wings', 'skeletal ribcage', 'horned head', 'fluffy mane', 'candy frosting'.",
+    "  orientation: e.g. side-facing, front-facing, three-quarter.",
+    "  visibleText: any item-name text legible in the tile, otherwise \"\".",
+    "  visualConfidence: 0..1 — how well you can actually SEE the artwork, not how sure you are of a name.",
+    "",
+    "TASK B — BEST GUESS + ALTERNATIVES (candidate evidence, not authority). If you can identify a likely Adopt Me item, ALWAYS put your single best guess in bestGuess even when you are not certain. Uncertainty belongs in visualConfidence and alternatives — do not erase a useful guess just because it needs confirmation.",
+    "possibleCatalogNames should contain up to 5 plausible Adopt Me catalog names, best first. Include bestGuess again as candidate #1 when it is plausible. If you know common community shorthand (for example 'uni horn' meaning Unicorn Horn), prefer the canonical full item name, but minor spacing/letter uncertainty is acceptable because NICH resolves names against the real catalog afterwards.",
+    "Only leave bestGuess and possibleCatalogNames empty when you genuinely cannot narrow the artwork to any meaningful item candidate. Never invent a fantasy-sounding pet just to fill the field.",
+    "",
+    "TASK C — BADGES (separate from identity). Read the small N/M/F/R badges in the tile corner, not the artwork:",
+    "  neon: true when a green N badge is visible, false when clearly absent, null when unreadable.",
+    "  mega: true when an M badge is visible, false when clearly absent, null when unreadable.",
+    "  fly: true when an F badge is visible, false when clearly absent, null when unreadable.",
+    "  ride: true when an R badge is visible, false when clearly absent, null when unreadable.",
+    "Badge letters are NEVER part of a pet name. An unreadable badge must be null — never guess it, and never let a badge change your species reading.",
+    "",
+    "Tiles that look like the same species are allowed to BE the same species. Do not force different tiles to be different pets.",
+    "",
+    "Return ONLY one JSON object, no markdown fences:",
+    '{"slots":[{"tile":"Y1","bestGuess":"","animalType":"","bodyColors":[],"features":[],"orientation":"","visibleText":"","possibleCatalogNames":[],"visualConfidence":0.0,"neon":null,"mega":null,"fly":null,"ride":null,"badgeConfidence":0.0}]}',
+  ].join("\n");
+}
+
+/* --------------------------- catalog-image match -------------------------- */
+
+type CatalogImagePart = { itemId: string; itemName: string; base64: string; mimeType: string };
+
+async function fetchCatalogImage(itemId: string): Promise<CatalogImagePart | null> {
+  const item = getItemById(itemId);
+  if (!item?.IMAGE) return null;
+  let url: URL;
+  try {
+    url = new URL(item.IMAGE);
+  } catch {
+    return null;
+  }
+  // Catalog artwork is served over HTTPS by the value provider. Anything else is
+  // not fetched: recognition abstains instead of reaching an unexpected host.
+  if (url.protocol !== "https:") return null;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), CATALOG_IMAGE_FETCH_TIMEOUT_MS);
+  try {
+    const response = await fetch(url.toString(), { signal: controller.signal, cache: "force-cache" });
+    if (!response.ok) return null;
+    const mimeType = (response.headers.get("content-type") || "image/png").split(";")[0].trim().toLowerCase();
+    if (!ALLOWED_MIME_TYPES.has(mimeType)) return null;
+    const bytes = await response.arrayBuffer();
+    if (!bytes.byteLength || bytes.byteLength > CATALOG_IMAGE_MAX_BYTES) return null;
+    return { itemId: item.ID, itemName: item.NAME, base64: Buffer.from(bytes).toString("base64"), mimeType };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function buildCatalogMatchPrompt(tile: string, candidates: CatalogImagePart[]) {
+  const letters = candidates.map((candidate, index) => String.fromCharCode(65 + index));
+  return [
+    `IMAGE 1 is a contact sheet of Adopt Me slot crops. Look ONLY at the tile labelled ${tile}.`,
+    ...candidates.map((candidate, index) => `IMAGE ${index + 2} is candidate ${letters[index]}: official catalog artwork for "${candidate.itemName}".`),
+    "",
+    `Which candidate artwork is the same pet as tile ${tile}?`,
+    "Compare silhouette, head/ear/horn shape, wings, tail, body palette, markings and accessories.",
+    "You may ONLY answer with one of these choices: " + [...letters, "NONE"].join(", ") + ".",
+    "Answer NONE if no candidate is genuinely the same pet. NONE is the correct answer whenever you are unsure — a wrong match is much worse than no match.",
+    "confidence is 0..1 and must reflect how certain the visual comparison is.",
+    "",
+    'Return ONLY: {"tile":"' + tile + '","choice":"A|B|C|D|NONE","confidence":0.0,"reason":"short visual justification"}',
+  ].join("\n");
+}
+
+function sanitizeCatalogMatchResult(value: unknown, candidates: CatalogImagePart[]): NichCatalogMatchVote | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const choice = String(record.choice ?? "").trim().toUpperCase();
+  const confidence = clamp01(record.confidence);
+  const reason = typeof record.reason === "string" ? record.reason.slice(0, 200) : undefined;
+  if (choice === "NONE") return { chosenItemId: null, confidence, ...(reason ? { reason } : {}) };
+  if (!/^[A-Z]$/.test(choice)) return null;
+  const index = choice.charCodeAt(0) - 65;
+  const candidate = candidates[index];
+  if (!candidate) return null;
+  return { chosenItemId: candidate.itemId, confidence, ...(reason ? { reason } : {}) };
 }
 
 const VISUAL_RESCUE_CANDIDATES: Array<{ match: RegExp; add: string[] }> = [
@@ -398,8 +698,8 @@ function buildFocusedRecheckPrompt(items: NichVisionVerifiedItem[], auditAllPetS
     "Never collapse a more specific current pet into a generic species merely because their silhouette is similar. In particular, explicitly discriminate Bush Elephant vs Elephant and Sugar Axolotl vs Sugar Skull Dog whenever either appears in candidatesToCompare.",
     auditAllPetSlots
       ? "This is a blind candidate audit: the first-pass choice is intentionally hidden and candidate order is arbitrary. Compare every candidate to the artwork. For known confusion families, explicitly use silhouette, ears/horns/wings/tail, face shape, body palette and markings to discriminate them."
-      : "Use candidatesToCompare as a shortlist, including known visual-confusion rescues. If none actually matches the artwork, return a different exact Adopt Me pet name rather than forcing the shortlist. Never invent a non-existent pet.",
-    "For each listed slot, return rawName as your independently chosen exact pet identity, plus up to 3 candidateNames for genuinely close alternatives. If identity is not visually defensible, lower confidence instead of bluffing.",
+      : "Use candidatesToCompare as a shortlist, including known visual-confusion rescues. If none actually matches the artwork, return a short neutral visual description with LOW confidence. Do NOT invent or introduce a different pet name outside the shortlist.",
+    "For each listed slot, return an exact pet identity only when visually defensible. If identity is unclear, rawName must be a short visual description (for example 'dark dog-like pet') with LOW confidence; candidateNames may contain up to 3 shortlist possibilities. Never invent a plausible-sounding pet name.",
     "Re-read N/M/F/R badges independently. R means Ride, F means Fly, M means Mega; badge letters are never part of the pet name.",
     "Return only the listed slots. imageType must be TRADE. layoutConfidence measures only the left/right grid geometry.",
     JSON.stringify(details),
@@ -515,15 +815,20 @@ export async function GET() {
       promptVersion: NICH_VISION_PROMPT_VERSION,
       catalogVersion: NICH_CATALOG_VERSION,
       focusedRecheck: process.env.NICH_GEMINI_VISION_FOCUSED_RECHECK_ENABLED?.trim().toLowerCase() !== "false",
-      transport: "gemini-inline-data+interactions-v1beta-baseline",
+      transport: "gemini-interactions+cloudflare-workers-ai-vision-fallback",
+      cloudflareVisionFallback: true,
+      cloudflareVisionModel: CLOUDFLARE_VISION_MODEL,
       freePlanOptimized: true,
       thinkingLevel: process.env.NICH_GEMINI_VISION_THINKING_LEVEL?.trim().toLowerCase() || "low",
       effectivePrimaryThinkingLevel: "model-default",
       fallbackModel: normalizeFallbackVisionModel(process.env.NICH_GEMINI_VISION_FAST_MODEL),
       mediaResolutionMode: "model-default-no-optional-config",
-      interactionRequestMode: "baseline-model-text-inline-image",
+      interactionRequestMode: "baseline-model-text-inline-image-with-workers-ai-location-fallback",
       screenshotPrepMode: "preserve-original-or-auto-trade-zoom-fallback",
       visualDisambiguation: "confusion-family-targeted-audit-v2",
+      recognitionMode: "slot-crop-evidence-catalog-constrained",
+      slotCropRecognition: true,
+      catalogImageMatching: process.env.NICH_VISION_CATALOG_MATCH_ENABLED?.trim().toLowerCase() !== "false",
       dailySafetyLimit: Math.floor(parseNumberSetting(process.env.NICH_GEMINI_VISION_DAILY_LIMIT, DEFAULT_DAILY_LIMIT, 1, 100_000)),
     },
     { headers: { "Cache-Control": "no-store" } },
@@ -541,7 +846,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, runId, message: "Gemini Vision is not configured yet. Add GEMINI_API_KEY to the server environment." } satisfies NichVisionApiResponse, { status: 503 });
   }
 
-  const minuteQuotaError = await consumeVisionMinuteQuota(request);
+  const visionStage: VisionStage = request.headers.get("x-nich-vision-stage")?.trim().toLowerCase() === "slots"
+    ? "slots"
+    : "layout";
+  const slotManifest: VisionSlotManifest | null = visionStage === "slots"
+    ? decodeSlotManifest(request.headers.get("x-nich-vision-manifest"))
+    : null;
+
+  const minuteQuotaError = await consumeVisionMinuteQuota(request, visionStage);
   if (minuteQuotaError) {
     return NextResponse.json({ ok: false, runId, message: minuteQuotaError } satisfies NichVisionApiResponse, { status: 429 });
   }
@@ -561,6 +873,7 @@ export async function POST(request: NextRequest) {
    * exists yet. An explicit "mm2" is refused, never silently downgraded.
    */
   const requestedGame = parseNichGameId(request.headers.get("x-nich-game") ?? "adopt-me");
+  const screenshotIntent = parseScreenshotVisionIntent(request.headers.get("x-nich-vision-intent"));
   if (requestedGame !== "adopt-me") {
     return NextResponse.json(
       {
@@ -610,7 +923,7 @@ export async function POST(request: NextRequest) {
   const overallTimeoutMs = Math.floor(parseNumberSetting(process.env.NICH_GEMINI_VISION_TIMEOUT_MS, 52_000, 15_000, 90_000));
   const deadline = Date.now() + overallTimeoutMs;
 
-  const dailyQuotaError = await consumeVisionDailyGeminiQuota(getClientIdentifier(request));
+  const dailyQuotaError = await consumeVisionDailyGeminiQuota(getClientIdentifier(request), visionStage);
   if (dailyQuotaError) {
     return NextResponse.json({ ok: false, runId, message: dailyQuotaError } satisfies NichVisionApiResponse, { status: 429 });
   }
@@ -647,6 +960,7 @@ export async function POST(request: NextRequest) {
       prompt: string,
       modelOverride: string,
       callTimeoutMs: number,
+      options?: { extraImages?: Array<{ base64: string; mimeType: string }>; rawPrompt?: boolean },
     ) => {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), Math.max(1_000, callTimeoutMs));
@@ -661,8 +975,14 @@ export async function POST(request: NextRequest) {
           body: JSON.stringify({
             model: modelOverride,
             input: [
-              { type: "text", text: plainJsonPrompt(prompt) },
+              { type: "text", text: options?.rawPrompt ? prompt : plainJsonPrompt(prompt) },
               { type: "image", data: inlineImageBase64, mime_type: mimeType },
+              // Catalog artwork for image-to-catalog comparison, when supplied.
+              ...(options?.extraImages ?? []).map((image) => ({
+                type: "image",
+                data: image.base64,
+                mime_type: image.mimeType,
+              })),
             ],
           }),
         });
@@ -671,9 +991,138 @@ export async function POST(request: NextRequest) {
       }
     };
 
+    /**
+     * Structured-JSON call that does NOT go through sanitizeModelResult, used by
+     * the slot-evidence and catalog-match passes which have their own schemas.
+     */
+    const performStructuredCall = async (
+      prompt: string,
+      modelOverride: string,
+      callTimeoutMs: number,
+      options?: { extraImages?: Array<{ base64: string; mimeType: string }> },
+    ): Promise<{ parsed: unknown; payload: GeminiVisionPayload } | null> => {
+      let response: Response;
+      try {
+        response = await callGemini(prompt, modelOverride, callTimeoutMs, {
+          ...(options?.extraImages ? { extraImages: options.extraImages } : {}),
+          rawPrompt: true,
+        });
+      } catch {
+        return null;
+      }
+      const payload = await readPayload(response);
+      if (!response.ok) {
+        const detail = safeGeminiErrorDetail(payload) || `status ${response.status}`;
+        console.warn(`[NICH Vision ${runId}] structured pass failed: ${detail.slice(0, 240)}`);
+        return null;
+      }
+      const parsed = extractBalancedJsonObject(extractText(payload));
+      if (parsed === null) return null;
+      return { parsed, payload };
+    };
+
     const readPayload = async (response: Response) => {
       try { return await response.json() as GeminiVisionPayload; }
       catch { return {} as GeminiVisionPayload; }
+    };
+
+    let cloudflareFallbackUsed = false;
+
+    /**
+     * Workers AI backup for the structured slot-evidence pass.
+     *
+     * Both providers feed the SAME catalog-constrained resolver — only the raw
+     * description comes from the model. Multi-image catalog comparison is not
+     * available on this binding, so a slot that would have needed it stays
+     * unconfirmed rather than being accepted on looser evidence.
+     */
+    const performCloudflareStructuredCall = async (prompt: string, callTimeoutMs: number) => {
+      const ai = getWorkersAiBinding();
+      if (!ai) return null;
+      try {
+        const timeout = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error("WORKERS_AI_TIMEOUT")), Math.max(1_000, callTimeoutMs));
+        });
+        const inference = ai.run(CLOUDFLARE_VISION_MODEL, {
+          messages: [
+            { role: "system", content: "You are NICH's backup screenshot reader. Follow the user's JSON-only schema exactly." },
+            { role: "user", content: prompt },
+          ],
+          image: `data:${mimeType};base64,${inlineImageBase64}`,
+          max_tokens: 3072,
+        });
+        const raw = await Promise.race([inference, timeout]);
+        return extractBalancedJsonObject(extractCloudflareAiText(raw));
+      } catch (error) {
+        console.warn(`[NICH Vision ${runId}] Workers AI structured pass failed: ${(error instanceof Error ? error.message : String(error)).slice(0, 200)}`);
+        return null;
+      }
+    };
+
+    const performCloudflareVisionFallback = async (
+      prompt: string,
+      callTimeoutMs: number,
+    ): Promise<VisionCallResult | NextResponse> => {
+      const ai = getWorkersAiBinding();
+      if (!ai) {
+        console.error(`[NICH Vision ${runId}] Workers AI fallback binding is unavailable`);
+        return NextResponse.json({
+          ok: false,
+          runId,
+          model: CLOUDFLARE_VISION_MODEL,
+          message: "Screenshot recognition is temporarily unavailable from this server region. Please try again shortly or type the trade manually.",
+        } satisfies NichVisionApiResponse, { status: 503 });
+      }
+
+      const dataUrl = `data:${mimeType};base64,${inlineImageBase64}`;
+      try {
+        const timeout = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error("WORKERS_AI_TIMEOUT")), Math.max(1_000, callTimeoutMs));
+        });
+        const inference = ai.run(CLOUDFLARE_VISION_MODEL, {
+          messages: [
+            { role: "system", content: "You are NICH's backup screenshot recognizer. Follow the user's JSON-only schema exactly." },
+            { role: "user", content: plainJsonPrompt(prompt) },
+          ],
+          image: dataUrl,
+          max_tokens: 4096,
+        });
+        const raw = await Promise.race([inference, timeout]);
+        const text = extractCloudflareAiText(raw);
+        const parsed = extractBalancedJsonObject(text);
+        if (parsed === null) {
+          console.warn(`[NICH Vision ${runId}] Workers AI fallback returned non-JSON output; textLength=${text.length}`);
+          return NextResponse.json({
+            ok: false,
+            runId,
+            model: CLOUDFLARE_VISION_MODEL,
+            message: "Nich's backup screenshot reader could not return a valid recognition result. Please try again or type the trade manually.",
+          } satisfies NichVisionApiResponse, { status: 422 });
+        }
+        const modelResult = sanitizeModelResult(parsed);
+        if (!modelResult) {
+          return NextResponse.json({
+            ok: false,
+            runId,
+            model: CLOUDFLARE_VISION_MODEL,
+            message: "Nich's backup screenshot reader could not confidently read that screenshot.",
+          } satisfies NichVisionApiResponse, { status: 422 });
+        }
+        cloudflareFallbackUsed = true;
+        console.info(`[NICH Vision ${runId}] recovered with Cloudflare Workers AI model ${CLOUDFLARE_VISION_MODEL}`);
+        return { modelResult, payload: {} as GeminiVisionPayload };
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        console.error(`[NICH Vision ${runId}] Workers AI fallback failed: ${detail.slice(0, 500)}`);
+        return NextResponse.json({
+          ok: false,
+          runId,
+          model: CLOUDFLARE_VISION_MODEL,
+          message: detail === "WORKERS_AI_TIMEOUT"
+            ? "Nich's backup screenshot reader timed out. Please try again."
+            : "Screenshot recognition is temporarily unavailable. Please try again or type the trade manually.",
+        } satisfies NichVisionApiResponse, { status: 502 });
+      }
     };
 
     const performVisionCall = async (
@@ -698,6 +1147,10 @@ export async function POST(request: NextRequest) {
       if (!response.ok) {
         const detail = safeGeminiErrorDetail(payload) || `Gemini Vision request failed with status ${response.status}.`;
         console.error(`[NICH Vision ${runId}] Interactions baseline HTTP ${response.status}: ${detail.slice(0, 500)}`);
+        if (isGeminiLocationRestriction(response.status, detail)) {
+          console.warn(`[NICH Vision ${runId}] Gemini rejected Cloudflare egress by location; switching to Workers AI vision fallback`);
+          return performCloudflareVisionFallback(prompt, Math.min(18_000, Math.max(6_000, callTimeoutMs)));
+        }
         return NextResponse.json({ ok: false, runId, model: modelOverride, message: formatVisionError(response.status, detail, modelOverride) } satisfies NichVisionApiResponse, { status: 502 });
       }
 
@@ -720,9 +1173,206 @@ export async function POST(request: NextRequest) {
       return { modelResult, payload };
     };
 
+    /* ===================================================================== *
+     * STAGE 2 — identity from enlarged slot crops.
+     *
+     * The body is a contact sheet of crops the browser cut from the ORIGINAL
+     * screenshot. The vision model only supplies visual evidence; the CSBT
+     * catalog supplies the identity, and an ambiguous slot is verified against
+     * real catalog artwork before it can be accepted.
+     * ===================================================================== */
+    if (visionStage === "slots") {
+      if (!slotManifest) {
+        return NextResponse.json({
+          ok: false,
+          runId,
+          model,
+          message: "The slot-recognition pass was missing its slot manifest.",
+        } satisfies NichVisionApiResponse, { status: 400 });
+      }
+
+      const tiles = slotManifest.tiles;
+      const allowedTiles = new Set(tiles.map((tile) => tile.tile));
+      const evidenceCall = await performStructuredCall(
+        buildSlotEvidencePrompt(tiles),
+        model,
+        Math.min(30_000, Math.max(12_000, deadline - Date.now() - 16_000)),
+      );
+
+      // ONE canonical evidence shape for both providers. Gemini and Workers AI
+      // do not honour the schema identically (field names, 0..1 vs 0..100
+      // confidence, string booleans); a strict parser silently produced empty
+      // candidate lists, which downstream is indistinguishable from "saw
+      // nothing" — and every slot became Unknown.
+      let evidence: VisionSlotEvidence[] = evidenceCall
+        ? normalizeProviderSlotEvidence(evidenceCall.parsed, allowedTiles, "gemini")
+        : [];
+      let slotCloudflareFallbackUsed = false;
+      let slotCloudflareSupplementUsed = false;
+
+      // A structurally valid Gemini response can still be useless for identity
+      // if it describes every tile but refuses to emit a best guess/candidate.
+      // In that case, ask Workers AI for an independent second opinion and merge
+      // the evidence instead of accepting a page full of Unknown cards.
+      const identityCoverage = slotEvidenceIdentityCoverage(evidence, tiles.length);
+      if (!evidence.length || identityCoverage < 0.6) {
+        const fallback = await performCloudflareStructuredCall(buildSlotEvidencePrompt(tiles), 14_000);
+        const fallbackEvidence = fallback
+          ? normalizeProviderSlotEvidence(fallback, allowedTiles, "cloudflare")
+          : [];
+        if (!evidence.length) {
+          evidence = fallbackEvidence;
+          slotCloudflareFallbackUsed = evidence.length > 0;
+        } else if (fallbackEvidence.length) {
+          evidence = mergeProviderSlotEvidence(evidence, fallbackEvidence);
+          slotCloudflareSupplementUsed = true;
+        }
+      }
+
+      if (!evidence.length) {
+        return NextResponse.json({
+          ok: false,
+          runId,
+          model,
+          message: "Nich enlarged the trade slots but could not read them clearly. Try the original (uncompressed) screenshot.",
+        } satisfies NichVisionApiResponse, { status: 422 });
+      }
+
+      const slotPayloads: GeminiVisionPayload[] = evidenceCall ? [evidenceCall.payload] : [];
+      const catalogMatchDiagnostics: Array<Record<string, unknown>> = [];
+      const catalogMatchEnabled = process.env.NICH_VISION_CATALOG_MATCH_ENABLED?.trim().toLowerCase() !== "false"
+        // Catalog-image verification uses Gemini. It remains available when
+        // Cloudflare merely supplemented a weak Gemini identity read; disable it
+        // only when Gemini was unavailable and Cloudflare carried the whole pass.
+        && !slotCloudflareFallbackUsed;
+
+      /** Compare one ambiguous crop against real catalog artwork. */
+      const verifySlot = async (item: NichVisionVerifiedItem): Promise<NichCatalogMatchVote | null> => {
+        if (!catalogMatchEnabled || Date.now() > deadline - 8_000) return null;
+        const tile = slotTileLabel(item.side, item.slot ?? 1);
+        const artwork = (await Promise.all(
+          (item.topCandidates ?? [])
+            .slice(0, CATALOG_MATCH_MAX_CANDIDATES)
+            .map((candidate) => fetchCatalogImage(candidate.itemId)),
+        )).filter((part): part is CatalogImagePart => Boolean(part));
+
+        if (artwork.length < 2) {
+          catalogMatchDiagnostics.push({ tile, skipped: "catalog-artwork-unavailable" });
+          return null;
+        }
+
+        const matchCall = await performStructuredCall(
+          buildCatalogMatchPrompt(tile, artwork),
+          fastModel,
+          Math.min(12_000, Math.max(5_000, deadline - Date.now() - 3_000)),
+          { extraImages: artwork.map((part) => ({ base64: part.base64, mimeType: part.mimeType })) },
+        );
+        if (matchCall) slotPayloads.push(matchCall.payload);
+        const vote = matchCall ? sanitizeCatalogMatchResult(matchCall.parsed, artwork) : null;
+        if (!vote) {
+          catalogMatchDiagnostics.push({ tile, skipped: "verifier-returned-no-usable-answer" });
+          return null;
+        }
+        catalogMatchDiagnostics.push({
+          tile,
+          compared: artwork.map((part) => part.itemName),
+          chosen: vote.chosenItemId ? getItemById(vote.chosenItemId)?.NAME ?? vote.chosenItemId : "NONE",
+          confidence: vote.confidence,
+          ...(vote.reason ? { reason: vote.reason } : {}),
+        });
+        return vote;
+      };
+
+      const pipeline = await runSlotRecognitionPipeline({
+        evidence,
+        tiles,
+        layoutConfidence: slotManifest.layoutConfidence,
+        maxVerifiedSlots: CATALOG_MATCH_MAX_SLOTS,
+        verifySlot,
+      });
+      const decided = pipeline.items;
+      const catalogImageMatchUsed = pipeline.catalogImageMatchUsed;
+
+      if (safeDebugEnabled()) {
+        for (const row of pipeline.diagnostics) {
+          console.info(`[NICH Vision ${runId}] [Slot ${row.slot}] ` + JSON.stringify(row));
+        }
+      }
+
+      const items = consolidateTradeSlotDetections(decided, slotManifest.imageType);
+      const tradeSession = slotManifest.imageType === "TRADE"
+        ? createTradeSessionFromVision({
+            items,
+            layoutConfidence: slotManifest.layoutConfidence,
+            recognitionVersion: VISION_PIPELINE_VERSION,
+            promptVersion: NICH_VISION_PROMPT_VERSION,
+            catalogVersion: NICH_CATALOG_VERSION,
+            screenshotId,
+            runId,
+            imageWidth: dimensions.width,
+            imageHeight: dimensions.height,
+          })
+        : undefined;
+
+      const unresolved = tradeSession?.unresolvedSlots.length ?? items.filter((item) => !item.verified).length;
+      const localPrompt = tradeSession
+        ? (unresolved ? undefined : formatTradeSessionForCalculation(tradeSession) ?? undefined)
+        : buildVisionLocalPrompt(slotManifest.imageType, items);
+
+      const summary = summarizeVisionItems(slotManifest.imageType, items);
+      const message = [
+        summary,
+        "\n✓ I enlarged each slot and matched it against the CSBT catalog instead of naming it from the full screenshot.",
+        catalogImageMatchUsed ? "✓ Uncertain slots were compared against the real catalog artwork." : "",
+        unresolved
+          ? `\n${unresolved} item${unresolved === 1 ? "" : "s"} need confirmation before I calculate anything. Use Edit on the marked slot(s) — I will not guess.`
+          : "",
+      ].filter(Boolean).join("\n");
+
+      const responseBody = {
+        ok: Boolean(items.length),
+        model,
+        imageType: slotManifest.imageType,
+        items,
+        ...(localPrompt ? { localPrompt } : {}),
+        ...(tradeSession ? { tradeSession } : {}),
+        message,
+        runId,
+        recognitionVersion: VISION_PIPELINE_VERSION,
+        promptVersion: NICH_VISION_PROMPT_VERSION,
+        catalogVersion: NICH_CATALOG_VERSION,
+        cacheStatus: "MISS" as const,
+        layoutConfidence: slotManifest.layoutConfidence,
+        image: { width: dimensions.width, height: dimensions.height, bytes: actualBytes, mimeType },
+        ...(safeDebugEnabled() ? {
+          debug: {
+            model,
+            stage: "slots",
+            layoutConfidence: slotManifest.layoutConfidence,
+            uncertainSlots: tradeSession?.unresolvedSlots ?? [],
+            focusedRecheckUsed: false,
+            catalogImageMatchUsed,
+            cloudflareFallbackUsed: slotCloudflareFallbackUsed,
+            cloudflareSupplementUsed: slotCloudflareSupplementUsed,
+            identityCoverageBeforeSupplement: Number(identityCoverage.toFixed(3)),
+            catalogMatches: catalogMatchDiagnostics,
+            // Per-slot reasoning: provider, raw suggestion, resolved catalog
+            // candidates, margin and exactly why the slot ended in its state.
+            slots: pipeline.diagnostics,
+          },
+        } : {}),
+        usage: sumUsage(...slotPayloads),
+      } satisfies NichVisionApiResponse;
+
+      console.info(`[NICH Vision ${runId}] stage=slots tiles=${tiles.length} items=${items.length} unresolved=${unresolved} catalogMatch=${catalogImageMatchUsed ? "yes" : "no"}`);
+      return NextResponse.json(responseBody);
+    }
+
     let fastRecoveryUsed = false;
+    const intentVisionPrompt = promptForScreenshotIntent(VISION_PROMPT, screenshotIntent);
+    const intentFastVisionPrompt = promptForScreenshotIntent(FAST_VISION_PROMPT, screenshotIntent);
     let initialCall = await performVisionCall(
-      VISION_PROMPT,
+      intentVisionPrompt,
       model,
       Math.min(34_000, Math.max(20_000, deadline - Date.now() - 14_000)),
       true,
@@ -732,7 +1382,7 @@ export async function POST(request: NextRequest) {
       console.warn(`[NICH Vision ${runId}] primary compact pass unavailable; falling back to ${fastModel}`);
       fastRecoveryUsed = true;
       initialCall = await performVisionCall(
-        FAST_VISION_PROMPT,
+        intentFastVisionPrompt,
         fastModel,
         Math.min(14_000, Math.max(7_000, deadline - Date.now() - 2_000)),
         false,
@@ -752,9 +1402,17 @@ export async function POST(request: NextRequest) {
     const possibleTradeMisclassification = modelResult.imageType !== "INVENTORY"
       && modelResult.imageType !== "TRADE"
       && initialItems.length === 0;
+    // A common mobile screenshot failure is recognizing the populated left grid but
+    // missing the single item on the opposite side (or vice versa). Re-verify any
+    // non-trivial one-sided trade before trusting that the other grid is truly empty.
+    const initialYouCount = initialItems.filter((item) => item.side === "YOU").length;
+    const initialThemCount = initialItems.filter((item) => item.side === "THEM").length;
+    const oneSidedTradeNeedsVerification = modelResult.imageType === "TRADE"
+      && initialItems.length >= 2
+      && (initialYouCount === 0 || initialThemCount === 0);
     let emptyTradeRecoveryUsed = false;
 
-    if ((severeUnderDetection || possibleTradeMisclassification) && Date.now() < deadline - 6_000) {
+    if ((severeUnderDetection || possibleTradeMisclassification || oneSidedTradeNeedsVerification) && Date.now() < deadline - 6_000) {
       const recoveryCall = await performVisionCall(
         EMPTY_TRADE_RECOVERY_PROMPT,
         fastModel,
@@ -767,7 +1425,16 @@ export async function POST(request: NextRequest) {
           repairTradeGeometry(recoveredModel.items, recoveredModel.imageType),
           recoveredModel.imageType,
         );
-        if (recoveredItems.length > initialItems.length || (possibleTradeMisclassification && recoveredModel.imageType === "TRADE" && recoveredItems.length > 0)) {
+        const recoveredYouCount = recoveredItems.filter((item) => item.side === "YOU").length;
+        const recoveredThemCount = recoveredItems.filter((item) => item.side === "THEM").length;
+        const recoveredBothSides = recoveredYouCount > 0 && recoveredThemCount > 0;
+        const initialBothSides = initialYouCount > 0 && initialThemCount > 0;
+        const improvedSideCoverage = oneSidedTradeNeedsVerification && !initialBothSides && recoveredBothSides;
+        if (
+          recoveredItems.length > initialItems.length
+          || improvedSideCoverage
+          || (possibleTradeMisclassification && recoveredModel.imageType === "TRADE" && recoveredItems.length > 0)
+        ) {
           emptyTradeRecoveryUsed = true;
           modelResult = recoveredModel;
           initialItems = recoveredItems;
@@ -906,6 +1573,7 @@ export async function POST(request: NextRequest) {
       summary || "I couldn’t identify any Adopt Me items confidently.",
       focusedRecheckUsed ? "\n✓ I re-checked the uncertain trade slots before showing this result." : "",
       fastRecoveryUsed ? "\n✓ NICH used the lightweight fallback when the primary read could not finish cleanly." : "",
+      cloudflareFallbackUsed ? "\n✓ Gemini's regional endpoint was unavailable, so NICH automatically used the Cloudflare vision backup." : "",
       emptyTradeRecoveryUsed ? "\n✓ The first pass missed occupied slots, so I ran a dedicated slot-recovery pass." : "",
       incompleteTradeGrid && hasActionableRecognition ? "\n⚠️ The detected items do not fully match the occupied trade grid, so I preserved the recognized slots but will not calculate an incomplete trade." : "",
       lowLayoutConfidence && hasActionableRecognition ? "\n⚠️ Some side/slot geometry is uncertain. The exact affected slots are listed above." : "",
@@ -917,7 +1585,7 @@ export async function POST(request: NextRequest) {
 
     const responseBody = {
       ok: Boolean(items.length),
-      model,
+      model: cloudflareFallbackUsed ? CLOUDFLARE_VISION_MODEL : model,
       imageType: modelResult.imageType,
       items,
       ...(localPrompt ? { localPrompt } : {}),
@@ -928,10 +1596,12 @@ export async function POST(request: NextRequest) {
       promptVersion: NICH_VISION_PROMPT_VERSION,
       catalogVersion: NICH_CATALOG_VERSION,
       cacheStatus: "MISS" as const,
+      layoutConfidence: modelResult.layoutConfidence,
       image: { width: dimensions.width, height: dimensions.height, bytes: actualBytes, mimeType, detailIncluded: false, recoveryZoomsIncluded: false },
       ...(safeDebugEnabled() ? {
         debug: {
-          model,
+          model: cloudflareFallbackUsed ? CLOUDFLARE_VISION_MODEL : model,
+          cloudflareFallbackUsed,
           layoutConfidence: modelResult.layoutConfidence,
           uncertainSlots: tradeSession?.unresolvedSlots ?? [],
           focusedRecheckUsed,
@@ -944,7 +1614,7 @@ export async function POST(request: NextRequest) {
       usage: sumUsage(...payloads),
     } satisfies NichVisionApiResponse;
 
-    console.info(`[NICH Vision ${runId}] type=${modelResult.imageType} items=${items.length} unresolved=${tradeSession?.unresolvedSlots.length ?? uncertainIdentityCount} recheck=${focusedRecheckUsed ? "yes" : "no"} transport=inline-data`);
+    console.info(`[NICH Vision ${runId}] type=${modelResult.imageType} items=${items.length} unresolved=${tradeSession?.unresolvedSlots.length ?? uncertainIdentityCount} recheck=${focusedRecheckUsed ? "yes" : "no"} transport=${cloudflareFallbackUsed ? "workers-ai-vision-fallback" : "gemini-inline-data"}`);
     return NextResponse.json(responseBody);
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);

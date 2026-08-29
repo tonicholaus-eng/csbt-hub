@@ -79,6 +79,47 @@ function withHistory(session: NichTradeSession, reason: string) {
   return pushTradeHistory(session, reason);
 }
 
+/**
+ * Session-local learning from one correction.
+ *
+ * Trade screenshots routinely contain the same pet twice with different N/F/R/M
+ * badges. When the user corrects one slot, other still-unresolved slots whose
+ * artwork read the same way get that catalog item as a STRONGER CANDIDATE — not
+ * as an automatic answer, and never as persisted training data. It lives only in
+ * this screenshot's trade session.
+ */
+function propagateCorrectionToDuplicateSlots(
+  session: NichTradeSession,
+  correctedSlot: NichTradeSlot,
+  correctedItem: { ID: string; NAME: string },
+): NichTradeSession {
+  const signature = (slot: NichTradeSlot) => ({
+    rawName: normalize(slot.rawName ?? ""),
+    evidence: normalize(slot.visualEvidence ?? ""),
+  });
+  const source = signature(correctedSlot);
+  if (!source.rawName && !source.evidence) return session;
+
+  const boost = (slots: NichTradeSlot[]) => slots.map((slot) => {
+    if (slot.slotId === correctedSlot.slotId) return slot;
+    if (slot.status === "CONFIRMED" || slot.correctedByUser) return slot;
+    const own = signature(slot);
+    const sameArtwork = (Boolean(source.rawName) && own.rawName === source.rawName)
+      || (Boolean(source.evidence) && own.evidence === source.evidence);
+    if (!sameArtwork) return slot;
+    if (slot.alternatives.some((candidate) => candidate.itemId === correctedItem.ID)) return slot;
+    return {
+      ...slot,
+      alternatives: [
+        { itemId: correctedItem.ID, itemName: correctedItem.NAME, score: 0.9, source: "CONTEXT" as const },
+        ...slot.alternatives,
+      ].slice(0, 6),
+    };
+  });
+
+  return { ...session, userSide: boost(session.userSide), theirSide: boost(session.theirSide) };
+}
+
 function applyItemCorrection(
   session: NichTradeSession,
   slot: NichTradeSlot,
@@ -119,8 +160,9 @@ function applyItemCorrection(
     correctionHistory: [...slot.correctionHistory, event].slice(-20),
   });
   const next = replaceSlot(historical, slot.slotId, updated);
+  const propagated = propagateCorrectionToDuplicateSlots(next, slot, resolution.item);
   return {
-    session: { ...next, correctionLedger: [...next.correctionLedger, event].slice(-60) },
+    session: { ...propagated, correctionLedger: [...propagated.correctionLedger, event].slice(-60) },
     itemName: resolution.item.NAME,
   };
 }
@@ -567,7 +609,9 @@ function formatCurrentTradeState(session: NichTradeSession) {
     .slice()
     .sort((a, b) => a.gridPosition - b.gridPosition)
     .map((slot, index) => {
-      const name = slot.canonicalName ?? slot.rawName ?? `Unknown slot ${slot.gridPosition}`;
+      const name = slot.status === "UNRESOLVED"
+        ? `Unknown item (slot ${slot.gridPosition})`
+        : slot.canonicalName ?? slot.rawName ?? `Unknown slot ${slot.gridPosition}`;
       const variantKnown = slot.neon !== null && slot.mega !== null && slot.fly !== null && slot.ride !== null;
       return `${index + 1}. ${variantKnown ? `${slotVariantLabel(slot)} ` : "? "}${name}`;
     });
@@ -851,13 +895,14 @@ export function handleActiveTradeMessage(input: NichBrainInput): NichResponse | 
     }
   }
 
-  // Screenshot recognition and explicit follow-ups can ask to calculate the
-  // already-confirmed structured trade without converting it back into prose.
-  if (
-    !session.unresolvedSlots.length &&
-    /^(?:w\/?f\/?l|calculate|recalculate|analy[sz]e)(?:\s+(?:this|the|my|our))?(?:\s+trade)?$/i.test(normalize(message))
-  ) {
-    return calculateSession(session, input);
+  // Screenshot upload itself never implies W/F/L. Once the user explicitly asks
+  // for W/F/L/calculation, use the stored screenshot trade. If recognition is
+  // still uncertain, show only the confirmation state instead of calculating or
+  // guessing the unresolved identities.
+  if (/^(?:w\/?f\/?l|calculate|recalculate|analy[sz]e)(?:\s+(?:this|the|my|our))?(?:\s+trade)?$/i.test(normalize(message))) {
+    return session.unresolvedSlots.length
+      ? unresolvedClarification(session, "I can check that trade, but I need the uncertain slot(s) confirmed first.")
+      : calculateSession(session, input);
   }
 
   // A short answer such as "np" is enough when exactly one unresolved slot

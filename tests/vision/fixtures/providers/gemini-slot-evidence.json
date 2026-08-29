@@ -1,0 +1,8 @@
+{
+  "slots": [
+    { "tile": "Y1", "animalType": "dragon", "bodyColors": ["white", "blue"], "features": ["icy spikes", "large wings"], "orientation": "side-facing", "visibleText": "", "possibleCatalogNames": ["Frost Dragon", "Frost Fury"], "visualConfidence": 0.72, "neon": true, "mega": false, "fly": true, "ride": true, "badgeConfidence": 0.88 },
+    { "tile": "Y2", "animalType": "dragon", "bodyColors": ["green"], "features": ["multiple heads"], "orientation": "front-facing", "visibleText": "", "possibleCatalogNames": ["Hydra"], "visualConfidence": 0.61, "neon": false, "mega": false, "fly": false, "ride": true, "badgeConfidence": 0.8 },
+    { "tile": "T1", "animalType": "dog", "bodyColors": ["orange", "white"], "features": ["fluffy coat", "small"], "orientation": "side-facing", "visibleText": "", "possibleCatalogNames": ["Pomeranian"], "visualConfidence": 0.64, "neon": false, "mega": false, "fly": false, "ride": false, "badgeConfidence": 0.7 },
+    { "tile": "T2", "animalType": "cat", "bodyColors": [], "features": [], "orientation": "", "visibleText": "", "possibleCatalogNames": [], "visualConfidence": 0.24, "neon": null, "mega": null, "fly": null, "ride": null, "badgeConfidence": 0.2 }
+  ]
+}

@@ -38,6 +38,12 @@ const CURATED_ALIASES: Record<string, string> = {
   "cupid drag": "Cupid Dragon",
   "fairy bat": "Fairy Bat Dragon",
   "balloon uni": "Balloon Unicorn",
+  "uni horn": "Unicorn Horn",
+  unihorn: "Unicorn Horn",
+  "raincloud hat": "Rain Cloud Hat",
+  raincloudhat: "Rain Cloud Hat",
+  "raincloud rat": "Rain Cloud Hat",
+  raincloudrat: "Rain Cloud Hat",
 };
 
 const RESERVED_TRADE_METADATA = new Set([
