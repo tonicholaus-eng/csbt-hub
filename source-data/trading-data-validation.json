@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-08-28T12:17:04.036Z",
+  "generatedAt": "2026-08-29T18:30:38.247Z",
   "categories": {
-    "PET": 769,
+    "PET": 770,
     "PETWEAR": 938,
     "EGG": 37,
     "VEHICLE": 268,
@@ -12,11 +12,10 @@
     "STICKER": 365,
     "OTHER": 28
   },
-  "total": 3384,
+  "total": 3385,
   "warnings": [
     "2023 Uplift Butterfly: no matching Elve Shark snapshot record; workbook fallback used.",
     "Pet Rock: no matching Elve Shark snapshot record; workbook fallback used.",
-    "Pet Rock: skipped because neither GCash nor Elve has a regular value.",
     "Firework Wings: no matching Elve Shark snapshot record; workbook fallback used.",
     "Firework Wings: skipped because neither GCash nor Elve has a regular value.",
     "Princess Botties: no matching Elve Shark snapshot record; workbook fallback used.",
