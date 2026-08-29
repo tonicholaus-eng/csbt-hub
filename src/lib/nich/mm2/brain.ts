@@ -39,7 +39,6 @@ import {
   MM2_SOURCE_LABELS,
   sourceLabelFor,
   toItemSummary,
-  type MM2Activity,
   type MM2SourceLabel,
   type MM2StructuredResult,
 } from "./result";
@@ -116,7 +115,6 @@ function local(
   options: {
     sources?: MM2SourceLabel[];
     structured?: MM2StructuredResult;
-    activity?: MM2Activity;
     extras?: Partial<NichResponse>;
   } = {},
 ): NichResponse {
@@ -132,7 +130,6 @@ function local(
       channel: "LOCAL",
       sources: options.sources ?? [MM2_SOURCE_LABELS.LOCAL_ENGINE],
       ...(options.structured ? { structured: options.structured } : {}),
-      ...(options.activity ? { activity: options.activity } : {}),
     },
     ...options.extras,
   };
@@ -341,7 +338,6 @@ export function routeMM2NichMessage(input: MM2BrainInput): MM2BrainResult | null
     return finish(
       local(formatMM2TradeResult(parse, evaluation), analysis.intent, 1, {
         sources: [MM2_SOURCE_LABELS.TRADE_ENGINE, sourceLabelFor(source)],
-        activity: "ANALYZING TRADE",
         structured: {
           kind: "trade",
           verdict: evaluation.verdict,
@@ -411,7 +407,6 @@ export function routeMM2NichMessage(input: MM2BrainInput): MM2BrainResult | null
           MM2_SOURCE_LABELS.CATALOG,
           analysis.sort === "demand-desc" ? MM2_SOURCE_LABELS.DEMAND : sourceLabelFor(source),
         ],
-        activity: "SEARCHING CATALOG",
         structured: {
           kind: "catalog",
           // The card renders its own emphasis, so strip the prose markdown.
@@ -522,7 +517,6 @@ export function routeMM2NichMessage(input: MM2BrainInput): MM2BrainResult | null
   return finish(
     local(answerItemValue(item, source, GAME).text, analysis.intent, 1, {
       sources: [MM2_SOURCE_LABELS.LOCAL_ENGINE, sourceLabelFor(source)],
-      activity: "QUERYING MM2 DATABASE",
       structured: { kind: "item", item: summary, focus: source === "GCASH" ? "GCASH" : "SUPREME" },
       extras,
     }),

@@ -6,15 +6,14 @@
  * important invariant is trivial and absolute: `gameId` is the literal `"mm2"`,
  * hard-coded, never derived from a prop, a route param or the message.
  *
- * It also owns MM2 conversation persistence, under an MM2-only storage key. The
- * desk and the console therefore share one MM2 conversation — asking "harvester
- * value" on the homepage and then "what about gcash?" in the console works,
- * and neither can ever read Adopt Me state.
+ * Persistence is not here: the console owns the whole MM2 session — transcript
+ * and structured context together — in `lib/nich/mm2/session.ts`. Splitting
+ * them was the bug that lost the visible conversation on refresh while keeping
+ * MM2's memory, so there is now exactly one record and one place that writes it.
  */
 
 import type { NichResponse } from "../../../components/nich/assistant/brain/types";
-import { NICH_MM2_CONTEXT_STORAGE_KEY } from "../../../components/nich/assistant/NichChatPersistence";
-import { createMM2Context, sanitizeMM2Context, type MM2NichContext } from "./context";
+import { sanitizeMM2Context, type MM2NichContext } from "./context";
 
 export type MM2AskResult =
   | { ok: true; response: NichResponse; context: MM2NichContext }
@@ -46,34 +45,6 @@ export function buildMM2NichHref(query?: string | null): string {
 export function readForwardedQuery(value: string | string[] | undefined): string | undefined {
   const raw = Array.isArray(value) ? value[0] : value;
   return String(raw ?? "").trim().slice(0, MM2_QUERY_MAX_LENGTH) || undefined;
-}
-
-export function readMM2Context(): MM2NichContext {
-  if (typeof window === "undefined") return createMM2Context();
-  try {
-    const raw = window.localStorage.getItem(NICH_MM2_CONTEXT_STORAGE_KEY);
-    return raw ? sanitizeMM2Context(JSON.parse(raw)) : createMM2Context();
-  } catch {
-    return createMM2Context();
-  }
-}
-
-export function writeMM2Context(context: MM2NichContext): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(NICH_MM2_CONTEXT_STORAGE_KEY, JSON.stringify(context));
-  } catch {
-    // Storage is a convenience; the in-memory context still drives follow-ups.
-  }
-}
-
-export function clearMM2Context(): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.removeItem(NICH_MM2_CONTEXT_STORAGE_KEY);
-  } catch {
-    // Nothing to do — a stale context is harmless and self-corrects.
-  }
 }
 
 /** Post one MM2 turn. Never throws; failures come back as `ok: false`. */

@@ -98,7 +98,7 @@ export function routeNichForGame(request: NichGameRequest): NichGameResult {
         // Marked AI up front: if a model does answer, the label is already
         // correct, and if none is configured the user still sees an honest
         // "no local answer" rather than a claimed catalog result.
-        meta: { gameId, channel: "AI", sources: ["NICH AI", "MM2 CONTEXT"], activity: "THINKING" },
+        meta: { gameId, channel: "AI", sources: ["NICH AI", "MM2 CONTEXT"] },
       },
       context,
       handledLocally: false,

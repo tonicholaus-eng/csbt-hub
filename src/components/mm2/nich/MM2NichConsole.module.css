@@ -596,7 +596,9 @@
 .ok { color: #7fd6a0 !important; }
 
 .resetButton {
-  margin-top: 10px;
+  /* Stands alone in its own rail block now, so it fills the block rather than
+     hanging off the bottom of the context list. */
+  width: 100%;
   padding: 6px 9px;
   color: var(--ink-3);
   font-family: inherit;

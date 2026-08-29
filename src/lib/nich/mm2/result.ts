@@ -138,22 +138,23 @@ export type MM2StructuredResult =
 export type MM2ResponsePayload = {
   sources: MM2SourceLabel[];
   structured?: MM2StructuredResult;
-  /** Short activity label the avatar showed while producing this. */
-  activity?: MM2Activity;
 };
 
 /**
- * NICH's working state, surfaced in the UI.
+ * NICH's working state, as rendered by the console.
  *
- * Mapped from what the engine is actually doing, not from a timer. `THINKING`
- * is reserved for the AI fallback so the label never claims a model was
- * involved in a catalog read.
+ * This is a *client* state, not something the backend reports. An earlier draft
+ * shipped an `activity` field on the response payload, but by the time a
+ * response lands the work is over — the label it carried could only ever be
+ * displayed retroactively, and the answer's real provenance is already stated
+ * exactly by the `sources` chips. Rather than send a field the UI could not
+ * honestly use, the console derives its own in-flight label from what the
+ * pipeline provably does first: the local MM2 engine always runs before any
+ * model, so "QUERYING MM2 DATABASE" is true of every request while it is open.
  */
 export type MM2Activity =
   | "ONLINE"
   | "QUERYING MM2 DATABASE"
-  | "RESOLVING WEAPON"
   | "ANALYZING TRADE"
   | "SEARCHING CATALOG"
-  | "THINKING"
   | "READY";

@@ -137,10 +137,13 @@ test("the console page reads a forwarded query defensively", () => {
 test("the console guards the forwarded query against double execution", () => {
   const console_ = read("src/components/mm2/nich/MM2NichConsole.tsx");
 
-  // A ref latch, compared against the query itself, is what makes a re-render
-  // or React's dev double-invoke idempotent.
-  assert.match(console_, /forwardedRef/);
-  assert.match(console_, /if \(forwardedRef\.current === query\) return;/);
+  // A ref latch compared against the query makes a re-render or React's dev
+  // double-invoke idempotent; persisting the consumed query and stripping it
+  // from the URL covers a refresh. tests/mm2NichSession.test.ts covers the
+  // persisted half behaviourally.
+  assert.match(console_, /consumedQueryRef/);
+  assert.match(console_, /if \(consumedQueryRef\.current === query\)/);
+  assert.match(console_, /router\.replace\(pathname/);
 
   // The desk must also refuse a second navigation from a double submit.
   const desk = read("src/components/mm2/MM2NichDesk.tsx");

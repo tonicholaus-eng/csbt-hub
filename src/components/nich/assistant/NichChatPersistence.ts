@@ -22,20 +22,20 @@ type PersistedNichChat = {
 };
 
 /**
- * Storage keys are game-namespaced.
+ * Adopt Me's storage keys.
  *
- * Adopt Me keeps its existing `:v2` / `:v1:` keys so no signed-in user loses a
- * saved conversation or their aliases on this change. MM2 gets its own
- * namespace: an MM2 turn can never be read back into an Adopt Me conversation,
- * and per-user MM2 aliases cannot resolve against the Adopt Me catalog, because
- * the two never share a storage slot.
+ * They keep their existing `:v2` / `:v1:` names so no signed-in user loses a
+ * saved conversation or their aliases.
+ *
+ * MM2's keys deliberately do not live here. MM2 owns its whole session —
+ * transcript plus structured context in one record — in
+ * `lib/nich/mm2/session.ts`, under `csbt-hub:nich-session:mm2:v1`. Two games,
+ * two stores, no shared slot: an MM2 turn can never be read back into an Adopt
+ * Me conversation, and Adopt Me state can never hydrate the MM2 console.
  */
 const NICH_CHAT_STORAGE_KEY =
   "csbt-hub:nich-chat:v2";
 const NICH_USER_MEMORY_PREFIX = "csbt-hub:nich-memory:v1:";
-
-export const NICH_MM2_CHAT_STORAGE_KEY = "csbt-hub:nich-chat:mm2:v1";
-export const NICH_MM2_CONTEXT_STORAGE_KEY = "csbt-hub:nich-context:mm2:v1";
 
 export function clearSavedChat() {
   if (typeof window === "undefined") return;

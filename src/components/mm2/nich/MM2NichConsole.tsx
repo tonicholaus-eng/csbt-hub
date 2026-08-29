@@ -1,19 +1,23 @@
 "use client";
 
 import Image from "next/image";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import styles from "./MM2NichConsole.module.css";
 import MM2NichCard from "./MM2NichCards";
+import { askMM2Nich } from "../../../lib/nich/mm2/client";
 import {
-  askMM2Nich,
-  clearMM2Context,
-  readMM2Context,
-  writeMM2Context,
+  clearMM2Session,
+  createMM2Session,
+  readMM2Session,
+  writeMM2Session,
   type MM2NichContext,
-} from "../../../lib/nich/mm2/client";
+  type MM2NichSession,
+  type MM2SessionMessage,
+} from "../../../lib/nich/mm2/session";
 import { isMM2ResponseMeta } from "../../../lib/nich/responseMeta";
-import type { MM2Activity, MM2SourceLabel, MM2StructuredResult } from "../../../lib/nich/mm2/result";
+import type { MM2Activity } from "../../../lib/nich/mm2/result";
 
 /**
  * The MM2 NICH operations console.
@@ -24,20 +28,21 @@ import type { MM2Activity, MM2SourceLabel, MM2StructuredResult } from "../../../
  * (LOCAL MM2 ENGINE / SUPREME VALUES / TRADE ENGINE / NICH AI). Those labels
  * come from the backend's `meta`, never from inspecting the text here.
  *
- * State ownership: the MM2 conversation context lives in `lib/nich/mm2/client`
- * under an MM2-only storage key, shared with the homepage desk, so a question
- * started on the homepage continues here with its follow-up context intact.
+ * State ownership: the console owns one MM2 session — the visible transcript
+ * and the structured context together — persisted by `lib/nich/mm2/session`
+ * under an MM2-only key. They are stored as a single record on purpose: when
+ * they lived apart, a refresh restored MM2's memory while the conversation
+ * itself vanished.
  */
 
-type ConsoleMessage = {
-  id: string;
-  role: "user" | "nich";
-  text: string;
-  sources?: MM2SourceLabel[];
-  channel?: "LOCAL" | "AI";
-  structured?: MM2StructuredResult;
-  error?: boolean;
-};
+/**
+ * The transcript entry is the *persisted* shape.
+ *
+ * Using one type for both means anything the console can render is by
+ * definition serialisable, so a message cannot be displayed in a form that
+ * survives a refresh only partially.
+ */
+type ConsoleMessage = MM2SessionMessage;
 
 type QuickOperation = {
   id: string;
@@ -57,11 +62,16 @@ const QUICK_OPERATIONS: QuickOperation[] = [
   { id: "gcash", label: "GCash value", template: "gcash value of " },
 ];
 
+/**
+ * The boot line. Rendered above a restored transcript rather than stored in
+ * it, so it never accumulates and never counts against the history cap.
+ */
 const GREETING: ConsoleMessage = {
   id: "boot",
   role: "nich",
   text:
     "MM2 intelligence system online. I read the MM2 weapon catalog directly — Supreme and GCash values, demand, comparisons and Win/Fair/Lose. Ask me anything about MM2.",
+  createdAt: 0,
   sources: ["LOCAL MM2 ENGINE", "MM2 CATALOG"],
   channel: "LOCAL",
 };
@@ -104,31 +114,63 @@ export default function MM2NichConsole({
     syncedOn: string;
   };
 }) {
-  const [messages, setMessages] = useState<ConsoleMessage[]>([GREETING]);
+  // Starts empty on both server and client so the first render matches the
+  // markup; the stored session arrives after mount.
+  const [messages, setMessages] = useState<ConsoleMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [activity, setActivity] = useState<MM2Activity>("ONLINE");
   const [pending, setPending] = useState(false);
   const [context, setContext] = useState<MM2NichContext | null>(null);
+  /**
+   * The write gate.
+   *
+   * Without it the persistence effect fires on the first render, saves the
+   * empty initial state over the stored session, and hydration then finds
+   * nothing — the transcript would be erased by the very code meant to keep it.
+   */
+  const [hydrated, setHydrated] = useState(false);
+
+  const router = useRouter();
+  const pathname = usePathname();
 
   const inputRef = useRef<HTMLInputElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
   const contextRef = useRef<MM2NichContext | null>(null);
   const requestRef = useRef(0);
-  /**
-   * Guards the forwarded query against React 18 double-invocation in dev, a
-   * refresh, and a re-render that changes `initialQuery`'s identity. Without
-   * it "harvester value" would be asked twice on arrival.
-   */
-  const forwardedRef = useRef<string | null>(null);
+  /** Queries already consumed, so a re-render or a refresh cannot repeat one. */
+  const consumedQueryRef = useRef<string | null>(null);
 
   useEffect(() => {
-    // Deferred so this hydration-only sync does not synchronously cascade
-    // another render (React 19 / eslint react-hooks rule), matching the
-    // pattern NichAssistant already uses for the same situation.
-    const stored = readMM2Context();
-    contextRef.current = stored;
-    queueMicrotask(() => setContext(stored));
+    // Client-only, and deferred so this hydration sync does not synchronously
+    // cascade another render (React 19 / eslint react-hooks rule) — the same
+    // pattern NichAssistant already uses.
+    const stored = readMM2Session();
+    contextRef.current = stored.context;
+    consumedQueryRef.current = stored.consumedQuery ?? null;
+
+    queueMicrotask(() => {
+      setMessages(stored.messages);
+      setContext(stored.context);
+      setHydrated(true);
+    });
   }, []);
+
+  /**
+   * Persist the whole session — transcript and structured context together.
+   *
+   * Gated on `hydrated` so it can never run before the restore, and keyed on
+   * the two things that actually constitute the session. Transient state
+   * (pending, activity, the draft) is deliberately excluded: it must not be
+   * restored, and it must not trigger a write.
+   */
+  useEffect(() => {
+    if (!hydrated || context === null) return;
+    writeMM2Session({
+      messages,
+      context,
+      ...(consumedQueryRef.current ? { consumedQuery: consumedQueryRef.current } : {}),
+    });
+  }, [hydrated, messages, context]);
 
   useEffect(() => {
     transcriptRef.current?.scrollTo({ top: transcriptRef.current.scrollHeight, behavior: "smooth" });
@@ -141,12 +183,14 @@ export default function MM2NichConsole({
     const requestId = requestRef.current + 1;
     requestRef.current = requestId;
 
-    setMessages((current) => [...current, { id: messageId(), role: "user", text: message }]);
+    setMessages((current) => [...current, { id: messageId(), role: "user", text: message, createdAt: Date.now() }]);
     setDraft("");
     setPending(true);
 
-    // Provisional activity from the shape of the question. The response's own
-    // reported activity replaces it as soon as it lands.
+    // The in-flight label. Truthful for every request: the local MM2 engine
+    // always runs before any model, so the console is genuinely querying the
+    // MM2 database while this is shown. Where the answer finally came from is
+    // stated exactly by the provenance chips on the response itself.
     const normalized = message.toLowerCase();
     setActivity(
       /\bfor their\b|\bwfl\b/.test(normalized)
@@ -156,7 +200,9 @@ export default function MM2NichConsole({
           : "QUERYING MM2 DATABASE",
     );
 
-    const current = contextRef.current ?? readMM2Context();
+    // The ref is populated by the hydration effect before any send is possible,
+    // so a fresh session is only ever used on the very first turn.
+    const current = contextRef.current ?? createMM2Session().context;
     const result = await askMM2Nich(message, current);
 
     if (requestRef.current !== requestId) return;
@@ -165,7 +211,7 @@ export default function MM2NichConsole({
       if (result.error) {
         setMessages((messagesNow) => [
           ...messagesNow,
-          { id: messageId(), role: "nich", text: result.error, error: true },
+          { id: messageId(), role: "nich", text: result.error, createdAt: Date.now(), error: true },
         ]);
       }
       setPending(false);
@@ -175,7 +221,6 @@ export default function MM2NichConsole({
 
     contextRef.current = result.context;
     setContext(result.context);
-    writeMM2Context(result.context);
 
     const meta = isMM2ResponseMeta(result.response.meta) ? result.response.meta : undefined;
 
@@ -185,6 +230,9 @@ export default function MM2NichConsole({
         id: messageId(),
         role: "nich",
         text: result.response.text,
+        createdAt: Date.now(),
+        // Provenance is stored with the message, so a restored answer still
+        // shows where it actually came from instead of being re-guessed.
         sources: meta?.sources,
         channel: meta?.channel,
         structured: meta?.structured,
@@ -195,17 +243,35 @@ export default function MM2NichConsole({
     setActivity("READY");
   }, [pending]);
 
-  // Forwarded homepage query. Fires once, after context has loaded.
+  /**
+   * The forwarded homepage question, run exactly once.
+   *
+   * Three separate things could otherwise repeat it: a re-render, React's dev
+   * double-invoke, and — now that the transcript survives — a refresh with the
+   * same `?q=` still in the address bar. The ref covers the first two; the
+   * consumed query is persisted with the session for the third, and the URL is
+   * then cleaned so a shared or bookmarked link does not re-ask on every visit.
+   */
   useEffect(() => {
+    if (!hydrated) return;
+
     const query = initialQuery?.trim();
-    if (!query || context === null) return;
-    if (forwardedRef.current === query) return;
-    forwardedRef.current = query;
+    if (!query) return;
+
+    if (consumedQueryRef.current === query) {
+      // Already answered in a previous life of this page. Drop it from the URL
+      // so a further refresh is unambiguous, but do not re-ask.
+      router.replace(pathname, { scroll: false });
+      return;
+    }
+
+    consumedQueryRef.current = query;
     void send(query);
+    router.replace(pathname, { scroll: false });
     // `send` is intentionally omitted: including it would re-run this effect
     // whenever `pending` flips, re-asking the forwarded question.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialQuery, context]);
+  }, [initialQuery, hydrated, pathname, router]);
 
   const runQuickOperation = useCallback((operation: QuickOperation) => {
     if (operation.immediate) {
@@ -232,13 +298,22 @@ export default function MM2NichConsole({
     void send(message);
   }, [send]);
 
+  /**
+   * Clear the whole MM2 session: transcript, structured context and the
+   * consumed-query marker, in storage as well as in memory. Adopt Me's keys
+   * are untouched. A refresh afterwards must stay empty, which is why the
+   * legacy context key is removed too rather than left to migrate back in.
+   */
   const resetConversation = useCallback(() => {
     requestRef.current += 1;
-    clearMM2Context();
-    const fresh = readMM2Context();
-    contextRef.current = fresh;
-    setContext(fresh);
-    setMessages([GREETING]);
+    clearMM2Session();
+
+    const fresh: MM2NichSession = createMM2Session();
+    contextRef.current = fresh.context;
+    consumedQueryRef.current = null;
+
+    setContext(fresh.context);
+    setMessages([]);
     setPending(false);
     setActivity("ONLINE");
   }, []);
@@ -298,7 +373,7 @@ export default function MM2NichConsole({
       <div className={styles.body}>
         <section className={styles.workspace} aria-label="NICH conversation">
           <div className={styles.transcript} ref={transcriptRef}>
-            {messages.map((message) =>
+            {[GREETING, ...messages].map((message) =>
               message.role === "user" ? (
                 <div key={message.id} className={styles.userTurn}>
                   <span>{message.text}</span>
@@ -397,6 +472,15 @@ export default function MM2NichConsole({
                   <li key={row}>{row}</li>
                 ))}
               </ul>
+            </div>
+          ) : null}
+
+          {/* Now that the transcript survives a reload, it needs an exit that
+              does not depend on structured memory: a session can hold messages
+              with no active weapon (AI fallbacks), and that must still be
+              clearable. */}
+          {activeContext || messages.length ? (
+            <div className={styles.railBlock}>
               <button type="button" className={styles.resetButton} onClick={resetConversation}>
                 Clear session
               </button>
