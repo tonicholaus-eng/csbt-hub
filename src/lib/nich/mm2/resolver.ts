@@ -20,6 +20,7 @@ import { mm2Catalog, type MM2CatalogItem } from "../../mm2/catalog";
 import { assertGameContext } from "../game/guard";
 import type { NichGameId } from "../game/types";
 import { MM2_CURATED_ALIASES, MM2_RESERVED_TOKENS } from "./aliases";
+import { editDistance, isAcronymOf } from "../core/text";
 
 export type MM2ResolutionKind =
   | "exact-id"
@@ -28,6 +29,10 @@ export type MM2ResolutionKind =
   | "context"
   | "normalized"
   | "prefix"
+  /** The query is how the name starts once spacing is dropped ("icep"). */
+  | "abbreviation"
+  /** The query is the name's initials ("cf" → Chroma Fang). */
+  | "acronym"
   | "typo";
 
 export type MM2ItemResolution =
@@ -54,22 +59,14 @@ function mm2Squash(value: string): string {
   return mm2Normalize(value).replace(/\s+/g, "");
 }
 
-function levenshtein(a: string, b: string): number {
-  if (a === b) return 0;
-  if (!a.length) return b.length;
-  if (!b.length) return a.length;
-
-  let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
-  for (let i = 1; i <= a.length; i += 1) {
-    const current = [i];
-    for (let j = 1; j <= b.length; j += 1) {
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      current[j] = Math.min(current[j - 1] + 1, previous[j] + 1, previous[j - 1] + cost);
-    }
-    previous = current;
-  }
-  return previous[b.length];
-}
+/**
+ * Typo distance, shared with the rest of NICH.
+ *
+ * `editDistance` counts a transposition as one edit, so "icepicer" and
+ * "harvsetter" stay inside the same threshold that already accepted a single
+ * substitution — the two typos people actually make cost the same.
+ */
+const levenshtein = editDistance;
 
 // ---------------------------------------------------------------------------
 // Indexes (built once)
@@ -238,6 +235,33 @@ export function resolveMM2Item(query: string, options: MM2ResolveOptions): MM2It
     }
   }
 
+  // 6b — abbreviation: the query is how the name *starts* once spacing is
+  // dropped. This is how MM2 traders actually shorten things ("icep", "chromaf",
+  // "batw"), and it is only accepted when exactly one weapon starts that way,
+  // so "ice" — which fits dozens — still falls through to disambiguation.
+  const squashedQuery = mm2Squash(raw);
+  if (squashedQuery.length >= 4) {
+    const abbreviated = pool.filter((entry) => mm2Squash(entry.normalized).startsWith(squashedQuery));
+    if (abbreviated.length === 1) {
+      return { status: "resolved", item: abbreviated[0].item, confidence: 0.9, kind: "abbreviation", alternatives: [] };
+    }
+    if (abbreviated.length > 1 && abbreviated.length <= 6) {
+      return { status: "ambiguous", query: raw, candidates: dedupe(abbreviated.map((entry) => entry.item)) };
+    }
+  }
+
+  // 6c — initials: "cf" for Chroma Fang. Unique matches only, and never for a
+  // single letter, which would match a tenth of the catalog.
+  if (/^[a-z]{2,4}$/.test(normalized)) {
+    const acronyms = pool.filter((entry) => isAcronymOf(normalized, entry.normalized));
+    if (acronyms.length === 1) {
+      return { status: "resolved", item: acronyms[0].item, confidence: 0.86, kind: "acronym", alternatives: [] };
+    }
+    if (acronyms.length > 1 && acronyms.length <= 6) {
+      return { status: "ambiguous", query: raw, candidates: dedupe(acronyms.map((entry) => entry.item)) };
+    }
+  }
+
   // 7 — unique prefix, then unique containment. A query short enough to match
   // half the catalog is rejected rather than resolved on the first hit.
   if (normalized.length >= 3) {
@@ -251,10 +275,18 @@ export function resolveMM2Item(query: string, options: MM2ResolveOptions): MM2It
       return { status: "ambiguous", query: raw, candidates: prefixed.map((entry) => entry.item) };
     }
 
-    const contained = pool.filter((entry) => {
-      const words = entry.normalized.split(" ");
-      return words.includes(normalized) || entry.normalized.includes(normalized);
-    });
+    /**
+     * Substring matching is only safe once the query is long enough to be a
+     * name. Three letters sit inside dozens of weapons — "ass" is inside
+     * "Passion" — and matching one of them turns a throwaway word in a sentence
+     * into a confident item lookup.
+     */
+    const contained = normalized.length < 5
+      ? []
+      : pool.filter((entry) => {
+          const words = entry.normalized.split(" ");
+          return words.includes(normalized) || entry.normalized.includes(normalized);
+        });
     if (contained.length === 1) {
       return { status: "resolved", item: contained[0].item, confidence: 0.88, kind: "prefix", alternatives: [] };
     }

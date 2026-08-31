@@ -167,6 +167,14 @@ export type MM2ComparisonFacts = {
   items: MM2CatalogItem[];
   metric: MM2CompareMetric;
   source: MM2ValueSource;
+  /**
+   * Which end of the ranking the question was about.
+   *
+   * "which is best" and "which is worst" are the same computation read from
+   * opposite ends; carrying the direction here keeps one ranking rather than
+   * letting the caller re-sort and risk disagreeing with the card.
+   */
+  direction: "highest" | "lowest";
   /** null when too few weapons are priced/rated to rank honestly. */
   winner: MM2CatalogItem | null;
   runnerUp: MM2CatalogItem | null;
@@ -179,7 +187,7 @@ export type MM2ComparisonFacts = {
 
 export function compareMM2Items(
   items: MM2CatalogItem[],
-  args: { source: MM2ValueSource; metric: MM2CompareMetric; gameId: NichGameId },
+  args: { source: MM2ValueSource; metric: MM2CompareMetric; gameId: NichGameId; direction?: "highest" | "lowest" },
 ): MM2ComparisonFacts | null {
   assertGameContext(GAME, args.gameId, "compareMM2Items");
 
@@ -191,10 +199,13 @@ export function compareMM2Items(
 
   const measurable = unique.filter((item) => measure(item) !== null);
 
+  const direction = args.direction ?? "highest";
+
   const base: MM2ComparisonFacts = {
     items: unique,
     metric: args.metric,
     source: args.source,
+    direction,
     winner: null,
     runnerUp: null,
     edge: null,
@@ -204,9 +215,11 @@ export function compareMM2Items(
 
   if (measurable.length < 2) return base;
 
-  const sorted = [...measurable].sort((a, b) => (measure(b) ?? 0) - (measure(a) ?? 0));
+  const sorted = [...measurable].sort((a, b) =>
+    direction === "lowest" ? (measure(a) ?? 0) - (measure(b) ?? 0) : (measure(b) ?? 0) - (measure(a) ?? 0),
+  );
   const [winner, runnerUp] = sorted;
-  const edge = (measure(winner) ?? 0) - (measure(runnerUp) ?? 0);
+  const edge = Math.abs((measure(winner) ?? 0) - (measure(runnerUp) ?? 0));
 
   return { ...base, winner, runnerUp, edge, tied: edge === 0 };
 }
@@ -226,7 +239,7 @@ export function formatComparison(facts: MM2ComparisonFacts): string {
     }
     return facts.tied
       ? `${rows}\n\n**${facts.winner.NAME}** and **${facts.runnerUp.NAME}** are tied on demand.`
-      : `${rows}\n\n**${facts.winner.NAME}** has the higher demand.`;
+      : `${rows}\n\n**${facts.winner.NAME}** has the ${facts.direction === "lowest" ? "lower" : "higher"} demand.`;
   }
 
   const rows = facts.items
@@ -252,7 +265,9 @@ export function formatComparison(facts: MM2ComparisonFacts): string {
   const scale =
     multiple !== null && multiple >= 2 ? ` (about ${multiple >= 10 ? Math.round(multiple) : multiple.toFixed(1)}x)` : "";
 
-  return `${header}\n${rows}\n\n**${facts.winner.NAME}** is worth more by ${formatMM2Value(facts.edge ?? 0)}${scale}.`;
+  return facts.direction === "lowest"
+    ? `${header}\n${rows}\n\n**${facts.winner.NAME}** is the cheaper one, by ${formatMM2Value(facts.edge ?? 0)}.`
+    : `${header}\n${rows}\n\n**${facts.winner.NAME}** is worth more by ${formatMM2Value(facts.edge ?? 0)}${scale}.`;
 }
 
 export function answerCompare(

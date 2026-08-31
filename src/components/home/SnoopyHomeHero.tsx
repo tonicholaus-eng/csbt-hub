@@ -17,7 +17,7 @@ const actions = [
   { href: "/values", label: "Check Values", icon: "star" as const, tone: "blue", panel: "01", kicker: "FIND + CHECK", copy: "Search an item and open its live value page." },
   { href: "/calculator", label: "Compare Trades", icon: "scale" as const, tone: "red", panel: "02", kicker: "TRADE TIME", copy: "Put both offers side by side before you decide." },
   { href: "/demand", label: "Demand Trends", icon: "chart" as const, tone: "yellow", panel: "03", kicker: "MARKET PULSE", copy: "See what is moving beyond the raw number." },
-  { href: "/nich", label: "Ask Nich", icon: "heart" as const, tone: "cream", panel: "04", kicker: "HEY, NICH!", copy: "Ask for trade help or your next move." },
+  { href: "/nich", label: "Ask NICH", icon: "heart" as const, tone: "cream", panel: "04", kicker: "HEY, NICH!", copy: "Ask for trade help or your next move." },
 ] as const;
 
 function formatRefreshDate(value: string) {
@@ -72,7 +72,7 @@ export default function SnoopyHomeHero({ totalItems, categoryCount, generatedAt 
     { value: `${totalItems.toLocaleString()}+`, label: "Items", description: "Tracked values", accent: "blue" },
     { value: `${categoryCount}`, label: "Categories", description: "Across the CSBT database", accent: "red" },
     { value: <MiniIcon name="diamond" />, label: "2 Value Sources", description: "GCash + Elve Shark", accent: "blue" },
-    { value: <MiniIcon name="robot" />, label: "Nich Assistant", description: "Help anytime you need it", accent: "red" },
+    { value: <MiniIcon name="robot" />, label: "NICH Assistant", description: "Help anytime you need it", accent: "red" },
   ] as const;
 
   return (

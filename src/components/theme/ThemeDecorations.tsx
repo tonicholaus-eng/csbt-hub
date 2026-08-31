@@ -100,6 +100,17 @@ function ThemeLayer({ kind, items }: { kind: "dark" | "halloween" | "light" | "s
 
 export default function ThemeDecorations() {
   const pathname = usePathname();
+
+  /**
+   * Adopt Me only.
+   *
+   * The layers are hidden inside MM2 by CSS anyway — every appearance rule is
+   * gated on the game boundary — but there is no reason to ship four layers of
+   * Adopt Me stickers into MM2's DOM and have a phone lay them out. Returning
+   * early is both the cheaper and the more obviously correct answer.
+   */
+  if (pathname === "/mm2" || pathname.startsWith("/mm2/")) return null;
+
   const key = pageKey(pathname);
   const contextual = pageMotifs[key] ?? [];
   const contextItems: Deco[] = contextual.map((motif, index) => ({ motif, x: [20, 58, 74][index] ?? 50, y: [31, 58, 82][index] ?? 50, size: [50, 42, 58][index] ?? 48, rotate: [-8, 7, -4][index] ?? 0, mobile: index === 0 }));

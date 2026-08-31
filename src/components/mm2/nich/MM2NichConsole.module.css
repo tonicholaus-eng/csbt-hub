@@ -434,6 +434,12 @@
 
 /* --- right rail ------------------------------------------------------------ */
 
+/* The mobile reference panel.
+    above 860px so the rail's own grid still lays the blocks
+   out exactly as it did — the wrapper is invisible to layout on desktop. */
+.reference { display: contents; }
+.referenceToggle { display: none; }
+
 .rail {
   display: grid;
   align-content: start;
@@ -1009,6 +1015,63 @@
 }
 
 @media (max-width: 860px) {
+  /* The conversation owns the phone screen.
+     The rail used to stack four blocks under the chat — a 160px portrait, quick
+     checks, context, and a five-row stat list — so the composer sat a long way
+     down a page whose whole purpose is the message box. The quick checks stay
+     (they are actions), and the two reference blocks fold behind one control. */
+  .portrait { display: none; }
+
+  .reference {
+    display: none;
+    gap: 12px;
+  }
+
+  .referenceOpen { display: grid; }
+
+  .referenceToggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    min-height: 46px;
+    padding: 0 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    border-right: 1px solid rgba(255, 255, 255, 0.055);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.045);
+    background: linear-gradient(145deg, rgba(16, 20, 27, 0.66), rgba(5, 7, 10, 0.78));
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    color: #8d95a3;
+    clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
+  }
+
+  .referenceToggle i {
+    font-style: normal;
+    font-size: 15px;
+    color: #ef596b;
+  }
+
+  /* Quick checks read as one row of chips rather than a stack of full-width
+     buttons: they are shortcuts, not the primary action on the screen. */
+  .operations {
+    display: flex;
+    gap: 7px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+
+  .operations::-webkit-scrollbar { display: none; }
+
+  .operations button {
+    flex: 0 0 auto;
+    min-height: 44px;
+    white-space: nowrap;
+  }
+
   .hud {
     flex-direction: column;
     align-items: flex-start;
@@ -1029,9 +1092,10 @@
 }
 
 @media (max-width: 560px) {
-  .userTurn span { max-width: 88%; font-size: 12.5px; }
-  .nichTurn { max-width: 100%; }
-  .operations { grid-template-columns: minmax(0, 1fr); }
+  /* Chat is reading. 12.5px was small enough that a long W/F/L breakdown was
+     genuinely hard to follow on a phone; 14px is the floor for body text. */
+  .userTurn span { max-width: 88%; font-size: 14px; }
+  .nichTurn { max-width: 100%; font-size: 14px; }
   .composer button { padding: 8px 10px; }
   .catalogList li { flex-wrap: wrap; }
   .catalogList b { margin-left: 0; }

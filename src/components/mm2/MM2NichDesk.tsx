@@ -105,11 +105,11 @@ export default function MM2NichDesk() {
         </Link>
 
         <div className={styles.nichFooter}>
-          <span>LOCAL ENGINE</span>
+          <span>VALUES</span>
           <i />
-          <span>MM2 DATA</span>
+          <span>DEMAND</span>
           <i />
-          <span>AI READY</span>
+          <span>TRADES</span>
         </div>
       </div>
 

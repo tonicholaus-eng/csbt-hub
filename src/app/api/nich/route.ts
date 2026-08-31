@@ -14,9 +14,11 @@ import { resetNichContext } from "@/components/nich/assistant/memory/context";
 import { buildNichSystemPrompt } from "@/lib/nich/prompts";
 import {
   nichMissingGameResponse,
+  routeMM2WithSemanticModel,
   routeNichForGameSafely,
   type NichGameRequest,
 } from "@/lib/nich/gameRouter";
+import type { MM2SemanticAsk } from "@/lib/nich/mm2/aiSemantic";
 import { parseNichGameId, type NichGameId } from "@/lib/nich/game/types";
 import { sanitizeMM2Context } from "@/lib/nich/mm2/context";
 import { recordNichRoute } from "@/lib/nich/telemetry";
@@ -940,6 +942,73 @@ function getGeminiModelCandidates() {
     ),
   ).slice(0, 4);
 }
+
+/**
+ * Whether MM2's semantic fallback may run.
+ *
+ * Opt-in, and only with a key: the deterministic MM2 brain answers the vast
+ * majority of turns for free, and this path exists for the tail. Enabling it
+ * costs one small model call on messages the local engine declined.
+ */
+function canUseMM2SemanticAI() {
+  return (
+    isEnabledSetting(process.env.NICH_MM2_SEMANTIC_AI, false) &&
+    Boolean(process.env.GEMINI_API_KEY?.trim())
+  );
+}
+
+/**
+ * Ask a model to parse one MM2 message into JSON.
+ *
+ * Deliberately separate from `generateWithGemini`: that path rewrites an answer
+ * the engine already produced, this one produces no user-visible text at all.
+ * Small token budget, no history, no catalog — the reply is a handful of item
+ * phrases that `lib/nich/mm2/aiSemantic` then checks against the real data.
+ */
+const askMM2SemanticModel: MM2SemanticAsk = async ({ system, user }) => {
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  if (!apiKey) return null;
+
+  for (const model of getGeminiModelCandidates()) {
+    const controller = new AbortController();
+    const timeout = setTimeout(
+      () => controller.abort(),
+      getTimeoutSetting(process.env.NICH_GEMINI_TIMEOUT_MS, DEFAULT_GEMINI_TIMEOUT_MS),
+    );
+
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+          signal: controller.signal,
+          body: JSON.stringify({
+            system_instruction: { parts: [{ text: system }] },
+            contents: [{ role: "user", parts: [{ text: user }] }],
+            generationConfig: {
+              maxOutputTokens: 256,
+              responseMimeType: "application/json",
+              thinkingConfig: { thinkingLevel: "minimal" },
+            },
+          }),
+        },
+      );
+
+      if (!response.ok) continue;
+
+      const payload = (await response.json()) as GeminiResponsePayload;
+      const text = extractGeminiText(payload);
+      if (text) return text;
+    } catch (error) {
+      console.warn(`[NICH MM2 semantic: ${model}]`, error);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  return null;
+};
 
 function normalizeNumericToken(token: string) {
   return token
@@ -2131,7 +2200,7 @@ export async function POST(
   } catch {
     return NextResponse.json(
       {
-        error: "Invalid JSON request.",
+        error: "Something went wrong sending that message. Try again.",
       },
       {
         status: 400,
@@ -2145,7 +2214,7 @@ export async function POST(
   if (!message) {
     return NextResponse.json(
       {
-        error: "A message is required.",
+        error: "Type a question and I’ll take a look.",
       },
       {
         status: 400,
@@ -2167,7 +2236,7 @@ export async function POST(
       {
         response: nichMissingGameResponse(),
         mode: "local",
-        error: "A gameId of \"adopt-me\" or \"mm2\" is required.",
+        error: "I couldn’t tell which game that question was about. Open NICH from Adopt Me or MM2 and ask again.",
       },
       { status: 400 },
     );
@@ -2178,7 +2247,18 @@ export async function POST(
       ? { gameId, message, context: sanitizeMM2Context(body.context) }
       : { gameId, message, context: sanitizeContext(body.context) };
 
-  const routed = routeNichForGameSafely(gameRequest);
+  /**
+   * MM2 only: when the deterministic brain cannot read a message, a model may
+   * be asked what it *meant* — never what anything is worth. Its reading is
+   * validated against the MM2 catalog and answered by the same local engine, so
+   * this can change which question gets answered but never the numbers in the
+   * answer. Off unless NICH_MM2_SEMANTIC_AI is enabled, because it costs a call.
+   */
+  const routed =
+    gameRequest.gameId === "mm2" && canUseMM2SemanticAI()
+      ? await routeMM2WithSemanticModel(gameRequest, askMM2SemanticModel)
+      : routeNichForGameSafely(gameRequest);
+
   const deterministicResponse = routed.response;
 
   if (containsTagalogCurse(message)) {

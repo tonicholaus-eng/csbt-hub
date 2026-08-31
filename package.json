@@ -33,7 +33,8 @@
     "data:validate:mm2": "node scripts/validate-mm2-data.js",
     "refresh:mm2": "npm run update:mm2-supreme && npm run sync:mm2-master && npm run generate:mm2 && npm run data:validate:mm2 && npm run push:mm2-catalog",
     "update:mm2-supreme": "node scripts/update-mm2-supreme-values.js",
-    "push:mm2-catalog": "node scripts/push-mm2-catalog.mjs"
+    "push:mm2-catalog": "node scripts/push-mm2-catalog.mjs",
+    "test:mm2-nich": "tsx scripts/test-mm2-nich.ts"
   },
   "dependencies": {
     "@next/third-parties": "16.3.0",

@@ -838,12 +838,12 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const runId = `vision-${globalThis.crypto.randomUUID()}`;
   if (process.env.NICH_GEMINI_VISION_ENABLED?.trim().toLowerCase() === "false") {
-    return NextResponse.json({ ok: false, runId, message: "Screenshot recognition is currently disabled." } satisfies NichVisionApiResponse, { status: 503 });
+    return NextResponse.json({ ok: false, runId, message: "Screenshot reading is switched off right now. Type the trade in and I’ll check it." } satisfies NichVisionApiResponse, { status: 503 });
   }
 
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) {
-    return NextResponse.json({ ok: false, runId, message: "Gemini Vision is not configured yet. Add GEMINI_API_KEY to the server environment." } satisfies NichVisionApiResponse, { status: 503 });
+    return NextResponse.json({ ok: false, runId, message: "Screenshot reading isn’t available right now. Type the trade in and I’ll check it." } satisfies NichVisionApiResponse, { status: 503 });
   }
 
   const visionStage: VisionStage = request.headers.get("x-nich-vision-stage")?.trim().toLowerCase() === "slots"
@@ -936,7 +936,7 @@ export async function POST(request: NextRequest) {
   try {
     imageBytes = await request.arrayBuffer();
   } catch {
-    return NextResponse.json({ ok: false, runId, model, message: "The screenshot body could not be read." } satisfies NichVisionApiResponse, { status: 400 });
+    return NextResponse.json({ ok: false, runId, model, message: "I couldn’t open that screenshot. Try uploading it again." } satisfies NichVisionApiResponse, { status: 400 });
   }
 
   const actualBytes = imageBytes.byteLength;
@@ -1070,7 +1070,7 @@ export async function POST(request: NextRequest) {
           ok: false,
           runId,
           model: CLOUDFLARE_VISION_MODEL,
-          message: "Screenshot recognition is temporarily unavailable from this server region. Please try again shortly or type the trade manually.",
+          message: "I can’t read screenshots at the moment. Try again shortly, or type the trade in and I’ll check it.",
         } satisfies NichVisionApiResponse, { status: 503 });
       }
 
@@ -1096,7 +1096,7 @@ export async function POST(request: NextRequest) {
             ok: false,
             runId,
             model: CLOUDFLARE_VISION_MODEL,
-            message: "Nich's backup screenshot reader could not return a valid recognition result. Please try again or type the trade manually.",
+            message: "I couldn’t read that screenshot. Try a clearer one, or type the trade in and I’ll check it.",
           } satisfies NichVisionApiResponse, { status: 422 });
         }
         const modelResult = sanitizeModelResult(parsed);
@@ -1105,7 +1105,7 @@ export async function POST(request: NextRequest) {
             ok: false,
             runId,
             model: CLOUDFLARE_VISION_MODEL,
-            message: "Nich's backup screenshot reader could not confidently read that screenshot.",
+            message: "I couldn’t read that screenshot clearly. Try a sharper one.",
           } satisfies NichVisionApiResponse, { status: 422 });
         }
         cloudflareFallbackUsed = true;
@@ -1138,7 +1138,7 @@ export async function POST(request: NextRequest) {
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") {
           console.warn(`[NICH Vision ${runId}] ${modelOverride} baseline interaction timed out after ${callTimeoutMs}ms`);
-          return NextResponse.json({ ok: false, runId, model: modelOverride, message: "Screenshot recognition pass timed out." } satisfies NichVisionApiResponse, { status: 504 });
+          return NextResponse.json({ ok: false, runId, model: modelOverride, message: "That screenshot took too long to read. Give it another go." } satisfies NichVisionApiResponse, { status: 504 });
         }
         throw error;
       }
@@ -1162,7 +1162,7 @@ export async function POST(request: NextRequest) {
           ok: false,
           runId,
           model: modelOverride,
-          message: "Gemini read the screenshot but returned an invalid recognition format. NICH will try the lightweight fallback automatically.",
+          message: "I couldn’t quite read that screenshot — giving it another try.",
         } satisfies NichVisionApiResponse, { status: 422 });
       }
 
@@ -1187,7 +1187,7 @@ export async function POST(request: NextRequest) {
           ok: false,
           runId,
           model,
-          message: "The slot-recognition pass was missing its slot manifest.",
+          message: "I lost track of the trade slots in that screenshot. Upload it again and I’ll retry.",
         } satisfies NichVisionApiResponse, { status: 400 });
       }
 
@@ -1234,7 +1234,7 @@ export async function POST(request: NextRequest) {
           ok: false,
           runId,
           model,
-          message: "Nich enlarged the trade slots but could not read them clearly. Try the original (uncompressed) screenshot.",
+          message: "I zoomed in but still couldn’t read the items. Try the original, uncompressed screenshot.",
         } satisfies NichVisionApiResponse, { status: 422 });
       }
 

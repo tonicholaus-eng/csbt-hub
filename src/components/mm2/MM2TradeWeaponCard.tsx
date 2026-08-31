@@ -61,7 +61,7 @@ export default function MM2TradeWeaponCard({
         type="button"
         onClick={onRemove}
         aria-label={`Remove ${selectedItem.item.NAME} from trade`}
-        className="absolute right-2 top-2 z-20 flex h-7 w-7 items-center justify-center rounded-full border border-red-300/15 bg-red-500 text-[12px] font-black text-white shadow-lg transition hover:scale-105 hover:bg-red-400 sm:h-8 sm:w-8"
+        className="csbt-tap absolute right-2 top-2 z-20 flex h-7 w-7 items-center justify-center rounded-full border border-red-300/15 bg-red-500 text-[12px] font-black text-white shadow-lg transition hover:scale-105 hover:bg-red-400 sm:h-8 sm:w-8"
       >
         ✕
       </button>

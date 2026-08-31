@@ -5,6 +5,7 @@ import { GoogleAnalytics } from "@next/third-parties/google";
 import GlobalNichAssistant from "../components/nich/GlobalNichAssistant";
 import PerformanceProvider from "../components/PerformanceProvider";
 import ThemeProvider from "../components/ThemeProvider";
+import GameBoundary from "../components/GameBoundary";
 import ThemeDecorations from "../components/theme/ThemeDecorations";
 import BirthdayEventGateway from "../components/birthday/BirthdayEventGateway";
 
@@ -96,19 +97,47 @@ export const metadata: Metadata = {
 };
 
 
+/**
+ * Appearance and game boundary, both set before first paint.
+ *
+ * `data-theme` is the user's saved *preference*. `data-game` is which game the
+ * current URL belongs to, and it is what decides whether that preference is
+ * allowed to style anything: every Adopt Me appearance rule in globals.css is
+ * gated on `:not([data-game="mm2"])`.
+ *
+ * Both are written by this inline script rather than by React, because a user
+ * landing directly on /mm2 with "snoopy" saved would otherwise get one painted
+ * frame of Adopt Me's cream palette before hydration corrected it.
+ */
 const themeInitScript = `
 (function () {
+  var root = document.documentElement;
   try {
     var saved = localStorage.getItem("csbt-theme");
     var theme = saved === "halloween" || saved === "light" || saved === "snoopy" || saved === "dark" ? saved : "dark";
-    var root = document.documentElement;
     root.dataset.theme = theme;
     root.classList.toggle("dark", theme === "dark" || theme === "halloween");
     root.style.colorScheme = theme === "light" || theme === "snoopy" ? "light" : "dark";
   } catch (_) {
-    document.documentElement.dataset.theme = "dark";
-    document.documentElement.classList.add("dark");
-    document.documentElement.style.colorScheme = "dark";
+    root.dataset.theme = "dark";
+    root.classList.add("dark");
+    root.style.colorScheme = "dark";
+  }
+  try {
+    var path = location.pathname;
+    var isMM2 = path === "/mm2" || path.indexOf("/mm2/") === 0;
+    root.dataset.game = isMM2 ? "mm2" : "adopt-me";
+    // MM2 is a dark product whatever Adopt Me is set to. Two things follow from
+    // that and neither can be expressed in gated CSS: color-scheme is an inline
+    // style, and the .dark class is what Tailwind's dark: variants key off — the
+    // shared Exchange, Lounge and Trade Opinions components render inside MM2
+    // and would otherwise use their light values under a Snoopy preference.
+    if (isMM2) {
+      root.style.colorScheme = "dark";
+      root.classList.add("dark");
+    }
+  } catch (_) {
+    root.dataset.game = "adopt-me";
   }
 })();
 `;
@@ -132,6 +161,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen overflow-x-hidden bg-background font-sans text-foreground antialiased">
         <ThemeProvider>
+          <GameBoundary />
           <PerformanceProvider>
             <ThemeDecorations />
             <BirthdayEventGateway />

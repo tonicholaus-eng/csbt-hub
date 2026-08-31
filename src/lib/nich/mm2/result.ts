@@ -134,10 +134,41 @@ export type MM2StructuredResult =
       candidates: MM2ItemSummary[];
     };
 
+/**
+ * How an answer was reached, for development only.
+ *
+ * Attached by the brain when `NODE_ENV !== "production"` and stripped
+ * everywhere else, so it can be verbose without ever reaching a user. It is
+ * descriptive, never load-bearing: nothing reads it back to make a decision.
+ */
+export type MM2InterpretationDebug = {
+  message: string;
+  intent: string;
+  secondaryIntents: string[];
+  confidence: number;
+  path: "FAST" | "SMART";
+  /** What tipped the intent, in the scorer's own words. */
+  why: string[];
+  entities: Array<{ name: string; phrase: string; kind: string; confidence: number }>;
+  references: Array<{ phrase: string; kind: string; resolved: string[]; from: string }>;
+  targets: string[];
+  ambiguous: string[];
+  unresolved: string[];
+  metric: string | null;
+  source: string | null;
+  category: string | null;
+  concepts: string[];
+  trade: { yours: string[]; theirs: string[]; how: string; complete: boolean } | null;
+  /** The route the brain actually took, e.g. "TRADE_WIN" or "CLARIFY". */
+  route: string;
+};
+
 /** What the console shows and how it labels the answer's provenance. */
 export type MM2ResponsePayload = {
   sources: MM2SourceLabel[];
   structured?: MM2StructuredResult;
+  /** Development-only interpretation trace. Never set in production builds. */
+  debug?: MM2InterpretationDebug;
 };
 
 /**

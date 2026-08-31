@@ -27,6 +27,19 @@
   }
 }
 
+/* Phones read the trade as a sequence, not as a comparison.
+   Two 1fr columns on a 390px screen leaves each side about 170px wide: a
+   weapon thumbnail, a truncated name, and a value that has to wrap. Stacked,
+   each side gets the full width and the page reads the way a trade is spoken —
+   what you give, then what you get, then the verdict (which is pinned to the
+   bottom of the screen the whole time). */
+@media (max-width: 639px) {
+  .tradeBoard {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+}
+
 @media (min-width: 1500px) {
   .tradeBoard {
     grid-template-columns: minmax(0, 1fr) 96px minmax(0, 1fr);

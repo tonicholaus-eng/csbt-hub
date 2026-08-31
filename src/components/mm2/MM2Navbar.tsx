@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuthSession } from "../../hooks/useAuthSession";
+import GameModeSwitch from "../games/GameModeSwitch";
 
 type IconName = "home" | "values" | "calculator" | "radar" | "nich" | "exchange" | "opinions" | "lounge";
 
@@ -147,35 +148,35 @@ export default function MM2Navbar() {
           </Link>
 
           <div className="mb-3 border-t border-white/[0.055] border-r border-white/[0.05] border-b border-white/[0.04] bg-[linear-gradient(145deg,rgba(16,20,27,.62),rgba(5,7,10,.76))] p-3 [clip-path:polygon(0_0,calc(100%-9px)_0,100%_9px,100%_100%,0_100%)]">
-            <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-[.14em] text-[#757d8a]"><span>System Status</span><span className="text-[#70c88c]">Local</span></div>
-            <div className="mt-2 flex items-center gap-2 text-[10px] font-black text-[#cbd0d7]"><i className="h-1.5 w-1.5 rounded-full bg-[#43c66b] shadow-[0_0_10px_rgba(67,198,107,.7)]"/> MM2 COMMAND DECK READY</div>
+            <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-[.14em] text-[#757d8a]"><span>MM2 Values</span><span className="text-[#70c88c]">Up to date</span></div>
+            <div className="mt-2 flex items-center gap-2 text-[10px] font-black text-[#cbd0d7]"><i className="h-1.5 w-1.5 rounded-full bg-[#43c66b] shadow-[0_0_10px_rgba(67,198,107,.7)]"/> READY TO TRADE</div>
           </div>
 
-          <div className="mb-2 flex items-center justify-between text-[9px] font-black uppercase tracking-[.15em] text-[#737b88]"><span>Game Mode</span><span className="text-[#ec4b60]">MM2 Active</span></div>
-          <div className="grid grid-cols-2 overflow-hidden border-t border-white/[0.075] border-r border-white/[0.06] border-b border-white/[0.045] bg-black/30 [clip-path:polygon(0_0,calc(100%-9px)_0,100%_9px,100%_100%,0_100%)]">
-            <Link href="/" className="flex min-h-[44px] items-center justify-center text-[11px] font-black text-[#858d9a] transition hover:bg-white/[0.035] hover:text-white">ADM</Link>
-            <Link href="/mm2" aria-current="page" className="flex min-h-[44px] items-center justify-center border-l border-[#e33b54]/24 bg-[linear-gradient(135deg,rgba(105,11,28,.68),rgba(168,18,39,.35))] text-[11px] font-black text-[#ffd6dc] shadow-[inset_0_0_20px_rgba(224,37,59,.08)]">MM2</Link>
-          </div>
+          {/* The same shared control the Adopt Me rail renders, wearing MM2's
+              palette. It used to be a second hand-written copy here, which is
+              how the two rails drifted into labelling the same destination
+              "ADM" on one side and "Adopt Me" on the other. */}
+          <GameModeSwitch variant="rail" className="mm2-game-switch" />
         </div>
       </aside>
 
-      <div className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#04060a]/96 shadow-[0_14px_32px_rgba(0,0,0,.30)] backdrop-blur-2xl lg:hidden">
+      <div className="csbt-safe-top sticky top-0 z-50 border-b border-white/[0.06] bg-[#04060a]/96 shadow-[0_14px_32px_rgba(0,0,0,.30)] backdrop-blur-2xl lg:hidden">
         <div className="flex items-center justify-between gap-3 px-3 pt-2.5">
           <Link href="/mm2" className="flex min-w-0 items-center gap-2.5">
             <span className="relative flex h-9 w-9 shrink-0 overflow-hidden border border-[#e23a53]/25 bg-black/30 [clip-path:polygon(0_0,calc(100%-6px)_0,100%_6px,100%_100%,0_100%)]"><Image src="/logo.png" alt="CSBT HUB" fill className="object-cover" sizes="36px"/></span>
             <strong className="truncate text-[15px] font-black leading-none tracking-[-.04em] text-white"><span className="text-[#ed344e]">CSBT</span> HUB</strong>
           </Link>
-          <div className="grid shrink-0 grid-cols-2 overflow-hidden border border-white/[0.075] bg-black/30 [clip-path:polygon(0_0,calc(100%-6px)_0,100%_6px,100%_100%,0_100%)]">
-            <Link href="/" className="flex min-h-[34px] min-w-[46px] items-center justify-center text-[10px] font-black text-[#858d9a]">ADM</Link>
-            <Link href="/mm2" aria-current="page" className="flex min-h-[34px] min-w-[46px] items-center justify-center border-l border-[#e23a53]/24 bg-[#8e1228]/45 text-[10px] font-black text-[#ffd5da]">MM2</Link>
-          </div>
+          <GameModeSwitch variant="compact" className="mm2-game-switch" />
         </div>
         <nav aria-label="MM2 sections" className="relative">
-          <div className="flex items-center gap-1.5 overflow-x-auto px-3 pb-2.5 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {/* A scrolling chip rail rather than a drawer: eight destinations,
+              all one tap away, with no menu to open first. The mask tells the
+              user there is more to the right without needing a scrollbar. */}
+          <div className="csbt-scroll-x csbt-safe-x flex items-center gap-1.5 px-3 pb-2.5 pt-2 [mask-image:linear-gradient(90deg,transparent,#000_14px,#000_calc(100%-22px),transparent)]">
             {allLinks.map((item) => {
               const active = activeFor(pathname, item.href);
               return (
-                <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined} aria-label={item.label} className={`flex min-h-10 shrink-0 items-center gap-1.5 border px-3 text-[11px] font-black transition [clip-path:polygon(0_0,calc(100%-6px)_0,100%_6px,100%_100%,0_100%)] ${active ? "border-[#e23b54]/28 bg-[#8e1228]/42 text-[#ffd6db]" : "border-white/[0.06] bg-white/[0.02] text-[#868e9a]"}`}>
+                <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined} aria-label={item.label} className={`flex min-h-11 shrink-0 items-center gap-1.5 border px-3.5 text-[11.5px] font-black transition [clip-path:polygon(0_0,calc(100%-6px)_0,100%_6px,100%_100%,0_100%)] ${active ? "border-[#e23b54]/28 bg-[#8e1228]/42 text-[#ffd6db]" : "border-white/[0.06] bg-white/[0.02] text-[#868e9a]"}`}>
                   <span className="h-[14px] w-[14px] [&_svg]:h-full [&_svg]:w-full [&_svg]:fill-none [&_svg]:stroke-current [&_svg]:stroke-[1.7] [&_svg]:[stroke-linecap:round] [&_svg]:[stroke-linejoin:round]"><NavIcon name={item.icon}/></span>
                   {item.shortLabel}
                 </Link>

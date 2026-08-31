@@ -9,7 +9,7 @@ import { readForwardedQuery } from "../../../lib/nich/mm2/client";
 export const metadata: Metadata = {
   title: "NICH — MM2 Intelligence System",
   description:
-    "NICH reads the CSBT MM2 weapon catalog directly: Supreme and GCash values, demand, comparisons and deterministic Win/Fair/Lose.",
+    "Ask NICH about any MM2 weapon: Supreme and GCash values, demand, comparisons, and Win / Fair / Lose on a trade.",
 };
 
 type MM2Row = {

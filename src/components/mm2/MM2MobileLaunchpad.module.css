@@ -1,0 +1,234 @@
+/* ==========================================================================
+   MM2 mobile launchpad
+   ==========================================================================
+   Phones only. Above 720px this file renders nothing at all and the desktop
+   command room is the homepage, exactly as before.
+
+   The visual language is the desktop room's, compressed: the same graphite
+   panels, the same crimson edge light, the same clipped corners. What changes
+   is the composition — atmosphere is expressed in a border and a glow rather
+   than in 600px of floor.
+   ========================================================================== */
+
+.launchpad {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .launchpad {
+    display: grid;
+    gap: 14px;
+    padding: 4px 0 18px;
+  }
+
+  /* --- identity: where am I ---------------------------------------------- */
+
+  .identity {
+    display: grid;
+    gap: 6px;
+    justify-items: start;
+  }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 0.18em;
+    color: #7b8290;
+  }
+
+  .eyebrow i {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: #43c66b;
+    box-shadow: 0 0 10px rgba(67, 198, 107, 0.7);
+  }
+
+  .title {
+    margin: 0;
+    font-size: clamp(28px, 8.5vw, 34px);
+    font-weight: 900;
+    line-height: 0.95;
+    letter-spacing: -0.045em;
+    color: #fff;
+  }
+
+  .title strong { color: #ed344e; font-weight: 900; }
+
+  .tagline {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    color: #8d95a3;
+  }
+
+  /* --- search ------------------------------------------------------------ */
+
+  .search {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    align-items: center;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background: linear-gradient(145deg, rgba(16, 20, 27, 0.9), rgba(5, 7, 10, 0.94));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+  }
+
+  .searchIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6f7784;
+  }
+
+  .searchIcon svg {
+    width: 17px;
+    height: 17px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+  }
+
+  .search input {
+    min-height: 52px;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    /* 16px: anything smaller makes Safari zoom the page on focus. */
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    outline: none;
+  }
+
+  .search input::placeholder { color: #5d646f; font-weight: 600; }
+  .search input::-webkit-search-cancel-button { filter: invert(0.5); }
+
+  .search button {
+    min-height: 44px;
+    margin-right: 6px;
+    padding: 0 14px;
+    border: 1px solid rgba(237, 52, 78, 0.28);
+    background: linear-gradient(135deg, rgba(143, 18, 36, 0.92), rgba(194, 37, 57, 0.7));
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    color: #fff4f5;
+    clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+  }
+
+  .search:focus-within {
+    border-top-color: rgba(237, 52, 78, 0.45);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 0 3px rgba(226, 52, 74, 0.12);
+  }
+
+  /* --- the four destinations --------------------------------------------- */
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .tile {
+    display: grid;
+    align-content: start;
+    gap: 3px;
+    /* Comfortably past the 44px minimum: these are the page's primary targets. */
+    min-height: 92px;
+    padding: 12px 11px;
+    border-top: 1px solid rgba(255, 255, 255, 0.075);
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    background:
+      radial-gradient(ellipse at 100% 0%, rgba(142, 14, 34, 0.16), transparent 62%),
+      linear-gradient(150deg, rgba(17, 21, 28, 0.92), rgba(6, 8, 11, 0.94));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+    text-decoration: none;
+  }
+
+  .tile:active {
+    background:
+      radial-gradient(ellipse at 100% 0%, rgba(180, 20, 44, 0.24), transparent 62%),
+      linear-gradient(150deg, rgba(24, 12, 16, 0.95), rgba(8, 6, 8, 0.96));
+  }
+
+  .tileIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    margin-bottom: 4px;
+    border: 1px solid rgba(241, 74, 97, 0.22);
+    background: rgba(143, 20, 41, 0.16);
+    color: #ffd5da;
+    clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+  }
+
+  .tileIcon svg {
+    width: 17px;
+    height: 17px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .tile strong {
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: -0.015em;
+    color: #fff;
+  }
+
+  .tile small {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: #7b828f;
+  }
+
+  /* --- everything else, one swipe away ------------------------------------ */
+
+  .secondary {
+    display: flex;
+    gap: 7px;
+    padding-bottom: 2px;
+  }
+
+  .secondary a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 0 13px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.022);
+    font-size: 11.5px;
+    font-weight: 900;
+    color: #949ca9;
+    white-space: nowrap;
+    text-decoration: none;
+    clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+  }
+
+  .meta {
+    margin: 2px 0 0;
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    color: #656c78;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile { transition: none; }
+}

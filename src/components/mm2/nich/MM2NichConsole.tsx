@@ -18,6 +18,7 @@ import {
 } from "../../../lib/nich/mm2/session";
 import { isMM2ResponseMeta } from "../../../lib/nich/responseMeta";
 import type { MM2Activity } from "../../../lib/nich/mm2/result";
+import { MM2_ACTIVITY_LABELS, mm2SourceLabel } from "../../../content/nichCopy";
 
 /**
  * The MM2 NICH operations console.
@@ -70,7 +71,7 @@ const GREETING: ConsoleMessage = {
   id: "boot",
   role: "nich",
   text:
-    "MM2 intelligence system online. I read the MM2 weapon catalog directly — Supreme and GCash values, demand, comparisons and Win/Fair/Lose. Ask me anything about MM2.",
+    "MM2 NICH here. I read the MM2 weapon catalog directly, so I can give you Supreme or GCash values, demand, comparisons and Win / Fair / Lose on a trade. What are you looking at?",
   createdAt: 0,
   sources: ["LOCAL MM2 ENGINE", "MM2 CATALOG"],
   channel: "LOCAL",
@@ -119,6 +120,14 @@ export default function MM2NichConsole({
   const [messages, setMessages] = useState<ConsoleMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [activity, setActivity] = useState<MM2Activity>("ONLINE");
+  /**
+   * Phones only. The rail's reference blocks — what we are talking about, and
+   * what NICH can see — are useful but they are not the conversation, and
+   * stacked under a chat on a 390px screen they push the composer out of reach.
+   * Desktop ignores this entirely: the CSS keeps the rail expanded above 860px
+   * whatever this says.
+   */
+  const [referenceOpen, setReferenceOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [context, setContext] = useState<MM2NichContext | null>(null);
   /**
@@ -324,7 +333,7 @@ export default function MM2NichConsole({
     const trade = context.lastTrade;
     if (trade && (trade.yourItemIds.length || trade.theirItemIds.length)) {
       return {
-        title: "TRADE SESSION",
+        title: "CURRENT TRADE",
         rows: [
           `Your side: ${trade.yourItemIds.reduce((total, row) => total + row.quantity, 0)}`,
           `Their side: ${trade.theirItemIds.reduce((total, row) => total + row.quantity, 0)}`,
@@ -333,10 +342,13 @@ export default function MM2NichConsole({
       };
     }
     if ((context.comparisonItemIds?.length ?? 0) >= 2) {
-      return { title: "COMPARE SESSION", rows: [`${context.comparisonItemIds!.length} weapons in comparison`] };
+      return { title: "COMPARING", rows: [`${context.comparisonItemIds!.length} weapons`] };
     }
     if (context.recentItemIds?.length) {
-      return { title: "ACTIVE CONTEXT", rows: [`${context.recentItemIds.length} weapon(s) in memory`] };
+      return {
+        title: "WE ARE TALKING ABOUT",
+        rows: [`${context.recentItemIds.length} ${context.recentItemIds.length === 1 ? "weapon" : "weapons"}`],
+      };
     }
     return null;
   }, [context]);
@@ -358,15 +370,15 @@ export default function MM2NichConsole({
           <h1>
             NICH <b>{"//"}</b> MM2 INTELLIGENCE SYSTEM
           </h1>
-          <small>AI OPERATIONS · NICH SYSTEM 01</small>
+          <small>MM2 VALUES · TRADES · DEMAND</small>
         </div>
 
         <dl className={styles.hudReadouts}>
           <div className={styles.hudLive}>
-            <i /> {activity}
+            <i /> {MM2_ACTIVITY_LABELS[activity]}
           </div>
-          <div><dt>VALUE SOURCE</dt><dd>{status.valueSource}</dd></div>
-          <div><dt>CATALOG SYNC</dt><dd>{status.syncedOn}</dd></div>
+          <div><dt>VALUES</dt><dd>{status.valueSource}</dd></div>
+          <div><dt>UPDATED</dt><dd>{status.syncedOn}</dd></div>
         </dl>
       </header>
 
@@ -384,7 +396,7 @@ export default function MM2NichConsole({
                     <div className={styles.provenance}>
                       {message.sources.map((source) => (
                         <span key={source} className={message.channel === "AI" ? styles.provenanceAi : undefined}>
-                          {source}
+                          {mm2SourceLabel(source)}
                         </span>
                       ))}
                     </div>
@@ -405,7 +417,7 @@ export default function MM2NichConsole({
               <div className={styles.nichTurn}>
                 <div className={styles.working} role="status">
                   <i /><i /><i />
-                  <span>{activity}</span>
+                  <span>{MM2_ACTIVITY_LABELS[activity]}</span>
                 </div>
               </div>
             ) : null}
@@ -444,12 +456,12 @@ export default function MM2NichConsole({
             </div>
             <div className={styles.portraitMeta}>
               <strong>NICH</strong>
-              <span><i /> {activity}</span>
+              <span><i /> {MM2_ACTIVITY_LABELS[activity]}</span>
             </div>
           </div>
 
           <div className={styles.railBlock}>
-            <div className={styles.railLabel}>QUICK OPERATIONS</div>
+            <div className={styles.railLabel}>QUICK CHECKS</div>
             <div className={styles.operations}>
               {QUICK_OPERATIONS.map((operation) => (
                 <button
@@ -464,6 +476,17 @@ export default function MM2NichConsole({
             </div>
           </div>
 
+          <button
+            type="button"
+            className={styles.referenceToggle}
+            onClick={() => setReferenceOpen((open) => !open)}
+            aria-expanded={referenceOpen}
+          >
+            <span>{activeContext ? activeContext.title : "TRADE DETAILS"}</span>
+            <i aria-hidden="true">{referenceOpen ? "–" : "+"}</i>
+          </button>
+
+          <div className={`${styles.reference} ${referenceOpen ? styles.referenceOpen : ""}`}>
           {activeContext ? (
             <div className={styles.railBlock}>
               <div className={styles.railLabel}>{activeContext.title}</div>
@@ -482,22 +505,24 @@ export default function MM2NichConsole({
           {activeContext || messages.length ? (
             <div className={styles.railBlock}>
               <button type="button" className={styles.resetButton} onClick={resetConversation}>
-                Clear session
+                Start a new chat
               </button>
             </div>
           ) : null}
 
           <div className={styles.railBlock}>
-            <div className={styles.railLabel}>SYSTEM STATUS</div>
+            {/* What NICH can see, in weapons — not which modules are up. The
+                panel used to read LOCAL ENGINE / READY, TRADE ENGINE / READY,
+                which told a trader nothing they could act on. */}
+            <div className={styles.railLabel}>WHAT I CAN CHECK</div>
             <ul className={styles.statusList}>
-              <li><span>MM2 MODE</span><b className={styles.ok}>ACTIVE</b></li>
-              <li><span>LOCAL ENGINE</span><b className={styles.ok}>READY</b></li>
-              <li><span>MM2 CATALOG</span><b>{status.catalogSize.toLocaleString("en-US")}</b></li>
-              <li><span>SUPREME VALUES</span><b>{status.valueSource}</b></li>
-              <li><span>GCASH DATA</span><b>{status.gcashPriced.toLocaleString("en-US")}</b></li>
-              <li><span>DEMAND DATA</span><b>{status.demandRated.toLocaleString("en-US")}</b></li>
-              <li><span>TRADE ENGINE</span><b className={styles.ok}>READY</b></li>
+              <li><span>WEAPONS</span><b>{status.catalogSize.toLocaleString("en-US")}</b></li>
+              <li><span>WITH GCASH VALUES</span><b>{status.gcashPriced.toLocaleString("en-US")}</b></li>
+              <li><span>WITH DEMAND</span><b>{status.demandRated.toLocaleString("en-US")}</b></li>
+              <li><span>VALUES</span><b>{status.valueSource}</b></li>
+              <li><span>UPDATED</span><b>{status.syncedOn}</b></li>
             </ul>
+          </div>
           </div>
         </aside>
       </div>

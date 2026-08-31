@@ -7,7 +7,7 @@
 ========================= */
 
  :root,
-[data-theme="dark"] {
+[data-theme="dark"]:where(:not([data-game="mm2"])) {
   color-scheme: dark;
 
   --background: #06111f;
@@ -93,7 +93,7 @@
     linear-gradient(180deg, #06111f 0%, #081522 54%, #0a1725 100%);
 }
 
-[data-theme="halloween"] {
+[data-theme="halloween"]:where(:not([data-game="mm2"])) {
   color-scheme: dark;
 
   --background: #09070d;
@@ -175,7 +175,7 @@
     linear-gradient(180deg, #09070d 0%, #10091a 52%, #160d20 100%);
 }
 
-[data-theme="light"] {
+[data-theme="light"]:where(:not([data-game="mm2"])) {
   color-scheme: light;
 
   --background: #f4f7fb;
@@ -258,7 +258,7 @@
 }
 
 
-[data-theme="snoopy"] {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) {
   color-scheme: light;
 
   --background: #f5e8c8;
@@ -464,8 +464,8 @@
     background-color: var(--surface-2);
   }
 
-  [data-theme="dark"] select,
-  [data-theme="halloween"] select {
+  [data-theme="dark"]:where(:not([data-game="mm2"])) select,
+  [data-theme="halloween"]:where(:not([data-game="mm2"])) select {
     color-scheme: dark;
   }
 }
@@ -843,6 +843,12 @@ img {
     padding-bottom: calc(74px + env(safe-area-inset-bottom));
   }
 
+  /* MM2 has no bottom dock, so that spacer was 74px of dead screen at the foot
+     of every MM2 page — and the calculator verdict bar floated above nothing. */
+  body:has(.mm2-mode) {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
   /* Large glass blurs are expensive on many phones. Keep the look, reduce the cost. */
   [class*="backdrop-blur"] {
     backdrop-filter: blur(8px) !important;
@@ -890,9 +896,9 @@ body::before {
   background-size: 40px 40px;
   mask-image: linear-gradient(to bottom, rgba(0,0,0,.65), transparent 78%);
 }
-[data-theme="dark"] body::before { opacity: 0.22; }
-[data-theme="halloween"] body::before { opacity: 0.18; }
-[data-theme="light"] body::before { opacity: 0.32; }
+[data-theme="dark"]:where(:not([data-game="mm2"])) body::before { opacity: 0.22; }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) body::before { opacity: 0.18; }
+[data-theme="light"]:where(:not([data-game="mm2"])) body::before { opacity: 0.32; }
 
 .csbt-page { position: relative; z-index: 1; min-height: 100vh; color: var(--foreground); }
 .csbt-workspace { width: min(100%, 1420px); margin-inline: auto; padding: 22px 14px 0; }
@@ -1247,12 +1253,12 @@ body::before {
   color: var(--foreground);
 }
 
-[data-theme="halloween"] .nich-smart-shell {
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .nich-smart-shell {
   box-shadow: var(--shadow-lg), 0 20px 70px rgba(139,92,246,.10), 0 0 42px rgba(255,122,0,.06), inset 0 1px 0 var(--panel-top-highlight) !important;
 }
-[data-theme="light"] .nich-smart-response { background: linear-gradient(145deg, #ffffff, color-mix(in srgb, #f5f0ff 84%, var(--surface-2))); }
-[data-theme="light"] .nich-smart-user { background: linear-gradient(145deg, #ffffff, color-mix(in srgb, var(--brand-primary) 7%, #ffffff)); }
-[data-theme="light"] .nich-smart-composer { background: #ffffff; }
+[data-theme="light"]:where(:not([data-game="mm2"])) .nich-smart-response { background: linear-gradient(145deg, #ffffff, color-mix(in srgb, #f5f0ff 84%, var(--surface-2))); }
+[data-theme="light"]:where(:not([data-game="mm2"])) .nich-smart-user { background: linear-gradient(145deg, #ffffff, color-mix(in srgb, var(--brand-primary) 7%, #ffffff)); }
+[data-theme="light"]:where(:not([data-game="mm2"])) .nich-smart-composer { background: #ffffff; }
 
 @media (max-width: 639px) {
   .nich-smart-embedded { border-radius: 22px; }
@@ -1269,14 +1275,14 @@ body::before {
 .csbt-lounge-channel-rail { background: color-mix(in srgb, var(--surface-3) 88%, var(--surface-2)) !important; }
 .csbt-lounge-feed { background: var(--surface-2) !important; }
 .csbt-lounge-activity { background: color-mix(in srgb, var(--surface-3) 72%, var(--surface-1)) !important; }
-[data-theme="light"] .csbt-lounge [class~="text-white"],
-[data-theme="light"] .csbt-lounge [class*="text-white/"] { color: var(--foreground-muted) !important; }
-[data-theme="light"] .csbt-lounge h1,
-[data-theme="light"] .csbt-lounge h2,
-[data-theme="light"] .csbt-lounge h3,
-[data-theme="light"] .csbt-lounge [class*="font-black"] { color: var(--foreground); }
-[data-theme="light"] .csbt-lounge [class*="bg-white/"] { background-color: color-mix(in srgb, var(--surface-3) 72%, transparent) !important; }
-[data-theme="light"] .csbt-lounge [class*="border-white/"] { border-color: var(--border) !important; }
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-lounge [class~="text-white"],
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-lounge [class*="text-white/"] { color: var(--foreground-muted) !important; }
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-lounge h1,
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-lounge h2,
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-lounge h3,
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-lounge [class*="font-black"] { color: var(--foreground); }
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-lounge [class*="bg-white/"] { background-color: color-mix(in srgb, var(--surface-3) 72%, transparent) !important; }
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-lounge [class*="border-white/"] { border-color: var(--border) !important; }
 
 @media (min-width: 1024px) {
   .csbt-feature-panel { border-radius: 26px; }
@@ -1302,9 +1308,9 @@ body::before {
   display: none;
   color: var(--decor-primary);
 }
-[data-theme="dark"] .theme-decoration-layer--dark,
-[data-theme="halloween"] .theme-decoration-layer--halloween,
-[data-theme="light"] .theme-decoration-layer--light { display: block; }
+[data-theme="dark"]:where(:not([data-game="mm2"])) .theme-decoration-layer--dark,
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .theme-decoration-layer--halloween,
+[data-theme="light"]:where(:not([data-game="mm2"])) .theme-decoration-layer--light { display: block; }
 
 .theme-sticker {
   position: absolute;
@@ -1315,10 +1321,10 @@ body::before {
 .theme-sticker:nth-child(3n) { opacity: .055; }
 .theme-sticker svg { width: 100%; height: 100%; }
 
-[data-theme="halloween"] .theme-sticker { opacity: .055; }
-[data-theme="halloween"] .theme-sticker:nth-child(2n) { opacity: .04; }
-[data-theme="light"] .theme-sticker { opacity: .065; }
-[data-theme="light"] .theme-sticker:nth-child(2n) { opacity: .05; }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .theme-sticker { opacity: .055; }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .theme-sticker:nth-child(2n) { opacity: .04; }
+[data-theme="light"]:where(:not([data-game="mm2"])) .theme-sticker { opacity: .065; }
+[data-theme="light"]:where(:not([data-game="mm2"])) .theme-sticker:nth-child(2n) { opacity: .05; }
 
 /* Very small, restrained drift on only a few motifs. */
 @keyframes csbt-sticker-drift {
@@ -1330,14 +1336,14 @@ body::before {
 @media (max-width: 1023px) {
   .theme-sticker { opacity: .035; }
   .theme-sticker:not(.theme-sticker--mobile):nth-child(n+5) { display: none; }
-  [data-theme="halloween"] .theme-sticker { opacity: .045; }
-  [data-theme="light"] .theme-sticker { opacity: .055; }
+  [data-theme="halloween"]:where(:not([data-game="mm2"])) .theme-sticker { opacity: .045; }
+  [data-theme="light"]:where(:not([data-game="mm2"])) .theme-sticker { opacity: .055; }
 }
 @media (max-width: 639px) {
   .theme-sticker:not(.theme-sticker--mobile) { display: none; }
   .theme-sticker--mobile { opacity: .035; }
-  [data-theme="halloween"] .theme-sticker--mobile { opacity: .045; }
-  [data-theme="light"] .theme-sticker--mobile { opacity: .055; }
+  [data-theme="halloween"]:where(:not([data-game="mm2"])) .theme-sticker--mobile { opacity: .045; }
+  [data-theme="light"]:where(:not([data-game="mm2"])) .theme-sticker--mobile { opacity: .055; }
 }
 
 /* Shared shell: the theme changes environment, not layout or behavior. */
@@ -1347,10 +1353,10 @@ body::before {
 [data-theme] :where(input, textarea, select):focus {
   border-color: var(--input-focus);
 }
-[data-theme="halloween"] :where(.glass, .surface, .csbt-surface-1, .csbt-surface-2) {
+[data-theme="halloween"]:where(:not([data-game="mm2"])) :where(.glass, .surface, .csbt-surface-1, .csbt-surface-2) {
   box-shadow: var(--shadow-sm);
 }
-[data-theme="light"] :where(.glass, .surface, .csbt-surface-1, .csbt-surface-2) {
+[data-theme="light"]:where(:not([data-game="mm2"])) :where(.glass, .surface, .csbt-surface-1, .csbt-surface-2) {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
@@ -1395,39 +1401,39 @@ body::before {
 .csbt-home-hero-nich { border-color: color-mix(in srgb, var(--purple) 30%, transparent); background: var(--surface-nich); color: var(--foreground); }
 
 /* DARK: deliberately restores the old bright amber/orange energy without reverting the cleaner layout. */
-[data-theme="dark"] .csbt-home-hero {
+[data-theme="dark"]:where(:not([data-game="mm2"])) .csbt-home-hero {
   border-color: rgba(255,255,255,.24);
   background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 42%, #fb923c 72%, #f97316 100%);
   box-shadow: 0 26px 76px rgba(249, 115, 22, .25), 0 8px 28px rgba(0,0,0,.18);
 }
-[data-theme="dark"] .csbt-home-hero-ambient {
+[data-theme="dark"]:where(:not([data-game="mm2"])) .csbt-home-hero-ambient {
   background:
     radial-gradient(circle at 16% 5%, rgba(255,255,255,.34), transparent 30%),
     linear-gradient(118deg, transparent 22%, rgba(255,255,255,.10) 48%, transparent 72%),
     radial-gradient(circle at 88% 92%, rgba(139,92,246,.16), transparent 31%);
 }
-[data-theme="dark"] .csbt-home-hero-title,
-[data-theme="dark"] .csbt-home-hero-stat-value { color: #fffdf7; text-shadow: 0 2px 18px rgba(77,39,0,.18); }
-[data-theme="dark"] .csbt-home-hero-accent { color: #fff7cf; }
-[data-theme="dark"] .csbt-home-hero-copy,
-[data-theme="dark"] .csbt-home-hero-meta { color: rgba(255,255,255,.88); }
-[data-theme="dark"] .csbt-home-hero-badge { background: rgba(255,255,255,.18); color: #fff; box-shadow: inset 0 0 0 1px rgba(255,255,255,.22); }
-[data-theme="dark"] .csbt-home-hero-primary { background: #fff; color: #a64b00; box-shadow: 0 12px 32px rgba(112,55,0,.18); }
-[data-theme="dark"] .csbt-home-hero-primary:hover { background: #fff8e8; }
-[data-theme="dark"] .csbt-home-hero-secondary { background: rgba(74,35,0,.20); border-color: rgba(255,255,255,.24); color: #fff; }
-[data-theme="dark"] .csbt-home-hero-secondary:hover { background: rgba(74,35,0,.28); }
-[data-theme="dark"] .csbt-home-hero-nich { background: rgba(87,42,140,.82); border-color: rgba(255,255,255,.2); color: #fff; }
-[data-theme="dark"] .csbt-home-hero-stats { border-color: rgba(255,255,255,.18); background: rgba(255,255,255,.18); }
-[data-theme="dark"] .csbt-home-hero-stat { background: rgba(82,39,0,.20); backdrop-filter: blur(10px); }
-[data-theme="dark"] .csbt-home-hero-stat-label { color: rgba(255,255,255,.74); }
-[data-theme="dark"] .csbt-home-hero-feature { background: rgba(8,20,35,.88); border-color: rgba(255,255,255,.11); backdrop-filter: blur(12px); }
-[data-theme="dark"] .csbt-home-hero-feature-title { color: #fff; }
-[data-theme="dark"] .csbt-home-hero-feature-copy,
-[data-theme="dark"] .csbt-home-hero-feature-eyebrow { color: #aebbd0; }
-[data-theme="dark"] .csbt-home-hero-feature-arrow { color: #ffd95e; }
+[data-theme="dark"]:where(:not([data-game="mm2"])) .csbt-home-hero-title,
+[data-theme="dark"]:where(:not([data-game="mm2"])) .csbt-home-hero-stat-value { color: #fffdf7; text-shadow: 0 2px 18px rgba(77,39,0,.18); }
+[data-theme="dark"]:where(:not([data-game="mm2"])) .csbt-home-hero-accent { color: #fff7cf; }
+[data-theme="dark"]:where(:not([data-game="mm2"])) .csbt-home-hero-copy,
+[data-theme="dark"]:where(:not([data-game="mm2"])) .csbt-home-hero-meta { color: rgba(255,255,255,.88); }
+[data-theme="dark"]:where(:not([data-game="mm2"])) .csbt-home-hero-badge { background: rgba(255,255,255,.18); color: #fff; box-shadow: inset 0 0 0 1px rgba(255,255,255,.22); }
+[data-theme="dark"]:where(:not([data-game="mm2"])) .csbt-home-hero-primary { background: #fff; color: #a64b00; box-shadow: 0 12px 32px rgba(112,55,0,.18); }
+[data-theme="dark"]:where(:not([data-game="mm2"])) .csbt-home-hero-primary:hover { background: #fff8e8; }
+[data-theme="dark"]:where(:not([data-game="mm2"])) .csbt-home-hero-secondary { background: rgba(74,35,0,.20); border-color: rgba(255,255,255,.24); color: #fff; }
+[data-theme="dark"]:where(:not([data-game="mm2"])) .csbt-home-hero-secondary:hover { background: rgba(74,35,0,.28); }
+[data-theme="dark"]:where(:not([data-game="mm2"])) .csbt-home-hero-nich { background: rgba(87,42,140,.82); border-color: rgba(255,255,255,.2); color: #fff; }
+[data-theme="dark"]:where(:not([data-game="mm2"])) .csbt-home-hero-stats { border-color: rgba(255,255,255,.18); background: rgba(255,255,255,.18); }
+[data-theme="dark"]:where(:not([data-game="mm2"])) .csbt-home-hero-stat { background: rgba(82,39,0,.20); backdrop-filter: blur(10px); }
+[data-theme="dark"]:where(:not([data-game="mm2"])) .csbt-home-hero-stat-label { color: rgba(255,255,255,.74); }
+[data-theme="dark"]:where(:not([data-game="mm2"])) .csbt-home-hero-feature { background: rgba(8,20,35,.88); border-color: rgba(255,255,255,.11); backdrop-filter: blur(12px); }
+[data-theme="dark"]:where(:not([data-game="mm2"])) .csbt-home-hero-feature-title { color: #fff; }
+[data-theme="dark"]:where(:not([data-game="mm2"])) .csbt-home-hero-feature-copy,
+[data-theme="dark"]:where(:not([data-game="mm2"])) .csbt-home-hero-feature-eyebrow { color: #aebbd0; }
+[data-theme="dark"]:where(:not([data-game="mm2"])) .csbt-home-hero-feature-arrow { color: #ffd95e; }
 
 /* HALLOWEEN: seasonal event skin, not an orange recolor of the Dark hero. */
-[data-theme="halloween"] .csbt-home-hero {
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .csbt-home-hero {
   border-color: rgba(255,122,0,.22);
   background:
     radial-gradient(circle at 55% 34%, rgba(255,122,0,.24), transparent 28%),
@@ -1435,19 +1441,19 @@ body::before {
     linear-gradient(138deg, #0d0812 0%, #1a0d25 48%, #24102d 72%, #100911 100%);
   box-shadow: 0 28px 82px rgba(0,0,0,.42), 0 0 54px rgba(255,122,0,.06);
 }
-[data-theme="halloween"] .csbt-home-hero-ambient {
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .csbt-home-hero-ambient {
   background:
     radial-gradient(circle at 19% 10%, rgba(139,92,246,.19), transparent 31%),
     radial-gradient(circle at 72% 71%, rgba(255,122,0,.13), transparent 29%);
 }
-[data-theme="halloween"] .csbt-home-hero-accent,
-[data-theme="halloween"] .csbt-home-hero-feature-arrow { color: #ff9d21; }
-[data-theme="halloween"] .csbt-home-hero-badge { background: rgba(255,122,0,.12); color: #ffad42; box-shadow: inset 0 0 0 1px rgba(255,122,0,.18); }
-[data-theme="halloween"] .csbt-home-hero-feature { background: rgba(31,17,41,.88); }
-[data-theme="halloween"] .csbt-home-hero-stat { background: rgba(36,20,47,.82); }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .csbt-home-hero-accent,
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .csbt-home-hero-feature-arrow { color: #ff9d21; }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .csbt-home-hero-badge { background: rgba(255,122,0,.12); color: #ffad42; box-shadow: inset 0 0 0 1px rgba(255,122,0,.18); }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .csbt-home-hero-feature { background: rgba(31,17,41,.88); }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .csbt-home-hero-stat { background: rgba(36,20,47,.82); }
 
 /* LIGHT: genuinely bright gaming personality, not Dark with a white canvas. */
-[data-theme="light"] .csbt-home-hero {
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-home-hero {
   border-color: rgba(46,139,255,.16);
   background:
     radial-gradient(circle at 15% 0%, rgba(255,255,255,.92), transparent 30%),
@@ -1455,39 +1461,39 @@ body::before {
     linear-gradient(135deg, #edf8ff 0%, #dff2ff 52%, #f8fbff 100%);
   box-shadow: 0 24px 68px rgba(46,139,255,.13);
 }
-[data-theme="light"] .csbt-home-hero-ambient {
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-home-hero-ambient {
   background:
     radial-gradient(circle at 20% 15%, rgba(85,184,255,.22), transparent 32%),
     radial-gradient(circle at 88% 85%, rgba(124,92,228,.08), transparent 30%);
 }
-[data-theme="light"] .csbt-home-hero-accent { color: #176fdb; }
-[data-theme="light"] .csbt-home-hero-badge { background: rgba(46,139,255,.1); color: #176fdb; }
-[data-theme="light"] .csbt-home-hero-feature { background: rgba(255,255,255,.82); }
-[data-theme="light"] .csbt-home-hero-stat { background: rgba(255,255,255,.74); }
-[data-theme="light"] .csbt-home-hero-nich { background: #f5f0ff; color: #6541c7; border-color: rgba(114,82,216,.18); }
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-home-hero-accent { color: #176fdb; }
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-home-hero-badge { background: rgba(46,139,255,.1); color: #176fdb; }
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-home-hero-feature { background: rgba(255,255,255,.82); }
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-home-hero-stat { background: rgba(255,255,255,.74); }
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-home-hero-nich { background: #f5f0ff; color: #6541c7; border-color: rgba(114,82,216,.18); }
 
 /* Light-theme contrast repairs for common dark-era utility patterns. */
-[data-theme="light"] .csbt-page :where(.text-amber-300) { color: #8f6900; }
-[data-theme="light"] .csbt-page :where(.text-cyan-300) { color: #087fa1; }
-[data-theme="light"] .csbt-page :where(.text-violet-300) { color: #6541c7; }
-[data-theme="light"] .csbt-page :where(.text-slate-400) { color: #6d7b8e; }
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-page :where(.text-amber-300) { color: #8f6900; }
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-page :where(.text-cyan-300) { color: #087fa1; }
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-page :where(.text-violet-300) { color: #6541c7; }
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-page :where(.text-slate-400) { color: #6d7b8e; }
 
 /* Theme-aware nav shell overrides hard-coded dark-only utility fallbacks. */
-[data-theme="halloween"] aside > div,
-[data-theme="halloween"] header > div,
-[data-theme="halloween"] nav[data-tour="mobile-dock"] {
+[data-theme="halloween"]:where(:not([data-game="mm2"])) aside > div,
+[data-theme="halloween"]:where(:not([data-game="mm2"])) header > div,
+[data-theme="halloween"]:where(:not([data-game="mm2"])) nav[data-tour="mobile-dock"] {
   background: var(--nav-background) !important;
   border-color: var(--border) !important;
 }
-[data-theme="light"] aside > div,
-[data-theme="light"] header > div,
-[data-theme="light"] nav[data-tour="mobile-dock"] {
+[data-theme="light"]:where(:not([data-game="mm2"])) aside > div,
+[data-theme="light"]:where(:not([data-game="mm2"])) header > div,
+[data-theme="light"]:where(:not([data-game="mm2"])) nav[data-tour="mobile-dock"] {
   background: var(--nav-background) !important;
   border-color: var(--border) !important;
 }
 
 /* Light cards/forms benefit from a softer tactile lift. */
-[data-theme="light"] :where(.csbt-surface-1, .csbt-surface-2, .surface, .glass) {
+[data-theme="light"]:where(:not([data-game="mm2"])) :where(.csbt-surface-1, .csbt-surface-2, .surface, .glass) {
   box-shadow: var(--shadow-sm);
 }
 
@@ -1572,21 +1578,21 @@ body::before {
 }
 
 /* Dark keeps the user's original lively peach/orange personality. */
-[data-theme="dark"] .csbt-classic-hero {
+[data-theme="dark"]:where(:not([data-game="mm2"])) .csbt-classic-hero {
   border-color: rgba(255,255,255,.20) !important;
   background: linear-gradient(135deg, #ffad4c 0%, #ffa34d 35%, #ff9137 66%, #ff640b 100%) !important;
   box-shadow: 0 28px 86px rgba(255,104,15,.25), 0 12px 38px rgba(0,0,0,.20) !important;
 }
 
 /* Theme variants retain the exact classic hero layout/motion. */
-[data-theme="halloween"] .csbt-classic-hero {
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .csbt-classic-hero {
   border-color: rgba(255,122,0,.25) !important;
   background:
     radial-gradient(circle at 52% 28%, rgba(255,122,0,.28), transparent 32%),
     linear-gradient(135deg, #120916 0%, #25102f 50%, #3a173e 72%, #171018 100%) !important;
   box-shadow: 0 28px 86px rgba(0,0,0,.42), 0 0 54px rgba(255,122,0,.08) !important;
 }
-[data-theme="light"] .csbt-classic-hero {
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-classic-hero {
   border-color: rgba(46,139,255,.18) !important;
   background:
     radial-gradient(circle at 18% 3%, rgba(255,255,255,.95), transparent 31%),
@@ -1594,17 +1600,17 @@ body::before {
   color: #1d2735;
   box-shadow: 0 26px 72px rgba(46,139,255,.14) !important;
 }
-[data-theme="light"] .csbt-classic-hero-heading,
-[data-theme="light"] .csbt-classic-hero p { color: #1d2735; text-shadow: none; }
-[data-theme="light"] .csbt-classic-hero-refresh,
-[data-theme="light"] .csbt-classic-hero-chip,
-[data-theme="light"] .csbt-classic-hero-stat {
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-classic-hero-heading,
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-classic-hero p { color: #1d2735; text-shadow: none; }
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-classic-hero-refresh,
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-classic-hero-chip,
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-classic-hero-stat {
   border-color: rgba(46,139,255,.15);
   background: rgba(255,255,255,.58);
   color: #1d2735;
   box-shadow: 0 10px 28px rgba(46,139,255,.10);
 }
-[data-theme="light"] .csbt-classic-hero-secondary {
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-classic-hero-secondary {
   border-color: rgba(46,139,255,.18);
   background: rgba(255,255,255,.64);
   color: #176fdb;
@@ -1616,12 +1622,12 @@ body::before {
 ========================= */
 
 /* Prevent the server-default hero from flashing before the client theme store syncs. */
-[data-theme="light"] .home-hero-theme-slot:not([data-rendered-theme="light"]) {
+[data-theme="light"]:where(:not([data-game="mm2"])) .home-hero-theme-slot:not([data-rendered-theme="light"]) {
   visibility: hidden;
   min-height: 820px;
 }
 
-[data-theme="light"] {
+[data-theme="light"]:where(:not([data-game="mm2"])) {
   --background: #e9f7ff;
   --background-secondary: #dff2fb;
   --foreground: #16243a;
@@ -1672,7 +1678,7 @@ body::before {
     linear-gradient(180deg, #bfe9ff 0%, #e8f8ff 33%, #f8fcff 69%, #eef8f0 100%);
 }
 
-[data-theme="light"] body::before {
+[data-theme="light"]:where(:not([data-game="mm2"])) body::before {
   opacity: .16;
   background-image:
     radial-gradient(circle, rgba(22,36,58,.08) .7px, transparent .9px),
@@ -1683,39 +1689,39 @@ body::before {
 }
 
 /* Roblox uses solid toy/game surfaces, not glass. */
-[data-theme="light"] :where(.glass, .surface, .csbt-surface-1, .csbt-surface-2) {
+[data-theme="light"]:where(:not([data-game="mm2"])) :where(.glass, .surface, .csbt-surface-1, .csbt-surface-2) {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
-[data-theme="light"] :where(.csbt-surface-1, .csbt-surface-2, .surface, .glass, .csbt-feature-panel, .csbt-section-panel) {
+[data-theme="light"]:where(:not([data-game="mm2"])) :where(.csbt-surface-1, .csbt-surface-2, .surface, .glass, .csbt-feature-panel, .csbt-section-panel) {
   border-color: rgba(22,36,58,.17);
   box-shadow: var(--shadow-sm);
 }
 
 /* Homepage becomes the world canvas instead of another centered card. */
-[data-theme="light"] .home-workspace {
+[data-theme="light"]:where(:not([data-game="mm2"])) .home-workspace {
   width: 100%;
   max-width: none !important;
   padding: 0 clamp(12px, 1.8vw, 30px) 0;
 }
-[data-theme="light"] .home-workspace > :not(.home-hero-theme-slot):not(.roblox-journey-slot) {
+[data-theme="light"]:where(:not([data-game="mm2"])) .home-workspace > :not(.home-hero-theme-slot):not(.roblox-journey-slot) {
   width: min(100%, 1420px);
   margin-left: auto;
   margin-right: auto;
 }
 
 /* Sidebar: game menu with stronger red/green personality. */
-[data-theme="light"] aside > div {
+[data-theme="light"]:where(:not([data-game="mm2"])) aside > div {
   border-color: rgba(22,36,58,.14) !important;
   background: rgba(255,255,255,.98) !important;
   box-shadow: 7px 0 30px rgba(44,87,128,.10);
 }
-[data-theme="light"] aside section > button {
+[data-theme="light"]:where(:not([data-game="mm2"])) aside section > button {
   position: relative;
   color: #65768b;
   letter-spacing: .17em;
 }
-[data-theme="light"] aside section > button::after {
+[data-theme="light"]:where(:not([data-game="mm2"])) aside section > button::after {
   content: "";
   width: 21px;
   height: 4px;
@@ -1724,7 +1730,7 @@ body::before {
   border-radius: 2px;
   opacity: .48;
 }
-[data-theme="light"] aside a[aria-current="page"] {
+[data-theme="light"]:where(:not([data-game="mm2"])) aside a[aria-current="page"] {
   border: 1.5px solid rgba(185,31,26,.28);
   background:
     linear-gradient(90deg, #e32620 0 5px, transparent 5px),
@@ -1732,7 +1738,7 @@ body::before {
   box-shadow: 0 5px 0 rgba(22,36,58,.12), 0 10px 22px rgba(227,38,32,.08) !important;
   transform: translateX(2px);
 }
-[data-theme="light"] aside a[aria-current="page"]::after {
+[data-theme="light"]:where(:not([data-game="mm2"])) aside a[aria-current="page"]::after {
   content: "▶";
   position: absolute;
   right: 9px;
@@ -1741,9 +1747,9 @@ body::before {
   font-size: 8px;
   transform: translateY(-50%);
 }
-[data-theme="light"] .theme-sticker { opacity: .075; }
-[data-theme="light"] .theme-sticker:nth-child(2n) { color: #55a63f; opacity: .055; }
-[data-theme="light"] .theme-sticker:nth-child(3n) { color: #f0a915; opacity: .07; }
+[data-theme="light"]:where(:not([data-game="mm2"])) .theme-sticker { opacity: .075; }
+[data-theme="light"]:where(:not([data-game="mm2"])) .theme-sticker:nth-child(2n) { color: #55a63f; opacity: .055; }
+[data-theme="light"]:where(:not([data-game="mm2"])) .theme-sticker:nth-child(3n) { color: #f0a915; opacity: .07; }
 
 /* ---------- Open Roblox world hero ---------- */
 .roblox-home-hero {
@@ -2383,14 +2389,14 @@ body::before {
 /* ---------- Trading quest: game map, not feature cards ---------- */
 .roblox-journey-slot { display: none; }
 .roblox-trade-journey { display: none; }
-[data-theme="light"] .roblox-journey-slot {
+[data-theme="light"]:where(:not([data-game="mm2"])) .roblox-journey-slot {
   display: block;
   width: min(100%, 1420px);
   margin-left: auto;
   margin-right: auto;
   padding-inline: clamp(0px, 1vw, 12px);
 }
-[data-theme="light"] .roblox-trade-journey {
+[data-theme="light"]:where(:not([data-game="mm2"])) .roblox-trade-journey {
   position: relative;
   display: block;
   isolation: isolate;
@@ -2402,7 +2408,7 @@ body::before {
   background: transparent;
   box-shadow: none;
 }
-[data-theme="light"] .roblox-trade-journey::before {
+[data-theme="light"]:where(:not([data-game="mm2"])) .roblox-trade-journey::before {
   content: "";
   position: absolute;
   z-index: -2;
@@ -2415,7 +2421,7 @@ body::before {
     radial-gradient(circle at 82% 20%, rgba(255,255,255,.48), rgba(255,255,255,0) 10%),
     linear-gradient(180deg, rgba(120,200,245,.22), rgba(120,200,245,.06) 40%, rgba(255,255,255,0) 65%);
 }
-[data-theme="light"] .roblox-trade-journey::after {
+[data-theme="light"]:where(:not([data-game="mm2"])) .roblox-trade-journey::after {
   content: "";
   position: absolute;
   z-index: -1;
@@ -2506,8 +2512,8 @@ body::before {
 .roblox-journey-finish span { display: grid; width: 25px; height: 25px; place-items: center; border: 2px solid #16243a; border-radius: 5px; background: #f5c542; color: #fff; box-shadow: 2px 3px 0 #16243a; }
 
 /* ---------- Lower homepage continues the same world language ---------- */
-[data-theme="light"] .theme-home-section { position: relative; }
-[data-theme="light"] .theme-home-section::before {
+[data-theme="light"]:where(:not([data-game="mm2"])) .theme-home-section { position: relative; }
+[data-theme="light"]:where(:not([data-game="mm2"])) .theme-home-section::before {
   content: "";
   position: absolute;
   left: 24px;
@@ -2519,7 +2525,7 @@ body::before {
   opacity: .86;
 }
 .roblox-world-divider { display: none; }
-[data-theme="light"] .roblox-world-divider {
+[data-theme="light"]:where(:not([data-game="mm2"])) .roblox-world-divider {
   display: flex;
   width: min(100%, 1200px);
   height: 36px;
@@ -2529,12 +2535,12 @@ body::before {
   margin: 30px auto -18px;
   color: #55a63f;
 }
-[data-theme="light"] .roblox-world-divider::before,
-[data-theme="light"] .roblox-world-divider::after { content: ""; width: min(36vw, 330px); height: 3px; background: linear-gradient(90deg, transparent, rgba(85,166,63,.60)); }
-[data-theme="light"] .roblox-world-divider::after { transform: scaleX(-1); }
-[data-theme="light"] .roblox-world-divider span { display: grid; width: 27px; height: 27px; place-items: center; border: 2px solid #16243a; border-radius: 5px; background: #f5c542; color: #16243a; box-shadow: 2px 3px 0 #16243a; font-size: 11px; }
+[data-theme="light"]:where(:not([data-game="mm2"])) .roblox-world-divider::before,
+[data-theme="light"]:where(:not([data-game="mm2"])) .roblox-world-divider::after { content: ""; width: min(36vw, 330px); height: 3px; background: linear-gradient(90deg, transparent, rgba(85,166,63,.60)); }
+[data-theme="light"]:where(:not([data-game="mm2"])) .roblox-world-divider::after { transform: scaleX(-1); }
+[data-theme="light"]:where(:not([data-game="mm2"])) .roblox-world-divider span { display: grid; width: 27px; height: 27px; place-items: center; border: 2px solid #16243a; border-radius: 5px; background: #f5c542; color: #16243a; box-shadow: 2px 3px 0 #16243a; font-size: 11px; }
 
-[data-theme="light"] .theme-home-section--market .market-now-panel {
+[data-theme="light"]:where(:not([data-game="mm2"])) .theme-home-section--market .market-now-panel {
   position: relative;
   overflow: hidden;
   border: 2px solid rgba(22,36,58,.20);
@@ -2544,7 +2550,7 @@ body::before {
     #fff;
   box-shadow: 0 7px 0 rgba(22,36,58,.13), 0 20px 40px rgba(47,89,137,.09);
 }
-[data-theme="light"] .theme-home-section--market .market-now-panel::before {
+[data-theme="light"]:where(:not([data-game="mm2"])) .theme-home-section--market .market-now-panel::before {
   content: "LIVE TRADING SERVER";
   position: absolute;
   right: 18px;
@@ -2558,42 +2564,42 @@ body::before {
   font-weight: 950;
   letter-spacing: .10em;
 }
-[data-theme="light"] .theme-home-section--market .market-now-grid { gap: 13px; }
-[data-theme="light"] .theme-home-section--market .market-now-stat {
+[data-theme="light"]:where(:not([data-game="mm2"])) .theme-home-section--market .market-now-grid { gap: 13px; }
+[data-theme="light"]:where(:not([data-game="mm2"])) .theme-home-section--market .market-now-stat {
   border: 1.5px solid rgba(22,36,58,.18);
   border-radius: 9px;
   box-shadow: 0 5px 0 rgba(22,36,58,.09);
 }
-[data-theme="light"] .theme-home-section--market .market-now-stat:nth-child(1) { border-top: 5px solid #e32620; transform: translateY(4px); }
-[data-theme="light"] .theme-home-section--market .market-now-stat:nth-child(2) { border-top: 5px solid #55a63f; transform: translateY(-2px); }
-[data-theme="light"] .theme-home-section--market .market-now-stat:nth-child(3) { border-top: 5px solid #f5c542; transform: translateY(6px); }
-[data-theme="light"] .theme-home-section--market .market-now-stat:nth-child(4) { border-top: 5px solid #2f8be8; transform: translateY(1px); }
-[data-theme="light"] .theme-home-section--member > section {
+[data-theme="light"]:where(:not([data-game="mm2"])) .theme-home-section--market .market-now-stat:nth-child(1) { border-top: 5px solid #e32620; transform: translateY(4px); }
+[data-theme="light"]:where(:not([data-game="mm2"])) .theme-home-section--market .market-now-stat:nth-child(2) { border-top: 5px solid #55a63f; transform: translateY(-2px); }
+[data-theme="light"]:where(:not([data-game="mm2"])) .theme-home-section--market .market-now-stat:nth-child(3) { border-top: 5px solid #f5c542; transform: translateY(6px); }
+[data-theme="light"]:where(:not([data-game="mm2"])) .theme-home-section--market .market-now-stat:nth-child(4) { border-top: 5px solid #2f8be8; transform: translateY(1px); }
+[data-theme="light"]:where(:not([data-game="mm2"])) .theme-home-section--member > section {
   border: 2px solid rgba(22,36,58,.18) !important;
   border-radius: 14px !important;
   background: linear-gradient(90deg, #fff, #f2faff) !important;
   box-shadow: 0 7px 0 rgba(22,36,58,.11), 0 18px 35px rgba(47,89,137,.08) !important;
 }
-[data-theme="light"] .theme-home-section--quick .csbt-card-hover {
+[data-theme="light"]:where(:not([data-game="mm2"])) .theme-home-section--quick .csbt-card-hover {
   border-width: 1.5px;
   border-radius: 12px;
   background: linear-gradient(180deg, #fff, #f7fbff);
   box-shadow: 0 6px 0 rgba(22,36,58,.10), 0 15px 28px rgba(47,89,137,.07);
 }
-[data-theme="light"] .theme-home-section--quick .csbt-card-hover:nth-child(1) { border-top: 5px solid #e32620; transform: translateY(7px); }
-[data-theme="light"] .theme-home-section--quick .csbt-card-hover:nth-child(2) { border-top: 5px solid #2f8be8; transform: translateY(-4px); }
-[data-theme="light"] .theme-home-section--quick .csbt-card-hover:nth-child(3) { border-top: 5px solid #f0a915; transform: translateY(3px); }
-[data-theme="light"] .theme-home-section--quick .csbt-card-hover:nth-child(4) { border-top: 5px solid #55a63f; }
-[data-theme="light"] .theme-home-section--quick .csbt-card-hover:nth-child(5) { border-top: 5px solid #2f8be8; transform: translateY(-5px); }
-[data-theme="light"] .theme-home-section--quick .csbt-card-hover:nth-child(6) { border-top: 5px solid #e32620; }
-[data-theme="light"] .theme-home-section--quick .csbt-card-hover:nth-child(7) { border-top: 5px solid #7357df; }
-[data-theme="light"] .theme-home-section--nich > section {
+[data-theme="light"]:where(:not([data-game="mm2"])) .theme-home-section--quick .csbt-card-hover:nth-child(1) { border-top: 5px solid #e32620; transform: translateY(7px); }
+[data-theme="light"]:where(:not([data-game="mm2"])) .theme-home-section--quick .csbt-card-hover:nth-child(2) { border-top: 5px solid #2f8be8; transform: translateY(-4px); }
+[data-theme="light"]:where(:not([data-game="mm2"])) .theme-home-section--quick .csbt-card-hover:nth-child(3) { border-top: 5px solid #f0a915; transform: translateY(3px); }
+[data-theme="light"]:where(:not([data-game="mm2"])) .theme-home-section--quick .csbt-card-hover:nth-child(4) { border-top: 5px solid #55a63f; }
+[data-theme="light"]:where(:not([data-game="mm2"])) .theme-home-section--quick .csbt-card-hover:nth-child(5) { border-top: 5px solid #2f8be8; transform: translateY(-5px); }
+[data-theme="light"]:where(:not([data-game="mm2"])) .theme-home-section--quick .csbt-card-hover:nth-child(6) { border-top: 5px solid #e32620; }
+[data-theme="light"]:where(:not([data-game="mm2"])) .theme-home-section--quick .csbt-card-hover:nth-child(7) { border-top: 5px solid #7357df; }
+[data-theme="light"]:where(:not([data-game="mm2"])) .theme-home-section--nich > section {
   border: 2px solid rgba(115,87,223,.22) !important;
   border-radius: 14px !important;
   background: linear-gradient(145deg, #ffffff, #f5f2ff 82%) !important;
   box-shadow: 0 7px 0 rgba(99,70,200,.12), 0 22px 42px rgba(90,69,178,.09) !important;
 }
-[data-theme="light"] .theme-home-section--stats article {
+[data-theme="light"]:where(:not([data-game="mm2"])) .theme-home-section--stats article {
   border: 1.5px solid rgba(22,36,58,.18);
   border-radius: 12px;
   box-shadow: 0 6px 0 rgba(22,36,58,.10), 0 16px 30px rgba(47,89,137,.07);
@@ -2601,42 +2607,42 @@ body::before {
 
 
 /* Internal tools in Roblox mode need stronger contrast than the open world hero. */
-[data-theme="light"] .csbt-app-workspace > .csbt-page-header {
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-app-workspace > .csbt-page-header {
   border-color: rgba(22,36,58,.18);
   background:
     radial-gradient(circle at 92% 18%, rgba(255,255,255,.92), transparent 22%),
     linear-gradient(135deg, rgba(255,255,255,.98), rgba(238,248,255,.98) 58%, rgba(248,252,255,.98));
   box-shadow: 0 6px 0 rgba(22,36,58,.10), 0 20px 40px rgba(47,89,137,.08);
 }
-[data-theme="light"] .csbt-app-workspace > .csbt-page-header::before {
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-app-workspace > .csbt-page-header::before {
   background:
     radial-gradient(circle at 88% 20%, rgba(85,166,63,.08), transparent 18%),
     radial-gradient(circle at 10% 0%, rgba(47,139,232,.08), transparent 25%);
 }
-[data-theme="light"] .csbt-app-workspace > section,
-[data-theme="light"] .csbt-app-workspace > article,
-[data-theme="light"] .csbt-page .csbt-feature-panel,
-[data-theme="light"] .csbt-page .csbt-section-panel {
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-app-workspace > section,
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-app-workspace > article,
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-page .csbt-feature-panel,
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-page .csbt-section-panel {
   border-color: rgba(22,36,58,.16);
   box-shadow: 0 6px 0 rgba(22,36,58,.08), 0 18px 32px rgba(47,89,137,.07);
 }
-[data-theme="light"] .csbt-app-workspace input,
-[data-theme="light"] .csbt-app-workspace select,
-[data-theme="light"] .csbt-app-workspace textarea {
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-app-workspace input,
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-app-workspace select,
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-app-workspace textarea {
   color: #16243a;
   background: #fbfdff;
 }
-[data-theme="light"] .csbt-app-workspace .csbt-tab {
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-app-workspace .csbt-tab {
   border: 1px solid rgba(22,36,58,.08);
   background: rgba(255,255,255,.72);
 }
-[data-theme="light"] .csbt-app-workspace .csbt-tab:hover { background: #fff; }
-[data-theme="light"] .csbt-app-workspace .csbt-tab[aria-selected="true"],
-[data-theme="light"] .csbt-app-workspace .csbt-tab.is-active {
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-app-workspace .csbt-tab:hover { background: #fff; }
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-app-workspace .csbt-tab[aria-selected="true"],
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-app-workspace .csbt-tab.is-active {
   border-color: rgba(22,36,58,.14);
   box-shadow: 0 4px 0 rgba(22,36,58,.07);
 }
-[data-theme="light"] .csbt-app-workspace .csbt-badge-neutral {
+[data-theme="light"]:where(:not([data-game="mm2"])) .csbt-app-workspace .csbt-badge-neutral {
   background: rgba(255,255,255,.8);
   color: #52657d;
   border: 1px solid rgba(22,36,58,.10);
@@ -2656,8 +2662,8 @@ body::before {
 
 @media (min-width: 1280px) {
   .home-workspace { max-width: 1560px !important; }
-  [data-theme="light"] .home-workspace > :not(.home-hero-theme-slot):not(.roblox-journey-slot) { width: min(100%, 1500px); }
-  [data-theme="snoopy"] .home-workspace > :not(.home-hero-theme-slot) { width: min(100%, 1500px); }
+  [data-theme="light"]:where(:not([data-game="mm2"])) .home-workspace > :not(.home-hero-theme-slot):not(.roblox-journey-slot) { width: min(100%, 1500px); }
+  [data-theme="snoopy"]:where(:not([data-game="mm2"])) .home-workspace > :not(.home-hero-theme-slot) { width: min(100%, 1500px); }
 }
 
 @media (max-width: 1499px) {
@@ -2700,8 +2706,8 @@ body::before {
 }
 
 @media (max-width: 767px) {
-  [data-theme="light"] .home-workspace { padding-inline: 10px; }
-  [data-theme="light"] .theme-sticker { opacity: .035; }
+  [data-theme="light"]:where(:not([data-game="mm2"])) .home-workspace { padding-inline: 10px; }
+  [data-theme="light"]:where(:not([data-game="mm2"])) .theme-sticker { opacity: .035; }
   .roblox-home-hero { min-height: auto; padding: 16px 2px 38px; }
   .roblox-world-sun { right: -55px; top: 78px; width: 120px; height: 120px; opacity: .55; }
   .roblox-cloud--one { left: -55px; top: 105px; transform: scale(.65); opacity: .45; }
@@ -2763,7 +2769,7 @@ body::before {
   .roblox-world-floor span { width: 18px; }
   .roblox-world-floor span:nth-child(3) { width: 42px; }
 
-  [data-theme="light"] .roblox-trade-journey { min-height: auto; padding: 8px 4px 18px; }
+  [data-theme="light"]:where(:not([data-game="mm2"])) .roblox-trade-journey { min-height: auto; padding: 8px 4px 18px; }
   .roblox-journey-heading { align-items: flex-start; flex-direction: column; }
   .roblox-journey-heading h2 { font-size: 1.75rem; }
   .roblox-journey-level { align-self: flex-start; }
@@ -2791,10 +2797,10 @@ body::before {
   }
   .roblox-journey-stage--05::after { display: none; }
   .roblox-journey-finish { display: none; }
-  [data-theme="light"] .theme-home-section--market .market-now-panel::before { display: none; }
-  [data-theme="light"] .theme-home-section--market .market-now-stat { transform: none !important; }
-  [data-theme="light"] .theme-home-section--quick .csbt-card-hover { transform: none !important; }
-  [data-theme="light"] .roblox-world-divider { margin-top: 22px; }
+  [data-theme="light"]:where(:not([data-game="mm2"])) .theme-home-section--market .market-now-panel::before { display: none; }
+  [data-theme="light"]:where(:not([data-game="mm2"])) .theme-home-section--market .market-now-stat { transform: none !important; }
+  [data-theme="light"]:where(:not([data-game="mm2"])) .theme-home-section--quick .csbt-card-hover { transform: none !important; }
+  [data-theme="light"]:where(:not([data-game="mm2"])) .roblox-world-divider { margin-top: 22px; }
 }
 
 @media (max-width: 420px) {
@@ -2824,12 +2830,12 @@ body::before {
 
 /* The pre-hydration theme script already knows about Snoopy. Hide the server's
    default dark Hero for the few milliseconds before the client theme store syncs. */
-[data-theme="snoopy"] .home-hero-theme-slot:not([data-rendered-theme="snoopy"]) {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .home-hero-theme-slot:not([data-rendered-theme="snoopy"]) {
   visibility: hidden;
   min-height: 720px;
 }
 
-[data-theme="snoopy"] body::before {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) body::before {
   opacity: .40;
   background-image:
     radial-gradient(circle, rgba(54, 39, 24, .10) .55px, transparent .7px),
@@ -2841,121 +2847,121 @@ body::before {
   -webkit-mask-image: none;
 }
 
-[data-theme="snoopy"] ::-webkit-scrollbar-thumb:hover {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) ::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(180deg, #b51d1a, #861411);
 }
 
-[data-theme="snoopy"] .theme-decoration-layer--snoopy { display: block; }
-[data-theme="snoopy"] .theme-sticker { opacity: .07; }
-[data-theme="snoopy"] .theme-sticker:nth-child(2n) { color: var(--decor-secondary); opacity: .06; }
-[data-theme="snoopy"] .theme-sticker:nth-child(3n) { color: var(--blue); opacity: .055; }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .theme-decoration-layer--snoopy { display: block; }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .theme-sticker { opacity: .07; }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .theme-sticker:nth-child(2n) { color: var(--decor-secondary); opacity: .06; }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .theme-sticker:nth-child(3n) { color: var(--blue); opacity: .055; }
 /* The Snoopy homepage owns its decoration composition. Hide the generic wallpaper
    there so no pale, disconnected outline marks float behind the approved artwork. */
-[data-theme="snoopy"] .theme-decorations[data-page="home"] .theme-decoration-layer--snoopy { display: none; }
-[data-theme="snoopy"] .theme-decorations:not([data-page="home"]) .theme-sticker { opacity: .027; }
-[data-theme="snoopy"] .theme-decorations:not([data-page="home"]) .theme-sticker:nth-child(2n) { opacity: .022; }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .theme-decorations[data-page="home"] .theme-decoration-layer--snoopy { display: none; }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .theme-decorations:not([data-page="home"]) .theme-sticker { opacity: .027; }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .theme-decorations:not([data-page="home"]) .theme-sticker:nth-child(2n) { opacity: .022; }
 
-[data-theme="snoopy"] :where(.glass, .surface, .csbt-surface-1, .csbt-surface-2) {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) :where(.glass, .surface, .csbt-surface-1, .csbt-surface-2) {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   box-shadow: var(--shadow-sm);
 }
-[data-theme="snoopy"] :where(.csbt-surface-1, .csbt-surface-2, .surface, .glass) {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) :where(.csbt-surface-1, .csbt-surface-2, .surface, .glass) {
   border-color: var(--border);
 }
-[data-theme="snoopy"] .hover-card:hover,
-[data-theme="snoopy"] .csbt-card-hover:hover {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .hover-card:hover,
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .csbt-card-hover:hover {
   border-color: color-mix(in srgb, var(--brand-primary) 42%, var(--border));
 }
 
 /* Snoopy is a light theme, so repair the same legacy utility patterns as CSBT Light. */
-[data-theme="snoopy"] .csbt-page :where(.text-amber-300) { color: #8f6610; }
-[data-theme="snoopy"] .csbt-page :where(.text-cyan-300) { color: #466f91; }
-[data-theme="snoopy"] .csbt-page :where(.text-violet-300) { color: #6e4e82; }
-[data-theme="snoopy"] .csbt-page :where(.text-slate-400) { color: #6d6255; }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .csbt-page :where(.text-amber-300) { color: #8f6610; }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .csbt-page :where(.text-cyan-300) { color: #466f91; }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .csbt-page :where(.text-violet-300) { color: #6e4e82; }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .csbt-page :where(.text-slate-400) { color: #6d6255; }
 
-[data-theme="snoopy"] .csbt-lounge [class~="text-white"],
-[data-theme="snoopy"] .csbt-lounge [class*="text-white/"] { color: var(--foreground-muted) !important; }
-[data-theme="snoopy"] .csbt-lounge h1,
-[data-theme="snoopy"] .csbt-lounge h2,
-[data-theme="snoopy"] .csbt-lounge h3,
-[data-theme="snoopy"] .csbt-lounge [class*="font-black"] { color: var(--foreground); }
-[data-theme="snoopy"] .csbt-lounge [class*="bg-white/"] { background-color: color-mix(in srgb, var(--surface-3) 72%, transparent) !important; }
-[data-theme="snoopy"] .csbt-lounge [class*="border-white/"] { border-color: var(--border) !important; }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .csbt-lounge [class~="text-white"],
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .csbt-lounge [class*="text-white/"] { color: var(--foreground-muted) !important; }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .csbt-lounge h1,
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .csbt-lounge h2,
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .csbt-lounge h3,
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .csbt-lounge [class*="font-black"] { color: var(--foreground); }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .csbt-lounge [class*="bg-white/"] { background-color: color-mix(in srgb, var(--surface-3) 72%, transparent) !important; }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .csbt-lounge [class*="border-white/"] { border-color: var(--border) !important; }
 
 /* Navigation becomes a printed cream sidebar with a deep-red selected strip. */
-[data-theme="snoopy"] aside[data-tour="sidebar-container"] > div,
-[data-theme="snoopy"] header > div,
-[data-theme="snoopy"] nav[data-tour="mobile-dock"],
-[data-theme="snoopy"] [data-tour="mobile-more-panel"] {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) aside[data-tour="sidebar-container"] > div,
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) header > div,
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) nav[data-tour="mobile-dock"],
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) [data-tour="mobile-more-panel"] {
   background: var(--nav-background) !important;
   border-color: var(--border-strong) !important;
   box-shadow: var(--shadow-md) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
-[data-theme="snoopy"] aside[data-tour="sidebar-container"] > div {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) aside[data-tour="sidebar-container"] > div {
   border-width: 2px;
 }
-[data-theme="snoopy"] aside[data-tour="sidebar-container"] a[aria-current="page"],
-[data-theme="snoopy"] [data-tour="mobile-more-panel"] a[aria-current="page"] {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) aside[data-tour="sidebar-container"] a[aria-current="page"],
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) [data-tour="mobile-more-panel"] a[aria-current="page"] {
   background: var(--nav-active) !important;
   color: var(--nav-active-text) !important;
   border-color: #861411 !important;
   box-shadow: 0 2px 0 rgba(36,29,25,.24), 0 8px 18px rgba(181,29,26,.10) !important;
 }
-[data-theme="snoopy"] aside[data-tour="sidebar-container"] a[aria-current="page"]::before { background: #f2c94c !important; }
-[data-theme="snoopy"] aside[data-tour="sidebar-container"] a[aria-current="page"] > span:first-child,
-[data-theme="snoopy"] [data-tour="mobile-more-panel"] a[aria-current="page"] > span:first-child {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) aside[data-tour="sidebar-container"] a[aria-current="page"]::before { background: #f2c94c !important; }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) aside[data-tour="sidebar-container"] a[aria-current="page"] > span:first-child,
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) [data-tour="mobile-more-panel"] a[aria-current="page"] > span:first-child {
   background: rgba(255,247,229,.17) !important;
   color: #fff7e5 !important;
 }
-[data-theme="snoopy"] aside[data-tour="sidebar-container"] button:hover {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) aside[data-tour="sidebar-container"] button:hover {
   background: var(--nav-hover) !important;
   color: var(--foreground) !important;
 }
-[data-theme="snoopy"] aside[data-tour="sidebar-container"] a[href*="facebook.com/groups"] {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) aside[data-tour="sidebar-container"] a[href*="facebook.com/groups"] {
   border: 1.75px solid #3a1512;
   background: var(--primary-button) !important;
   color: var(--primary-button-text) !important;
   box-shadow: 0 2px 0 rgba(36,29,25,.20);
 }
-[data-theme="snoopy"] header .text-amber-900,
-[data-theme="snoopy"] [data-tour="mobile-more-panel"] .text-slate-950 { color: var(--foreground) !important; }
-[data-theme="snoopy"] header :where(button, a[aria-label="Notifications"], a[aria-label="My profile"]) {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) header .text-amber-900,
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) [data-tour="mobile-more-panel"] .text-slate-950 { color: var(--foreground) !important; }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) header :where(button, a[aria-label="Notifications"], a[aria-label="My profile"]) {
   color: var(--foreground-muted) !important;
 }
-[data-theme="snoopy"] header :where(button, a[aria-label="Notifications"], a[aria-label="My profile"]):hover {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) header :where(button, a[aria-label="Notifications"], a[aria-label="My profile"]):hover {
   background: var(--nav-hover) !important;
   color: var(--foreground) !important;
 }
-[data-theme="snoopy"] [data-tour="mobile-more-panel"] > div:first-child p { color: var(--brand-primary) !important; }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) [data-tour="mobile-more-panel"] > div:first-child p { color: var(--brand-primary) !important; }
 
-[data-theme="snoopy"] .csbt-appearance-panel {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .csbt-appearance-panel {
   border-width: 2px;
   background:
     radial-gradient(circle at 90% 5%, rgba(229,182,58,.12), transparent 13rem),
     var(--surface-2);
 }
-[data-theme="snoopy"] .csbt-appearance-panel::before {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .csbt-appearance-panel::before {
   background: linear-gradient(90deg, #b51d1a, #861411 54%, #e5b63a 78%, transparent);
 }
 
 /* Nich keeps its purple personality, but rests on warm paper rather than glass. */
-[data-theme="snoopy"] .nich-smart-shell {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .nich-smart-shell {
   border-color: color-mix(in srgb, var(--purple) 28%, var(--border));
   box-shadow: var(--shadow-lg), 0 14px 38px rgba(118,88,138,.07), inset 0 1px 0 var(--panel-top-highlight) !important;
 }
-[data-theme="snoopy"] .nich-smart-response {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .nich-smart-response {
   background: linear-gradient(145deg, #fff9ea, color-mix(in srgb, #f3e3c3 90%, var(--purple) 2%));
 }
-[data-theme="snoopy"] .nich-smart-user {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .nich-smart-user {
   background: linear-gradient(145deg, #fff9ea, color-mix(in srgb, var(--brand-primary) 6%, #fff7e5));
 }
-[data-theme="snoopy"] .nich-smart-composer { background: #fff9ea; }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .nich-smart-composer { background: #fff9ea; }
 
 /* Birthday/event overlays inherit Snoopy-specific light values instead of a dark fallback. */
-[data-theme="snoopy"] {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) {
   --birthday-accent: #b51d1a;
   --birthday-accent-strong: #861411;
   --birthday-gold: #a97812;
@@ -2971,13 +2977,13 @@ body::before {
  * Snoopy is intentionally full-width on the homepage. Unlike the other themes,
  * this is a comic-page composition rather than a centered modern hero card.
  */
-[data-theme="snoopy"] .home-workspace {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .home-workspace {
   width: 100%;
   max-width: none !important;
   padding-left: clamp(16px, 2.25vw, 44px);
   padding-right: clamp(16px, 2.25vw, 44px);
 }
-[data-theme="snoopy"] .home-workspace > :not(.home-hero-theme-slot) {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .home-workspace > :not(.home-hero-theme-slot) {
   width: min(100%, 1450px);
   margin-left: auto;
   margin-right: auto;
@@ -3312,30 +3318,30 @@ body::before {
 
 
 /* ----- Snoopy comic ink language across the real website ----- */
-[data-theme="snoopy"] :where(.csbt-feature-panel, .csbt-section-panel, .csbt-surface-1, .csbt-surface-2, .csbt-feed-card) {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) :where(.csbt-feature-panel, .csbt-section-panel, .csbt-surface-1, .csbt-surface-2, .csbt-feed-card) {
   border-color: #332923;
   box-shadow: 3px 4px 0 rgba(36,29,25,.13), 0 12px 28px rgba(96,70,31,.06) !important;
 }
-[data-theme="snoopy"] :where(.csbt-feature-panel, .csbt-section-panel) { border-width: 2px; }
-[data-theme="snoopy"] :where(.csbt-card-hover, .csbt-inset-panel) { border-color: rgba(36,29,25,.62) !important; }
-[data-theme="snoopy"] :where(.csbt-btn-secondary, .csbt-input-field) { border-width: 1.75px; border-color: #3a3029; }
-[data-theme="snoopy"] .csbt-btn-primary {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) :where(.csbt-feature-panel, .csbt-section-panel) { border-width: 2px; }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) :where(.csbt-card-hover, .csbt-inset-panel) { border-color: rgba(36,29,25,.62) !important; }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) :where(.csbt-btn-secondary, .csbt-input-field) { border-width: 1.75px; border-color: #3a3029; }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .csbt-btn-primary {
   border: 1.75px solid #3a1512;
   box-shadow: 0 3px 0 rgba(36,29,25,.18), 0 9px 20px rgba(181,29,26,.10);
 }
-[data-theme="snoopy"] .csbt-feature-panel::before {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .csbt-feature-panel::before {
   height: 3px;
   background: linear-gradient(90deg, #b51d1a 0 23%, #241d19 23% 26%, #e5b63a 26% 39%, transparent 39%);
   opacity: .95;
 }
 
 /* Lower homepage sections continue the comic page instead of floating on faint wallpaper traces. */
-[data-theme="snoopy"] .snoopy-home-section {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section {
   position: relative;
   isolation: isolate;
 }
-[data-theme="snoopy"] .snoopy-home-section::before,
-[data-theme="snoopy"] .snoopy-home-section::after {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section::before,
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section::after {
   position: absolute;
   z-index: 2;
   pointer-events: none;
@@ -3345,7 +3351,7 @@ body::before {
   line-height: 1;
   text-shadow: 1px 1px 0 rgba(255,247,229,.9);
 }
-[data-theme="snoopy"] .snoopy-home-section--market::before {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section--market::before {
   content: "✿";
   left: -20px;
   top: 20px;
@@ -3353,7 +3359,7 @@ body::before {
   font-size: 30px;
   transform: rotate(-12deg);
 }
-[data-theme="snoopy"] .snoopy-home-section--market::after {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section--market::after {
   content: "★";
   right: -14px;
   top: -16px;
@@ -3362,7 +3368,7 @@ body::before {
   font-size: 27px;
   transform: rotate(9deg);
 }
-[data-theme="snoopy"] .snoopy-home-section--member::after {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section--member::after {
   content: "♥";
   right: -13px;
   top: 18px;
@@ -3370,7 +3376,7 @@ body::before {
   font-size: 24px;
   transform: rotate(8deg);
 }
-[data-theme="snoopy"] .snoopy-home-section--quick::before {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section--quick::before {
   content: "⌁⌁";
   left: -24px;
   top: 54px;
@@ -3379,7 +3385,7 @@ body::before {
   letter-spacing: -7px;
   transform: rotate(-12deg);
 }
-[data-theme="snoopy"] .snoopy-home-section--nich::after {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section--nich::after {
   content: "✦";
   right: -12px;
   top: 22px;
@@ -3387,7 +3393,7 @@ body::before {
   -webkit-text-stroke: .8px #241d19;
   font-size: 30px;
 }
-[data-theme="snoopy"] .snoopy-home-section--stats::before {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section--stats::before {
   content: "✿";
   left: -14px;
   top: 44px;
@@ -3395,11 +3401,11 @@ body::before {
   font-size: 25px;
   transform: rotate(10deg);
 }
-[data-theme="snoopy"] .snoopy-home-section .csbt-section-title {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section .csbt-section-title {
   position: relative;
   display: inline-block;
 }
-[data-theme="snoopy"] .snoopy-home-section .csbt-section-title::after {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section .csbt-section-title::after {
   content: "";
   position: absolute;
   left: 2%;
@@ -3411,7 +3417,7 @@ body::before {
   transform: rotate(-.45deg);
   opacity: .72;
 }
-[data-theme="snoopy"] .snoopy-home-section :where(.rounded-\[var\(--radius-card\)\], article) {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section :where(.rounded-\[var\(--radius-card\)\], article) {
   border-color: rgba(36,29,25,.64);
 }
 
@@ -3583,7 +3589,7 @@ body::before {
 .snoopy-hero-left-scene { left: max(-18px, .15vw); top: 250px; width: clamp(370px, 23vw, 450px); }
 .snoopy-hero-right-scene { right: max(-20px, .15vw); top: 298px; width: clamp(395px, 24vw, 470px); }
 
-[data-theme="snoopy"] :where(.csbt-feature-panel, .csbt-section-panel, .csbt-surface-1, .csbt-surface-2, .csbt-feed-card) {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) :where(.csbt-feature-panel, .csbt-section-panel, .csbt-surface-1, .csbt-surface-2, .csbt-feed-card) {
   position: relative;
   overflow: hidden;
   border-color: #241d19;
@@ -3594,7 +3600,7 @@ body::before {
   background-size: auto, 12px 12px;
   box-shadow: 4px 5px 0 rgba(36,29,25,.17), 0 14px 28px rgba(96,70,31,.06) !important;
 }
-[data-theme="snoopy"] :where(.csbt-feature-panel, .csbt-section-panel, .csbt-card-hover, .csbt-inset-panel)::after {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) :where(.csbt-feature-panel, .csbt-section-panel, .csbt-card-hover, .csbt-inset-panel)::after {
   content: "";
   position: absolute;
   inset: 8px;
@@ -3602,8 +3608,8 @@ body::before {
   border-radius: calc(var(--radius-card) - 6px);
   pointer-events: none;
 }
-[data-theme="snoopy"] :where(.csbt-card-hover, .csbt-inset-panel) { border-width: 2px; }
-[data-theme="snoopy"] .csbt-eyebrow {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) :where(.csbt-card-hover, .csbt-inset-panel) { border-width: 2px; }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .csbt-eyebrow {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -3614,21 +3620,21 @@ body::before {
   box-shadow: 0 3px 0 rgba(36,29,25,.14);
   color: #b51d1a;
 }
-[data-theme="snoopy"] .csbt-section-title {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .csbt-section-title {
   text-shadow: 1px 1px 0 rgba(255,247,229,.7);
 }
-[data-theme="snoopy"] .snoopy-home-section > section,
-[data-theme="snoopy"] .snoopy-home-section .csbt-feature-panel {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section > section,
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section .csbt-feature-panel {
   background-color: rgba(255,247,229,.93);
 }
-[data-theme="snoopy"] .snoopy-home-section.snoopy-home-section--market .csbt-feature-panel::before {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section.snoopy-home-section--market .csbt-feature-panel::before {
   height: 4px;
   background: linear-gradient(90deg, #b51d1a 0 20%, #241d19 20% 24%, #e5b63a 24% 34%, #547fa3 34% 44%, transparent 44%);
 }
-[data-theme="snoopy"] .snoopy-market-panel { padding-top: 24px; }
-[data-theme="snoopy"] .snoopy-market-caption::before { content: "★"; margin-right: 6px; color: #e5b63a; -webkit-text-stroke: .8px #241d19; }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-market-panel { padding-top: 24px; }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-market-caption::before { content: "★"; margin-right: 6px; color: #e5b63a; -webkit-text-stroke: .8px #241d19; }
 .snoopy-market-bubble { display: none; }
-[data-theme="snoopy"] .snoopy-market-bubble {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-market-bubble {
   display: inline-block;
   margin-top: 10px;
   max-width: 560px;
@@ -3642,22 +3648,22 @@ body::before {
   color: #51463c;
   box-shadow: 0 3px 0 rgba(36,29,25,.12);
 }
-[data-theme="snoopy"] .snoopy-market-link {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-market-link {
   border: 2px solid #241d19;
   border-radius: 999px;
   padding: 10px 14px;
   background: #fff7e5;
   box-shadow: 0 3px 0 rgba(36,29,25,.12);
 }
-[data-theme="snoopy"] .snoopy-market-grid { position: relative; margin-top: 1.25rem !important; }
-[data-theme="snoopy"] .snoopy-market-stat {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-market-grid { position: relative; margin-top: 1.25rem !important; }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-market-stat {
   position: relative;
   overflow: hidden;
   border-width: 2.6px !important;
   border-color: #241d19 !important;
   box-shadow: 0 4px 0 rgba(36,29,25,.14);
 }
-[data-theme="snoopy"] .snoopy-market-stat::before {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-market-stat::before {
   content: "";
   position: absolute;
   right: 10px;
@@ -3668,18 +3674,18 @@ body::before {
   background-image: radial-gradient(circle, rgba(36,29,25,.85) 1px, transparent 1.25px);
   background-size: 8px 8px;
 }
-[data-theme="snoopy"] .snoopy-market-stat:nth-child(1) { transform: rotate(-.4deg) translateY(1px); }
-[data-theme="snoopy"] .snoopy-market-stat:nth-child(2) { transform: rotate(.5deg) translateY(4px); }
-[data-theme="snoopy"] .snoopy-market-stat:nth-child(3) { transform: rotate(-.3deg); }
-[data-theme="snoopy"] .snoopy-market-stat:nth-child(4) { transform: rotate(.35deg) translateY(2px); }
-[data-theme="snoopy"] .snoopy-market-stat--red { background: linear-gradient(180deg, rgba(181,29,26,.06), transparent 36%), rgba(255,247,229,.93); }
-[data-theme="snoopy"] .snoopy-market-stat--yellow { background: linear-gradient(180deg, rgba(229,182,58,.09), transparent 38%), rgba(255,247,229,.93); }
-[data-theme="snoopy"] .snoopy-market-stat--blue { background: linear-gradient(180deg, rgba(84,127,163,.07), transparent 38%), rgba(255,247,229,.93); }
-[data-theme="snoopy"] .snoopy-market-stat--cream { background: linear-gradient(180deg, rgba(255,255,255,.18), transparent 38%), rgba(255,247,229,.93); }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-market-stat:nth-child(1) { transform: rotate(-.4deg) translateY(1px); }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-market-stat:nth-child(2) { transform: rotate(.5deg) translateY(4px); }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-market-stat:nth-child(3) { transform: rotate(-.3deg); }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-market-stat:nth-child(4) { transform: rotate(.35deg) translateY(2px); }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-market-stat--red { background: linear-gradient(180deg, rgba(181,29,26,.06), transparent 36%), rgba(255,247,229,.93); }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-market-stat--yellow { background: linear-gradient(180deg, rgba(229,182,58,.09), transparent 38%), rgba(255,247,229,.93); }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-market-stat--blue { background: linear-gradient(180deg, rgba(84,127,163,.07), transparent 38%), rgba(255,247,229,.93); }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-market-stat--cream { background: linear-gradient(180deg, rgba(255,255,255,.18), transparent 38%), rgba(255,247,229,.93); }
 
 /* Printed comic transitions and editorial rhythm below the hero. */
 .snoopy-comic-divider { display: none; }
-[data-theme="snoopy"] .snoopy-comic-divider {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-comic-divider {
   position: relative;
   display: flex;
   width: min(100%, 1180px);
@@ -3693,8 +3699,8 @@ body::before {
   letter-spacing: .15em;
   text-transform: uppercase;
 }
-[data-theme="snoopy"] .snoopy-comic-divider::before,
-[data-theme="snoopy"] .snoopy-comic-divider::after {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-comic-divider::before,
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-comic-divider::after {
   content: "";
   height: 2.5px;
   flex: 1 1 auto;
@@ -3702,7 +3708,7 @@ body::before {
   background: #241d19;
   border-radius: 50%;
 }
-[data-theme="snoopy"] .snoopy-comic-divider strong {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-comic-divider strong {
   border: 2px solid #241d19;
   border-radius: 999px;
   padding: 6px 10px;
@@ -3711,33 +3717,33 @@ body::before {
   box-shadow: 0 3px 0 rgba(36,29,25,.15);
   transform: rotate(-.7deg);
 }
-[data-theme="snoopy"] .snoopy-comic-divider--alt strong { color: #241d19; background: #e5b63a; transform: rotate(.7deg); }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-comic-divider--alt strong { color: #241d19; background: #e5b63a; transform: rotate(.7deg); }
 
-[data-theme="snoopy"] .snoopy-home-section--quick .csbt-card-hover,
-[data-theme="snoopy"] .snoopy-home-section--stats article {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section--quick .csbt-card-hover,
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section--stats article {
   position: relative;
   border-width: 2.2px !important;
   border-color: #241d19 !important;
   background-color: rgba(255,247,229,.94) !important;
   box-shadow: 4px 5px 0 rgba(36,29,25,.16) !important;
 }
-[data-theme="snoopy"] .snoopy-home-section--quick .csbt-card-hover:nth-child(1),
-[data-theme="snoopy"] .snoopy-home-section--stats article:nth-child(1) { transform: rotate(-.28deg); }
-[data-theme="snoopy"] .snoopy-home-section--quick .csbt-card-hover:nth-child(2),
-[data-theme="snoopy"] .snoopy-home-section--stats article:nth-child(2) { transform: rotate(.32deg) translateY(3px); }
-[data-theme="snoopy"] .snoopy-home-section--quick .csbt-card-hover:nth-child(3),
-[data-theme="snoopy"] .snoopy-home-section--stats article:nth-child(3) { transform: rotate(-.2deg) translateY(1px); }
-[data-theme="snoopy"] .snoopy-home-section--quick .csbt-card-hover:nth-child(4) { transform: rotate(.26deg) translateY(4px); }
-[data-theme="snoopy"] .snoopy-home-section--quick .csbt-card-hover:nth-child(5) { transform: rotate(-.22deg) translateY(2px); }
-[data-theme="snoopy"] .snoopy-home-section--quick .csbt-card-hover:nth-child(6) { transform: rotate(.2deg); }
-[data-theme="snoopy"] .snoopy-home-section--quick .csbt-card-hover:nth-child(7) { transform: rotate(-.16deg) translateY(3px); }
-[data-theme="snoopy"] .snoopy-home-section--quick .csbt-card-hover:hover,
-[data-theme="snoopy"] .snoopy-home-section--stats article:hover {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section--quick .csbt-card-hover:nth-child(1),
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section--stats article:nth-child(1) { transform: rotate(-.28deg); }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section--quick .csbt-card-hover:nth-child(2),
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section--stats article:nth-child(2) { transform: rotate(.32deg) translateY(3px); }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section--quick .csbt-card-hover:nth-child(3),
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section--stats article:nth-child(3) { transform: rotate(-.2deg) translateY(1px); }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section--quick .csbt-card-hover:nth-child(4) { transform: rotate(.26deg) translateY(4px); }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section--quick .csbt-card-hover:nth-child(5) { transform: rotate(-.22deg) translateY(2px); }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section--quick .csbt-card-hover:nth-child(6) { transform: rotate(.2deg); }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section--quick .csbt-card-hover:nth-child(7) { transform: rotate(-.16deg) translateY(3px); }
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section--quick .csbt-card-hover:hover,
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section--stats article:hover {
   transform: translateY(-3px) rotate(0);
   box-shadow: 5px 7px 0 rgba(36,29,25,.18) !important;
 }
-[data-theme="snoopy"] .snoopy-home-section--quick .csbt-card-hover::before,
-[data-theme="snoopy"] .snoopy-home-section--stats article::before {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section--quick .csbt-card-hover::before,
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section--stats article::before {
   content: "";
   position: absolute;
   right: 12px;
@@ -3749,14 +3755,14 @@ body::before {
   background-size: 8px 8px;
   pointer-events: none;
 }
-[data-theme="snoopy"] .snoopy-home-section--nich > section,
-[data-theme="snoopy"] .snoopy-home-section--member > section {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section--nich > section,
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section--member > section {
   border-width: 2.4px !important;
   border-color: #241d19 !important;
   background: rgba(255,247,229,.95) !important;
   box-shadow: 4px 5px 0 rgba(36,29,25,.16), 0 14px 28px rgba(96,70,31,.05) !important;
 }
-[data-theme="snoopy"] .snoopy-home-section--nich > section::after {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section--nich > section::after {
   content: "ASK ME!";
   position: absolute;
   right: 18px;
@@ -3808,16 +3814,16 @@ body::before {
 .snoopy-hero-right-scene::before { right: -1%; top: 22%; background-image: radial-gradient(circle, #e5b63a 1.2px, transparent 1.4px); }
 
 /* Snoopy sidebar: keep the IA untouched, add subtle printed-comic cues. */
-[data-theme="snoopy"] aside[data-tour="sidebar-container"] > div {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) aside[data-tour="sidebar-container"] > div {
   border: 2.4px solid #241d19 !important;
   box-shadow: 4px 5px 0 rgba(36,29,25,.18), 0 14px 28px rgba(96,70,31,.05) !important;
 }
-[data-theme="snoopy"] aside[data-tour="sidebar-container"] section > button {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) aside[data-tour="sidebar-container"] section > button {
   position: relative;
   color: #5f5348 !important;
   letter-spacing: .18em;
 }
-[data-theme="snoopy"] aside[data-tour="sidebar-container"] section > button::after {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) aside[data-tour="sidebar-container"] section > button::after {
   content: "";
   position: absolute;
   left: 10px;
@@ -3827,7 +3833,7 @@ body::before {
   background: rgba(36,29,25,.32);
   transform: rotate(-.25deg);
 }
-[data-theme="snoopy"] aside[data-tour="sidebar-container"] a[aria-current="page"] {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) aside[data-tour="sidebar-container"] a[aria-current="page"] {
   border: 2px solid #241d19 !important;
   background-color: #b51d1a !important;
   background-image: radial-gradient(circle, rgba(255,247,229,.18) 1px, transparent 1.25px) !important;
@@ -3835,7 +3841,7 @@ body::before {
   box-shadow: 3px 4px 0 #241d19 !important;
   transform: rotate(-.15deg);
 }
-[data-theme="snoopy"] aside[data-tour="sidebar-container"] a[aria-current="page"]::after {
+[data-theme="snoopy"]:where(:not([data-game="mm2"])) aside[data-tour="sidebar-container"] a[aria-current="page"]::after {
   content: "→";
   position: absolute;
   right: 8px;
@@ -3873,12 +3879,12 @@ body::before {
 }
 
 @media (max-width: 767px) {
-  [data-theme="snoopy"] .snoopy-comic-divider { display: none; }
-  [data-theme="snoopy"] .snoopy-home-section::before,
-  [data-theme="snoopy"] .snoopy-home-section::after { display: none; }
-  [data-theme="snoopy"] .home-workspace { padding-left: 12px; padding-right: 12px; }
-  [data-theme="snoopy"] .theme-sticker { opacity: .035; }
-  [data-theme="snoopy"] .theme-sticker--mobile { opacity: .045; }
+  [data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-comic-divider { display: none; }
+  [data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section::before,
+  [data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-home-section::after { display: none; }
+  [data-theme="snoopy"]:where(:not([data-game="mm2"])) .home-workspace { padding-left: 12px; padding-right: 12px; }
+  [data-theme="snoopy"]:where(:not([data-game="mm2"])) .theme-sticker { opacity: .035; }
+  [data-theme="snoopy"]:where(:not([data-game="mm2"])) .theme-sticker--mobile { opacity: .045; }
   .snoopy-home-hero { min-height: auto; padding: 18px 2px 30px; }
   .snoopy-home-paper { inset-inline: -12px; opacity: .34; }
   .snoopy-refresh-badge { min-height: 36px; border-width: 1.5px; padding: 5px 11px; font-size: 10px; }
@@ -3937,7 +3943,7 @@ body::before {
   .snoopy-action { transition: none; }
   .snoopy-search-shell:focus-within { transform: none; }
   .snoopy-action:hover { transform: none; }
-  [data-theme="snoopy"] .snoopy-market-stat,
+  [data-theme="snoopy"]:where(:not([data-game="mm2"])) .snoopy-market-stat,
   .snoopy-stat-card { transform: none !important; }
 }
 
@@ -3946,7 +3952,7 @@ body::before {
    Active window is controlled by src/config/birthdayEvent.ts.
 ========================= */
 :root,
-[data-theme="dark"] {
+[data-theme="dark"]:where(:not([data-game="mm2"])) {
   --birthday-accent: #ff7f9f;
   --birthday-accent-strong: #ff5f8a;
   --birthday-gold: #ffc928;
@@ -3956,7 +3962,7 @@ body::before {
   --birthday-surface: color-mix(in srgb, var(--surface-2) 94%, #3a1730 6%);
   --birthday-shadow: 0 28px 90px rgba(0,0,0,.48), 0 0 56px rgba(255,95,138,.10);
 }
-[data-theme="halloween"] {
+[data-theme="halloween"]:where(:not([data-game="mm2"])) {
   --birthday-accent: #ff8ca8;
   --birthday-accent-strong: #ff6c91;
   --birthday-gold: #ff9d21;
@@ -3966,7 +3972,7 @@ body::before {
   --birthday-surface: color-mix(in srgb, var(--surface-2) 92%, #3b173c 8%);
   --birthday-shadow: 0 28px 90px rgba(0,0,0,.54), 0 0 62px rgba(139,92,246,.13);
 }
-[data-theme="light"] {
+[data-theme="light"]:where(:not([data-game="mm2"])) {
   --birthday-accent: #d94f7a;
   --birthday-accent-strong: #c93d68;
   --birthday-gold: #bd8500;
@@ -4343,9 +4349,9 @@ body::before {
    A full midnight event world, not a recolored dark dashboard.
 ========================= */
 .halloween-trail-slot { display: none; }
-[data-theme="halloween"] .halloween-trail-slot { display: block; width: min(100%, 1480px); margin-inline: auto; }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .halloween-trail-slot { display: block; width: min(100%, 1480px); margin-inline: auto; }
 
-[data-theme="halloween"] {
+[data-theme="halloween"]:where(:not([data-game="mm2"])) {
   --background: #08060c;
   --background-secondary: #100916;
   --foreground: #f7ead8;
@@ -4379,7 +4385,7 @@ body::before {
     linear-gradient(180deg, #08060c 0%, #0d0813 44%, #13091b 100%);
 }
 
-[data-theme="halloween"] body::before {
+[data-theme="halloween"]:where(:not([data-game="mm2"])) body::before {
   opacity: .24;
   background-image:
     radial-gradient(circle, rgba(255,190,110,.07) .7px, transparent .9px),
@@ -4389,18 +4395,18 @@ body::before {
   -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 48%, transparent 92%);
 }
 
-[data-theme="halloween"] .home-workspace {
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .home-workspace {
   width: 100%;
   max-width: none !important;
   padding-left: clamp(12px, 1.8vw, 30px);
   padding-right: clamp(12px, 1.8vw, 30px);
 }
-[data-theme="halloween"] .home-workspace > :not(.home-hero-theme-slot):not(.halloween-trail-slot) {
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .home-workspace > :not(.home-hero-theme-slot):not(.halloween-trail-slot) {
   width: min(100%, 1460px);
   margin-inline: auto;
 }
-[data-theme="halloween"] .home-hero-theme-slot:not([data-rendered-theme="halloween"]) { visibility: hidden; min-height: 820px; }
-[data-theme="halloween"] .theme-decorations[data-page="home"] .theme-decoration-layer--halloween { display: none; }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .home-hero-theme-slot:not([data-rendered-theme="halloween"]) { visibility: hidden; min-height: 820px; }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .theme-decorations[data-page="home"] .theme-decoration-layer--halloween { display: none; }
 
 .halloween-home-hero {
   position: relative;
@@ -4685,54 +4691,54 @@ body::before {
 .halloween-trail-finish i { display: grid; width: 26px; height: 26px; place-items: center; border: 2px solid #0c0609; border-radius: 6px; background: #ff7a00; color: #1c0b0a; box-shadow: 2px 3px 0 #070409; font-style: normal; }
 
 /* Lower homepage carries the carnival language. */
-[data-theme="halloween"] .theme-home-section { position: relative; }
-[data-theme="halloween"] .theme-home-section::before { content: ""; position: absolute; left: 26px; top: -15px; width: 74px; height: 4px; border-radius: 999px; background: linear-gradient(90deg,#ff7a00,#ffb347 42%,#6d4bd8); }
-[data-theme="halloween"] .theme-home-section--market .market-now-panel { border: 1px solid rgba(255,179,71,.2); border-radius: 15px; background: linear-gradient(180deg,rgba(255,122,0,.055),transparent 30%),#170d20; box-shadow: 0 7px 0 #070409,0 22px 42px rgba(0,0,0,.3); }
-[data-theme="halloween"] .theme-home-section--market .market-now-panel::before { content: "MIDNIGHT MARKET · LIVE"; position: absolute; right: 18px; top: 14px; border: 1px solid rgba(120,201,107,.22); border-radius: 6px; padding: 5px 8px; background: rgba(120,201,107,.09); color: #91db86; font-size: 7px; font-weight: 1000; letter-spacing: .10em; }
-[data-theme="halloween"] .theme-home-section--market .market-now-stat { border: 1px solid rgba(247,234,216,.13); border-radius: 10px; background: #21122b; box-shadow: 0 4px 0 rgba(0,0,0,.32); }
-[data-theme="halloween"] .theme-home-section--market .market-now-stat:nth-child(1) { border-top: 4px solid #ff7a00; transform: translateY(4px); }
-[data-theme="halloween"] .theme-home-section--market .market-now-stat:nth-child(2) { border-top: 4px solid #78c96b; transform: translateY(-2px); }
-[data-theme="halloween"] .theme-home-section--market .market-now-stat:nth-child(3) { border-top: 4px solid #ffb347; transform: translateY(5px); }
-[data-theme="halloween"] .theme-home-section--market .market-now-stat:nth-child(4) { border-top: 4px solid #9d7cf2; }
-[data-theme="halloween"] .theme-home-section--member > section { border: 1px solid rgba(247,234,216,.14)!important; border-radius: 15px!important; background: linear-gradient(110deg,#170d20,#22122e)!important; box-shadow: 0 7px 0 #070409,0 20px 38px rgba(0,0,0,.28)!important; }
-[data-theme="halloween"] .theme-home-section--quick .csbt-card-hover { border: 1px solid rgba(247,234,216,.14); border-radius: 12px; background: linear-gradient(180deg,#22122c,#160c1e); box-shadow: 0 6px 0 #070409,0 16px 30px rgba(0,0,0,.28); }
-[data-theme="halloween"] .theme-home-section--quick .csbt-card-hover:nth-child(1) { border-top: 4px solid #ff7a00; transform: translateY(7px); }
-[data-theme="halloween"] .theme-home-section--quick .csbt-card-hover:nth-child(2) { border-top: 4px solid #9d7cf2; transform: translateY(-4px); }
-[data-theme="halloween"] .theme-home-section--quick .csbt-card-hover:nth-child(3) { border-top: 4px solid #ffb347; transform: translateY(3px); }
-[data-theme="halloween"] .theme-home-section--quick .csbt-card-hover:nth-child(4) { border-top: 4px solid #78c96b; }
-[data-theme="halloween"] .theme-home-section--quick .csbt-card-hover:nth-child(5) { border-top: 4px solid #78aee8; transform: translateY(-5px); }
-[data-theme="halloween"] .theme-home-section--quick .csbt-card-hover:nth-child(6) { border-top: 4px solid #f07185; }
-[data-theme="halloween"] .theme-home-section--quick .csbt-card-hover:nth-child(7) { border-top: 4px solid #a78bfa; }
-[data-theme="halloween"] .theme-home-section--nich > section { border: 1px solid rgba(167,139,250,.2)!important; border-radius: 15px!important; background: linear-gradient(145deg,#20112d,#2b1740)!important; box-shadow: 0 7px 0 #070409,0 22px 42px rgba(0,0,0,.3)!important; }
-[data-theme="halloween"] .theme-home-section--stats article { border: 1px solid rgba(247,234,216,.13); border-radius: 12px; background: #1c1025; box-shadow: 0 5px 0 #070409,0 16px 28px rgba(0,0,0,.26); }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .theme-home-section { position: relative; }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .theme-home-section::before { content: ""; position: absolute; left: 26px; top: -15px; width: 74px; height: 4px; border-radius: 999px; background: linear-gradient(90deg,#ff7a00,#ffb347 42%,#6d4bd8); }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .theme-home-section--market .market-now-panel { border: 1px solid rgba(255,179,71,.2); border-radius: 15px; background: linear-gradient(180deg,rgba(255,122,0,.055),transparent 30%),#170d20; box-shadow: 0 7px 0 #070409,0 22px 42px rgba(0,0,0,.3); }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .theme-home-section--market .market-now-panel::before { content: "MIDNIGHT MARKET · LIVE"; position: absolute; right: 18px; top: 14px; border: 1px solid rgba(120,201,107,.22); border-radius: 6px; padding: 5px 8px; background: rgba(120,201,107,.09); color: #91db86; font-size: 7px; font-weight: 1000; letter-spacing: .10em; }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .theme-home-section--market .market-now-stat { border: 1px solid rgba(247,234,216,.13); border-radius: 10px; background: #21122b; box-shadow: 0 4px 0 rgba(0,0,0,.32); }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .theme-home-section--market .market-now-stat:nth-child(1) { border-top: 4px solid #ff7a00; transform: translateY(4px); }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .theme-home-section--market .market-now-stat:nth-child(2) { border-top: 4px solid #78c96b; transform: translateY(-2px); }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .theme-home-section--market .market-now-stat:nth-child(3) { border-top: 4px solid #ffb347; transform: translateY(5px); }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .theme-home-section--market .market-now-stat:nth-child(4) { border-top: 4px solid #9d7cf2; }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .theme-home-section--member > section { border: 1px solid rgba(247,234,216,.14)!important; border-radius: 15px!important; background: linear-gradient(110deg,#170d20,#22122e)!important; box-shadow: 0 7px 0 #070409,0 20px 38px rgba(0,0,0,.28)!important; }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .theme-home-section--quick .csbt-card-hover { border: 1px solid rgba(247,234,216,.14); border-radius: 12px; background: linear-gradient(180deg,#22122c,#160c1e); box-shadow: 0 6px 0 #070409,0 16px 30px rgba(0,0,0,.28); }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .theme-home-section--quick .csbt-card-hover:nth-child(1) { border-top: 4px solid #ff7a00; transform: translateY(7px); }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .theme-home-section--quick .csbt-card-hover:nth-child(2) { border-top: 4px solid #9d7cf2; transform: translateY(-4px); }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .theme-home-section--quick .csbt-card-hover:nth-child(3) { border-top: 4px solid #ffb347; transform: translateY(3px); }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .theme-home-section--quick .csbt-card-hover:nth-child(4) { border-top: 4px solid #78c96b; }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .theme-home-section--quick .csbt-card-hover:nth-child(5) { border-top: 4px solid #78aee8; transform: translateY(-5px); }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .theme-home-section--quick .csbt-card-hover:nth-child(6) { border-top: 4px solid #f07185; }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .theme-home-section--quick .csbt-card-hover:nth-child(7) { border-top: 4px solid #a78bfa; }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .theme-home-section--nich > section { border: 1px solid rgba(167,139,250,.2)!important; border-radius: 15px!important; background: linear-gradient(145deg,#20112d,#2b1740)!important; box-shadow: 0 7px 0 #070409,0 22px 42px rgba(0,0,0,.3)!important; }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .theme-home-section--stats article { border: 1px solid rgba(247,234,216,.13); border-radius: 12px; background: #1c1025; box-shadow: 0 5px 0 #070409,0 16px 28px rgba(0,0,0,.26); }
 
 /* Sidebar becomes a midnight event menu, while retaining the same navigation architecture. */
-[data-theme="halloween"] aside[data-tour="sidebar-container"] > div { border-color: rgba(255,179,71,.17)!important; background: linear-gradient(180deg,rgba(12,7,17,.985),rgba(17,9,24,.985))!important; box-shadow: 8px 0 34px rgba(0,0,0,.32)!important; }
-[data-theme="halloween"] aside[data-tour="sidebar-container"] section > button { color: #a895b2; }
-[data-theme="halloween"] aside[data-tour="sidebar-container"] a[aria-current="page"] { border-color: rgba(255,179,71,.25)!important; background: linear-gradient(90deg,rgba(255,122,0,.18),rgba(77,41,94,.22))!important; color: #ffe4b6!important; box-shadow: inset 4px 0 #ff7a00,0 7px 18px rgba(0,0,0,.24)!important; }
-[data-theme="halloween"] aside[data-tour="sidebar-container"] a[aria-current="page"]::before { background: #ffb347!important; box-shadow: 0 0 12px rgba(255,122,0,.6); }
-[data-theme="halloween"] aside[data-tour="sidebar-container"] a[aria-current="page"] > span:first-child { background: rgba(255,122,0,.13)!important; color: #ffb347!important; }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) aside[data-tour="sidebar-container"] > div { border-color: rgba(255,179,71,.17)!important; background: linear-gradient(180deg,rgba(12,7,17,.985),rgba(17,9,24,.985))!important; box-shadow: 8px 0 34px rgba(0,0,0,.32)!important; }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) aside[data-tour="sidebar-container"] section > button { color: #a895b2; }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) aside[data-tour="sidebar-container"] a[aria-current="page"] { border-color: rgba(255,179,71,.25)!important; background: linear-gradient(90deg,rgba(255,122,0,.18),rgba(77,41,94,.22))!important; color: #ffe4b6!important; box-shadow: inset 4px 0 #ff7a00,0 7px 18px rgba(0,0,0,.24)!important; }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) aside[data-tour="sidebar-container"] a[aria-current="page"]::before { background: #ffb347!important; box-shadow: 0 0 12px rgba(255,122,0,.6); }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) aside[data-tour="sidebar-container"] a[aria-current="page"] > span:first-child { background: rgba(255,122,0,.13)!important; color: #ffb347!important; }
 
 /* Internal pages become high-contrast event panels instead of flat dark content. */
-[data-theme="halloween"] .csbt-app-workspace > .csbt-page-header { border-color: rgba(255,179,71,.18); background: radial-gradient(circle at 90% 10%,rgba(109,75,216,.12),transparent 26%),linear-gradient(135deg,#1a0e22,#120a19 68%,#21101d); box-shadow: 0 6px 0 #070409,0 22px 44px rgba(0,0,0,.28); }
-[data-theme="halloween"] .csbt-app-workspace > .csbt-page-header::before { background: radial-gradient(circle at 8% 0%,rgba(255,122,0,.08),transparent 26%); }
-[data-theme="halloween"] .csbt-app-workspace > .csbt-page-header::after { background: linear-gradient(90deg,#ff7a00,#ffb347,#6d4bd8); opacity: 1; }
-[data-theme="halloween"] .csbt-app-workspace > section,
-[data-theme="halloween"] .csbt-app-workspace > article,
-[data-theme="halloween"] .csbt-page .csbt-feature-panel,
-[data-theme="halloween"] .csbt-page .csbt-section-panel { border-color: rgba(247,234,216,.14); box-shadow: 0 6px 0 rgba(0,0,0,.34),0 18px 34px rgba(0,0,0,.22); }
-[data-theme="halloween"] .csbt-app-workspace input,
-[data-theme="halloween"] .csbt-app-workspace select,
-[data-theme="halloween"] .csbt-app-workspace textarea { border-color: rgba(255,225,194,.17); background: #120b18; color: #f7ead8; }
-[data-theme="halloween"] .csbt-app-workspace input:focus,
-[data-theme="halloween"] .csbt-app-workspace select:focus,
-[data-theme="halloween"] .csbt-app-workspace textarea:focus { border-color: #ff7a00; box-shadow: 0 0 0 3px rgba(255,122,0,.1); }
-[data-theme="halloween"] .csbt-app-workspace .csbt-tab { border: 1px solid rgba(247,234,216,.08); background: rgba(34,18,44,.75); }
-[data-theme="halloween"] .csbt-app-workspace .csbt-tab:hover { background: #301839; }
-[data-theme="halloween"] .csbt-app-workspace .csbt-tab[aria-selected="true"],
-[data-theme="halloween"] .csbt-app-workspace .csbt-tab.is-active { border-color: rgba(255,179,71,.2); background: rgba(255,122,0,.12); color: #ffd19a; box-shadow: 0 4px 0 rgba(0,0,0,.28); }
-[data-theme="halloween"] .csbt-app-workspace .csbt-badge-neutral { border: 1px solid rgba(247,234,216,.1); background: #23142d; color: #c8b6cc; }
-[data-theme="halloween"] .csbt-app-workspace .rounded-\[var\(--radius-section\)\] { border-color: rgba(247,234,216,.13); }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .csbt-app-workspace > .csbt-page-header { border-color: rgba(255,179,71,.18); background: radial-gradient(circle at 90% 10%,rgba(109,75,216,.12),transparent 26%),linear-gradient(135deg,#1a0e22,#120a19 68%,#21101d); box-shadow: 0 6px 0 #070409,0 22px 44px rgba(0,0,0,.28); }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .csbt-app-workspace > .csbt-page-header::before { background: radial-gradient(circle at 8% 0%,rgba(255,122,0,.08),transparent 26%); }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .csbt-app-workspace > .csbt-page-header::after { background: linear-gradient(90deg,#ff7a00,#ffb347,#6d4bd8); opacity: 1; }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .csbt-app-workspace > section,
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .csbt-app-workspace > article,
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .csbt-page .csbt-feature-panel,
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .csbt-page .csbt-section-panel { border-color: rgba(247,234,216,.14); box-shadow: 0 6px 0 rgba(0,0,0,.34),0 18px 34px rgba(0,0,0,.22); }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .csbt-app-workspace input,
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .csbt-app-workspace select,
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .csbt-app-workspace textarea { border-color: rgba(255,225,194,.17); background: #120b18; color: #f7ead8; }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .csbt-app-workspace input:focus,
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .csbt-app-workspace select:focus,
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .csbt-app-workspace textarea:focus { border-color: #ff7a00; box-shadow: 0 0 0 3px rgba(255,122,0,.1); }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .csbt-app-workspace .csbt-tab { border: 1px solid rgba(247,234,216,.08); background: rgba(34,18,44,.75); }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .csbt-app-workspace .csbt-tab:hover { background: #301839; }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .csbt-app-workspace .csbt-tab[aria-selected="true"],
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .csbt-app-workspace .csbt-tab.is-active { border-color: rgba(255,179,71,.2); background: rgba(255,122,0,.12); color: #ffd19a; box-shadow: 0 4px 0 rgba(0,0,0,.28); }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .csbt-app-workspace .csbt-badge-neutral { border: 1px solid rgba(247,234,216,.1); background: #23142d; color: #c8b6cc; }
+[data-theme="halloween"]:where(:not([data-game="mm2"])) .csbt-app-workspace .rounded-\[var\(--radius-section\)\] { border-color: rgba(247,234,216,.13); }
 
 @media (max-width: 1499px) {
   .halloween-home-hero { min-height: 880px; }
@@ -4771,7 +4777,7 @@ body::before {
   .halloween-trail-line { display: none; }
 }
 @media (max-width: 767px) {
-  [data-theme="halloween"] .home-workspace { padding-inline: 10px; }
+  [data-theme="halloween"]:where(:not([data-game="mm2"])) .home-workspace { padding-inline: 10px; }
   .halloween-home-hero { min-height: auto; padding: 16px 2px 38px; }
   .halloween-moon { right: -38px; top: 85px; width: 122px; height: 122px; opacity: .58; }
   .halloween-cloud--one { left: -85px; top: 110px; transform: scale(.65); opacity: .3; }
@@ -4803,7 +4809,7 @@ body::before {
   .halloween-stat-module--nich { grid-column: 1 / -1; padding-right: 102px; }
   .halloween-helper-art { width: 92px; right: 5px; bottom: -10px; }
   .halloween-stat-module--items strong { font-size: 3rem; }
-  [data-theme="halloween"] .halloween-haunted-trail { min-height: auto; padding: 8px 4px 18px; }
+  [data-theme="halloween"]:where(:not([data-game="mm2"])) .halloween-haunted-trail { min-height: auto; padding: 8px 4px 18px; }
   .halloween-trail-heading { align-items: flex-start; flex-direction: column; }
   .halloween-trail-heading h2 { font-size: 1.75rem; }
   .halloween-trail-ticket { align-self: flex-start; }
@@ -4812,9 +4818,9 @@ body::before {
   .halloween-trail-stop::after { content: "↓"; position: absolute; left: 50%; bottom: -18px; z-index: 5; color: #ffb347; font-size: 18px; font-weight: 1000; }
   .halloween-trail-stop--05::after { display: none; }
   .halloween-trail-finish { display: none; }
-  [data-theme="halloween"] .theme-home-section--market .market-now-panel::before { display: none; }
-  [data-theme="halloween"] .theme-home-section--market .market-now-stat,
-  [data-theme="halloween"] .theme-home-section--quick .csbt-card-hover { transform: none!important; }
+  [data-theme="halloween"]:where(:not([data-game="mm2"])) .theme-home-section--market .market-now-panel::before { display: none; }
+  [data-theme="halloween"]:where(:not([data-game="mm2"])) .theme-home-section--market .market-now-stat,
+  [data-theme="halloween"]:where(:not([data-game="mm2"])) .theme-home-section--quick .csbt-card-hover { transform: none!important; }
 }
 @media (prefers-reduced-motion: reduce) {
   .halloween-mode-tile,.halloween-trail-stop { transition: none; }
@@ -4995,6 +5001,70 @@ body::before {
     18px 0 44px rgba(0, 0, 0, .5),
     inset -34px 0 74px rgba(122, 11, 29, .075),
     inset -1px 0 0 rgba(235, 51, 73, .07);
+}
+
+/* The shared game switch, wearing MM2's palette.
+   The control itself is `components/games/GameModeSwitch.tsx` — the same markup
+   Adopt Me renders. Only the skin changes here, which is the rule the whole
+   theming system is meant to follow: a theme restyles a control, it never
+   removes one. Adopt Me's surface tokens are not in scope inside the MM2 shell,
+   so the colours are stated outright rather than inherited. */
+.mm2-game-switch > p {
+  color: #747b88;
+}
+
+.mm2-game-switch [role="group"] {
+  gap: 0;
+  padding: 0;
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, .075);
+  border-right: 1px solid rgba(255, 255, 255, .06);
+  border-bottom: 1px solid rgba(255, 255, 255, .045);
+  border-radius: 0;
+  background: rgba(0, 0, 0, .3);
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%);
+}
+
+.mm2-game-switch [role="group"] > a {
+  border-radius: 0;
+  box-shadow: none;
+  color: #858d9a;
+}
+
+.mm2-game-switch [role="group"] > a + a {
+  border-left: 1px solid rgba(227, 59, 84, .24);
+}
+
+.mm2-game-switch [role="group"] > a:hover {
+  background: rgba(255, 255, 255, .035);
+  color: #fff;
+}
+
+.mm2-game-switch [role="group"] > a[aria-current="page"] {
+  background: linear-gradient(135deg, rgba(105, 11, 28, .68), rgba(168, 18, 39, .35));
+  color: #ffd6dc;
+  box-shadow: inset 0 0 20px rgba(224, 37, 59, .08);
+}
+
+.mm2-game-switch[data-csbt-game-switch="compact"] {
+  border: 1px solid rgba(255, 255, 255, .075);
+  border-radius: 0;
+  background: rgba(0, 0, 0, .3);
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+}
+
+.mm2-game-switch[data-csbt-game-switch="compact"] > a {
+  color: #858d9a;
+}
+
+.mm2-game-switch[data-csbt-game-switch="compact"] > a + a {
+  border-left: 1px solid rgba(226, 58, 83, .24);
+}
+
+.mm2-game-switch[data-csbt-game-switch="compact"] > a[aria-current="page"] {
+  background: rgba(142, 18, 40, .45);
+  color: #ffd5da;
+  box-shadow: none;
 }
 
 .mm2-control-rail::-webkit-scrollbar { width: 7px; }
@@ -5216,4 +5286,117 @@ body::before {
 .mm2-social-mode [class*="bg-indigo-6"] {
   background-color: transparent !important;
   background-image: var(--primary-button) !important;
+}
+
+/* ==========================================================================
+   MOBILE FOUNDATION
+   ==========================================================================
+   Root-cause fixes that apply to every page in both games, so individual
+   components do not each grow their own phone workaround. Everything here is
+   scoped to small screens or to coarse pointers; desktop is untouched.
+   ========================================================================== */
+
+/* --- 1. iOS input zoom -----------------------------------------------------
+   Safari zooms the whole page when a focused form control is under 16px, which
+   is why tapping a search box on the values, demand, exchange and lounge pages
+   left the layout scaled up and scrolled sideways. The components ask for
+   12–15px because that is the right *visual* size in a dense panel, so the size
+   is corrected here rather than by rewriting every input: only on touch
+   screens, where the visual difference is small and the zoom is the bug. */
+@media (max-width: 1023px) and (pointer: coarse) {
+  /* The `!important` is deliberate. Nearly every control in the app sets its
+     size through a class (`.composer input`, `text-xs`), and a class always
+     beats a bare element selector no matter where this rule sits — so without
+     it the guard silently does nothing on exactly the inputs that need it.
+     16px is a floor, not a design choice; the handful of controls already above
+     it lose a couple of pixels on phones and nothing else. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* --- 2. Safe areas ---------------------------------------------------------
+   Anything pinned to an edge has to clear the notch and the home indicator.
+   These are opt-in classes so a component asks for the inset it actually
+   needs instead of every fixed element paying for all of them. */
+.csbt-safe-bottom { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+.csbt-safe-top { padding-top: max(0px, env(safe-area-inset-top)); }
+.csbt-safe-x {
+  padding-left: max(0px, env(safe-area-inset-left));
+  padding-right: max(0px, env(safe-area-inset-right));
+}
+
+/* --- 3. Horizontal overflow ------------------------------------------------
+   Long weapon names ("Chroma Gingerscythe (Var. 3)") and long usernames are the
+   two things that actually push a phone layout sideways. Grid and flex children
+   default to min-width:auto, so a single unbreakable string can force a track
+   wider than the screen no matter what the parent says. Rather than hiding it
+   with overflow-x on <body>, the wrapping itself is fixed. */
+@media (max-width: 767px) {
+  .mm2-mode :where(h1, h2, h3, h4, p, span, strong, small, b, em, li, a, dt, dd),
+  .csbt-page :where(h1, h2, h3, h4) {
+    overflow-wrap: anywhere;
+  }
+}
+
+/* --- 4. Touch scrollers -----------------------------------------------------
+   Category chips, nav rails and card carousels are horizontal scrollers. They
+   need momentum, snapping, and no visible scrollbar eating a row of pixels. */
+.csbt-scroll-x {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.csbt-scroll-x::-webkit-scrollbar { display: none; }
+.csbt-scroll-x > * { scroll-snap-align: start; }
+
+/* --- 5. Touch targets ------------------------------------------------------
+   A 24px icon button is a desktop affordance. On a touch screen the hit area is
+   grown without changing how the control looks. */
+@media (pointer: coarse) {
+  /* The element must already be positioned (`relative` or `absolute`); the
+     utility deliberately does not set `position` itself, because several of the
+     controls that need it are absolutely placed and forcing `relative` on them
+     would move them. */
+  .csbt-tap::after {
+    content: "";
+    position: absolute;
+    inset: 50% auto auto 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+}
+
+/* --- 6. Hover-only content -------------------------------------------------
+   Anything revealed purely on :hover is unreachable on a phone. Components that
+   use this class keep the hover reveal on pointer devices and are always
+   visible on touch ones. */
+@media (pointer: coarse) {
+  .csbt-hover-reveal { opacity: 1 !important; }
+}
+
+/* --- 7. Minimum legible type on phones -------------------------------------
+   MM2's panels use 8–10px labels. At a desk, with the whole room on screen,
+   they read as instrument etching. On a phone held at arm's length they are
+   just small — and some of them carry real information ("14 rated · 6 at 6+").
+   Rather than retune fifty class names, the floor is raised where it matters:
+   uppercase micro-labels keep their character at 10px, and anything smaller is
+   lifted to 11px. Desktop is untouched. */
+@media (max-width: 767px) {
+  .mm2-mode [class*="text-[8px]"],
+  .mm2-mode [class*="text-[8.5px]"],
+  .mm2-mode [class*="text-[9px]"],
+  .mm2-mode [class*="text-[9.5px]"] {
+    font-size: 11px;
+  }
+
+  .mm2-mode [class*="text-[10px]"],
+  .mm2-mode [class*="text-[10.5px]"] {
+    font-size: 11px;
+  }
 }

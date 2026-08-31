@@ -8,6 +8,7 @@ import { useUnreadNotifications } from "../hooks/useUnreadNotifications";
 import { useCSBTTheme } from "./ThemeProvider";
 import AppearanceSelector from "./theme/AppearanceSelector";
 import { CSBT_THEMES } from "../lib/theme";
+import GameModeSwitch from "./games/GameModeSwitch";
 import { useBirthdayEventActive } from "../hooks/useBirthdayEventActive";
 import { openBirthdayEvent } from "../config/birthdayEvent";
 import { BirthdayGift, PartyHat } from "./birthday/BirthdayIcons";
@@ -128,6 +129,9 @@ export default function Navbar() {
 
           <div className="border-t border-[var(--border)] p-3">
             <div className="grid gap-2.5">
+              {/* The game switch lives in the shared rail, not in a hero, so it
+                  survives every appearance and every page. */}
+              <GameModeSwitch variant="rail" />
               <button type="button" onClick={() => setAppearanceOpen(true)} className="flex min-h-12 items-center justify-between gap-3 rounded-2xl bg-[var(--surface-3)] px-3.5 text-left text-[var(--foreground)] transition hover:bg-[var(--surface-hover)]" aria-label="Choose CSBT appearance">
                 <span className="flex min-w-0 items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-2)] text-base">{mounted ? CSBT_THEMES[theme].icon : "🌙"}</span><span className="min-w-0"><span className="block text-[10px] font-black uppercase tracking-[.13em] text-[var(--foreground-muted)]">Appearance</span><span className="block truncate text-xs font-black">{mounted ? CSBT_THEMES[theme].label : "CSBT Dark"}</span></span></span><span aria-hidden="true" className="text-sm text-[var(--foreground-muted)]">›</span>
               </button>
@@ -141,9 +145,15 @@ export default function Navbar() {
         <div className="mx-auto flex max-w-7xl items-center justify-between rounded-[16px] border border-[var(--border)] bg-[var(--surface-1)] px-3 py-2.5 shadow-[0_10px_35px_rgba(15,23,42,.1)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/92">
           <Link href="/" className="flex min-w-0 items-center gap-2.5" aria-label="CSBT HUB home">
             <span className="relative shrink-0"><Image src="/logo.png" alt="" width={40} height={40} className="h-10 w-10 rounded-full object-cover" />{birthdayActive && <PartyHat aria-hidden="true" className="birthday-logo-hat birthday-logo-hat--mobile h-6 w-6" />}</span>
-            <div className="min-w-0"><span className="block truncate text-base font-black text-amber-900 dark:text-amber-300">CSBT HUB</span><span className="block truncate text-[10px] font-bold text-slate-400">Adopt Me trading hub</span></div>
+            {/* Below 380px the header carries a logo, the game switch and three
+                controls; the wordmark is the one element that can go without
+                losing a destination. */}
+            <div className="hidden min-w-0 [@media(min-width:380px)]:block"><span className="block truncate text-base font-black text-amber-900 dark:text-amber-300">CSBT HUB</span><span className="block truncate text-[10px] font-bold text-slate-400">Adopt Me trading hub</span></div>
           </Link>
           <div className="flex items-center gap-1.5">
+            {/* Mirrors the MM2 header so the switch is one tap away at every
+                width, in both games, without opening a drawer. */}
+            <GameModeSwitch variant="compact" className="mr-0.5" />
             <button type="button" data-tour="nav-more" onClick={() => setMoreOpen(true)} className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10" aria-label="More navigation"><NavIcon name="more" /></button>
             <Link href="/notifications" aria-label="Notifications" className="relative flex h-11 w-11 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10"><NavIcon name="notifications" />{unread > 0 && <span className="absolute right-1 top-1 min-w-4 rounded-full bg-rose-500 px-1 text-center text-[9px] font-black leading-4 text-white">{unread > 99 ? "99+" : unread}</span>}</Link>
             <Link href="/profile" aria-label="My profile" className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10"><NavIcon name="profile" /></Link>

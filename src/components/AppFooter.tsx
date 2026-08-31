@@ -4,7 +4,7 @@ const links = [
   { href: "/values", label: "Values" },
   { href: "/exchange", label: "CSBT Exchange" },
   { href: "/trade-feed", label: "Trade Opinions" },
-  { href: "/nich", label: "Ask Nich" },
+  { href: "/nich", label: "Ask NICH" },
   { href: "/community-guidelines", label: "Guidelines" },
   { href: "/privacy", label: "Privacy" },
   { href: "/terms", label: "Terms" },

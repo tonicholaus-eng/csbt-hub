@@ -53,6 +53,7 @@ import {
   type VisionSlotRef,
 } from "../../../lib/nich/visionSlots";
 import { buildSlotCropSheet } from "./visionSlotSheet";
+import { NICH_READING_SCREENSHOT, NICH_TAGLINE, NICH_THINKING } from "../../../content/nichCopy";
 import {
   inferScreenshotIntent,
   screenshotRouteMessage,
@@ -116,7 +117,7 @@ function recognitionSummary(
     return `I found the item slots, but ${unresolvedCount} ${unresolvedCount === 1 ? "item is" : "items are"} still uncertain. Tap Edit on any slot and search the CSBT catalog to correct it.`;
   }
   if (!listed.length) {
-    return "I couldn’t identify a catalog item confidently from that screenshot. Try a clearer crop or use Edit when a review slot is available.";
+    return "I couldn’t work out which items those are. Try a clearer screenshot, or tap Edit on a slot and search for the item yourself.";
   }
 
   const summary = `I recognized: ${listed.join(", ")}.`;
@@ -1263,8 +1264,8 @@ export default function NichChat({
           return {
             text:
               intent === "VALUES"
-                ? "I couldn’t identify any CSBT catalog items confidently enough to price them. Try a clearer crop, or use the item editor if a review card appears."
-                : "I couldn’t identify any CSBT catalog items confidently enough to check demand. Try a clearer crop, or use the item editor if a review card appears.",
+                ? "I couldn’t read the items well enough to price them. Try a clearer screenshot, or tap Edit and search for them yourself."
+                : "I couldn’t read the items well enough to check demand. Try a clearer screenshot, or tap Edit and search for them yourself.",
             intent: "fallback",
             reaction: "searchEmpty",
             localConfidence: 1,
@@ -1769,7 +1770,7 @@ export default function NichChat({
         <motion.aside
           role={isEmbedded ? "region" : "dialog"}
           aria-modal={isEmbedded ? undefined : false}
-          aria-label="Ask Nich"
+          aria-label="Ask NICH"
           initial={{
             opacity: 0,
             y: shouldReduceMotion ? 0 : 24,
@@ -1962,7 +1963,7 @@ export default function NichChat({
 
                 <p className="mt-1 flex items-center gap-2 text-xs font-semibold text-[var(--foreground-muted)]">
                   <span className={`h-1.5 w-1.5 rounded-full ${isTyping ? "bg-[var(--purple)]" : "bg-[var(--green)]"}`} aria-hidden="true" />
-                  {isVisionProcessing ? "Reading screenshot for your selected check…" : isTyping ? "Analyzing with CSBT data…" : "Local-first · Built around CSBT market data"}
+                  {isVisionProcessing ? NICH_READING_SCREENSHOT : isTyping ? NICH_THINKING : NICH_TAGLINE}
                 </p>
               </div>
 
@@ -1973,7 +1974,7 @@ export default function NichChat({
                   onClick={() => {
                     setShowClearConfirmation(true);
                   }}
-                  aria-label="Start a new Nich chat"
+                  aria-label="Start a new NICH chat"
                   title="Start a new chat"
                   className="nich-smart-new-chat flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-3.5 text-[11px] font-black transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[color-mix(in_srgb,var(--purple)_20%,transparent)]"
                 >
@@ -1984,7 +1985,7 @@ export default function NichChat({
                   <button
                     type="button"
                     onClick={onClose}
-                    aria-label="Close Ask Nich"
+                    aria-label="Close NICH"
                     className="nich-smart-new-chat flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-lg font-black transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[color-mix(in_srgb,var(--purple)_20%,transparent)]"
                   >
                     ✕

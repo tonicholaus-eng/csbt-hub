@@ -40,7 +40,7 @@ const gameModes = [
   },
   {
     href: "/nich",
-    label: "Ask Nich",
+    label: "Ask NICH",
     kicker: "YOUR GUIDE",
     copy: "Get trading help without leaving the world.",
     tone: "nich",

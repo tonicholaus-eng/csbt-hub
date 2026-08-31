@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import styles from "./MM2HQHome.module.css";
 import MM2NichDesk from "./MM2NichDesk";
+import MM2MobileLaunchpad from "./MM2MobileLaunchpad";
 
 type MM2Item = {
   NAME: string;
@@ -179,9 +180,9 @@ export default function MM2HQHome({ items, meta }: { items: MM2Item[]; meta: MM2
 
   const quickAccess: Array<{ kind: IconKind; href: string; label: string }> = [
     { kind: "lab", href: "/mm2/calculator", label: "Calculator" },
-    { kind: "values", href: "/mm2/values", label: "Price Checker" },
+    { kind: "values", href: "/mm2/values", label: "Weapon Values" },
     { kind: "market", href: "/mm2/calculator", label: "Trade Builder" },
-    { kind: "demand", href: "/mm2/demand", label: "Value Monitor" },
+    { kind: "demand", href: "/mm2/demand", label: "Demand" },
   ];
 
   /* Every telemetry meter below is a real ratio over the generated catalogue.
@@ -197,7 +198,7 @@ export default function MM2HQHome({ items, meta }: { items: MM2Item[]; meta: MM2
     {
       label: "WEAPONS TRACKED",
       value: totalItems.toLocaleString("en-US"),
-      caption: "MM2 CATALOG",
+      caption: "IN CSBT",
     },
     {
       label: "CATEGORIES",
@@ -205,15 +206,15 @@ export default function MM2HQHome({ items, meta }: { items: MM2Item[]; meta: MM2
       caption: "WEAPON GROUPS",
     },
     {
-      label: "VALUE SOURCE",
+      label: "VALUES",
       value: source,
-      caption: "SUPREME NETWORK",
+      caption: "PRICING SOURCE",
       word: true,
     },
     {
-      label: "GCASH PRICED",
+      label: "GCASH VALUES",
       value: gcashPriced.toLocaleString("en-US"),
-      caption: `${gcashCoverage}% COVERAGE`,
+      caption: `${gcashCoverage}% OF WEAPONS`,
       meter: gcashCoverage,
     },
     {
@@ -283,6 +284,10 @@ export default function MM2HQHome({ items, meta }: { items: MM2Item[]; meta: MM2
       </div>
 
       <main className={styles.hq}>
+        {/* Phones get the launchpad instead of the room's opening movement.
+            Renders nothing above 720px. */}
+        <MM2MobileLaunchpad totalItems={totalItems} syncedOn={syncedOn} />
+
         <header className={styles.commandHeader}>
           <div className={styles.headerBrand}>
             <span className={styles.headerEyebrow}>CSBT SECURE MARKET SYSTEM</span>
@@ -293,11 +298,11 @@ export default function MM2HQHome({ items, meta }: { items: MM2Item[]; meta: MM2
             <small>MM2 TRADING HEADQUARTERS</small>
           </div>
 
-          <div className={styles.headerStatus} aria-label="MM2 data status">
-            <div className={styles.livePill}><i /> SYSTEM ONLINE</div>
-            <div><small>VALUE SOURCE</small><strong>{source}</strong></div>
-            <div><small>CATALOG SYNC</small><strong>{syncedOn}</strong></div>
-            <span className={styles.headerMicroClock}>SYNC {syncedClock}</span>
+          <div className={styles.headerStatus} aria-label="MM2 values status">
+            <div className={styles.livePill}><i /> VALUES UP TO DATE</div>
+            <div><small>VALUES</small><strong>{source}</strong></div>
+            <div><small>UPDATED</small><strong>{syncedOn}</strong></div>
+            <span className={styles.headerMicroClock}>{syncedClock}</span>
           </div>
         </header>
 
@@ -324,7 +329,7 @@ export default function MM2HQHome({ items, meta }: { items: MM2Item[]; meta: MM2
               <div><strong>WEAPON VAULT</strong><span>FEATURED DISPLAY</span></div>
               <div className={styles.headingMeta}>
                 <em>VAULT 01</em>
-                <span className={styles.headingStatus}><i /> CATALOG READY</span>
+                <span className={styles.headingStatus}><i /> ALL WEAPONS</span>
               </div>
             </div>
 
@@ -354,11 +359,11 @@ export default function MM2HQHome({ items, meta }: { items: MM2Item[]; meta: MM2
             </aside>
 
             <div className={styles.vaultFooter}>
-              <div><small>DISPLAY STATUS</small><strong>CATALOG CONNECTED</strong></div>
+              <div><small>SHOWING</small><strong>TOP WEAPONS</strong></div>
               <i />
-              <div><small>GCASH COVERAGE</small><strong>{gcashPriced.toLocaleString("en-US")} ITEMS</strong></div>
+              <div><small>WITH GCASH VALUES</small><strong>{gcashPriced.toLocaleString("en-US")} WEAPONS</strong></div>
               <i />
-              <div><small>VAULT LIGHTING</small><strong>ACTIVE</strong></div>
+              <div><small>VALUES</small><strong>{source}</strong></div>
             </div>
           </section>
 
@@ -370,8 +375,8 @@ export default function MM2HQHome({ items, meta }: { items: MM2Item[]; meta: MM2
             <div className={styles.zoneHeading}>
               <div><strong>COMMAND TERMINAL</strong><span>SELECT OPERATION</span></div>
               <div className={styles.headingMeta}>
-                <em>MM2 MODE</em>
-                <span className={styles.headingStatus}><i /> SYSTEM ONLINE</span>
+                <em>MM2</em>
+                <span className={styles.headingStatus}><i /> READY</span>
               </div>
             </div>
 
@@ -414,9 +419,9 @@ export default function MM2HQHome({ items, meta }: { items: MM2Item[]; meta: MM2
             <section className={styles.marketRadar}>
               <div className={styles.radarMounts} aria-hidden="true"><i /><i /></div>
               <div className={styles.zoneHeading}>
-                <div><strong>MARKET RADAR</strong><span>CATALOG INTELLIGENCE</span></div>
+                <div><strong>MARKET RADAR</strong><span>WHAT IS IN DEMAND</span></div>
                 <div className={styles.headingMeta}>
-                  <em>REAL DATA</em>
+                  <em>CSBT VALUES</em>
                   <span className={styles.headingStatus}><i /> SYNCED</span>
                 </div>
               </div>
@@ -466,7 +471,7 @@ export default function MM2HQHome({ items, meta }: { items: MM2Item[]; meta: MM2
               </div>
 
               <div className={styles.operationsPanel}>
-                <div className={styles.panelLabel}>SYSTEM COVERAGE</div>
+                <div className={styles.panelLabel}>WHAT CSBT TRACKS</div>
                 <div className={styles.coverageRow}>
                   <div><span>DEMAND</span><strong>{demandCoverage}%</strong></div>
                   <div className={styles.coverageTrack}><i style={{ width: `${demandCoverage}%` }} /></div>
@@ -499,11 +504,11 @@ export default function MM2HQHome({ items, meta }: { items: MM2Item[]; meta: MM2
             <MM2NichDesk />
           </aside>
 
-          <div className={styles.telemetryStrip} aria-label="MM2 system telemetry">
+          <div className={styles.telemetryStrip} aria-label="MM2 catalog at a glance">
             <div className={styles.telemetryLead}>
               <small>CSBT / MM2</small>
               <strong>TRADING HQ</strong>
-              <span><i /> SYSTEM READY</span>
+              <span><i /> READY TO TRADE</span>
             </div>
 
             {telemetry.map((cell) => (
@@ -525,7 +530,7 @@ export default function MM2HQHome({ items, meta }: { items: MM2Item[]; meta: MM2
             ))}
 
             <div className={styles.telemetryCommunity}>
-              <small>COMMUNITY MODULES</small>
+              <small>COMMUNITY</small>
               <div>
                 <Link href="/mm2/exchange">EXCHANGE</Link>
                 <Link href="/mm2/trade-opinions">OPINIONS</Link>

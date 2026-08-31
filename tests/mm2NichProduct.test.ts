@@ -348,7 +348,7 @@ test("provenance labels match the data the engine actually read", () => {
     ["harvester value", ["LOCAL MM2 ENGINE", "SUPREME VALUES"]],
     ["gcash value of harvester", ["LOCAL MM2 ENGINE", "GCASH DATABASE"]],
     ["demand of harvester", ["LOCAL MM2 ENGINE", "DEMAND DATA"]],
-    ["my harvester for their icebreaker", ["TRADE ENGINE", "SUPREME VALUES"]],
+    ["my harvester for their icebreaker", ["TRADE ENGINE", "SUPREME VALUES", "DEMAND DATA"]],
     ["top 5 godlies", ["MM2 CATALOG", "SUPREME VALUES"]],
   ];
 

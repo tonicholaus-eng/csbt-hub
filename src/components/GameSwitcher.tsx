@@ -1,45 +1,18 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import GameModeSwitch from "./games/GameModeSwitch";
 
+/**
+ * Backwards-compatible alias for the shared game switch.
+ *
+ * This file used to hold its own copy of the Adopt Me ↔ MM2 control, rendered
+ * inside the default home hero — which is exactly why the switch vanished under
+ * every other appearance. The real control now lives in
+ * `components/games/GameModeSwitch.tsx` and is rendered by the shared shells.
+ *
+ * The alias stays so nothing that still imports the old name silently grows a
+ * second, differently-behaved switch.
+ */
 export default function GameSwitcher() {
-  const pathname = usePathname();
-  const router = useRouter();
-  const game = pathname.startsWith("/mm2") ? "mm2" : "adopt";
-
-  return (
-    <div className="flex justify-center gap-4 my-6">
-      <button
-        type="button"
-        onClick={() => router.push("/")}
-        aria-pressed={game === "adopt"}
-        className={`
-          px-8 py-3 rounded-xl border transition-all
-          ${
-            game === "adopt"
-              ? "bg-white text-yellow-600 shadow-lg"
-              : "bg-white/10 text-white hover:bg-white/15"
-          }
-        `}
-      >
-        🐾 Adopt Me
-      </button>
-
-      <button
-        type="button"
-        onClick={() => router.push("/mm2")}
-        aria-pressed={game === "mm2"}
-        className={`
-          px-8 py-3 rounded-xl border transition-all
-          ${
-            game === "mm2"
-              ? "bg-red-500 text-white shadow-lg"
-              : "bg-white/10 text-white hover:bg-white/15"
-          }
-        `}
-      >
-        🔪 MM2
-      </button>
-    </div>
-  );
+  return <GameModeSwitch variant="inline" className="my-6" />;
 }

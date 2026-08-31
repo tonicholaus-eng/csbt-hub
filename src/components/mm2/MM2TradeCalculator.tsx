@@ -633,7 +633,7 @@ export default function MM2TradeCalculator({ items }: { items: MM2Item[] }) {
           aria-live="polite"
           initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 18 }}
           animate={{ opacity: 1, y: 0 }}
-          className={`fixed inset-x-3 bottom-3 z-50 overflow-hidden rounded-[16px] border border-[var(--mm2-edge-strong)] bg-gradient-to-br p-3 text-white shadow-[var(--mm2-shadow-lift)] lg:hidden ${mobileResult.color}`}
+          className={`fixed inset-x-3 bottom-[max(12px,env(safe-area-inset-bottom))] z-50 overflow-hidden rounded-[16px] border border-[var(--mm2-edge-strong)] bg-gradient-to-br p-3 text-white shadow-[var(--mm2-shadow-lift)] lg:hidden ${mobileResult.color}`}
         >
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">

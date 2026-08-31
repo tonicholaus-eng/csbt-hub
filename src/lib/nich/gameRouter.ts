@@ -17,7 +17,8 @@ import type {
 } from "../../components/nich/assistant/brain/types";
 import { requireNichGameId, isNichGameContextError } from "./game/guard";
 import type { NichGameId } from "./game/types";
-import { routeMM2NichMessage } from "./mm2/brain";
+import { routeMM2NichMessage, routeMM2NichMessageWithModel } from "./mm2/brain";
+import type { MM2SemanticAsk } from "./mm2/aiSemantic";
 import { createMM2Context, sanitizeMM2Context, type MM2NichContext } from "./mm2/context";
 import { recordNichRoute } from "./telemetry";
 
@@ -118,6 +119,41 @@ export function routeNichForGame(request: NichGameRequest): NichGameResult {
     context: request.context,
     handledLocally: response.aiEligible === false,
   };
+}
+
+/**
+ * Route an MM2 turn, with the semantic model as a last resort.
+ *
+ * Used only when the deterministic MM2 brain declined. The model is asked what
+ * the message *meant*; its reading is validated against the MM2 catalog and
+ * then answered by the same local brain, so no value or verdict originates
+ * with it. Adopt Me is untouched by this path — it is MM2-only by construction,
+ * because the ask callback and the parser both live under `lib/nich/mm2`.
+ *
+ * Falls back to the ordinary decline result if anything about the model call
+ * fails, so a missing key or a bad response can only ever cost latency.
+ */
+export async function routeMM2WithSemanticModel(
+  request: Extract<NichGameRequest, { gameId: "mm2" }>,
+  ask: MM2SemanticAsk,
+): Promise<NichGameResult> {
+  const deterministic = routeNichForGameSafely(request);
+  if (deterministic.handledLocally) return deterministic;
+
+  const context = sanitizeMM2Context(request.context ?? createMM2Context());
+
+  try {
+    const smart = await routeMM2NichMessageWithModel({ gameId: "mm2", message: request.message, context }, ask);
+    if (smart) {
+      return { gameId: "mm2", response: smart.response, context: smart.context, handledLocally: true };
+    }
+  } catch (error) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[nich:mm2-semantic]", error);
+    }
+  }
+
+  return deterministic;
 }
 
 /** Route, converting a guard violation into a safe refusal instead of a crash. */

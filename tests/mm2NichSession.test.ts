@@ -478,7 +478,7 @@ test("response-source metadata survives the reload rather than being re-guessed"
   withBrowser(() => {
     const cases: Array<[string, string[], string]> = [
       ["harvester value", ["LOCAL MM2 ENGINE", "SUPREME VALUES"], "LOCAL"],
-      ["my harvester for their icebreaker", ["TRADE ENGINE", "SUPREME VALUES"], "LOCAL"],
+      ["my harvester for their icebreaker", ["TRADE ENGINE", "SUPREME VALUES", "DEMAND DATA"], "LOCAL"],
       ["top 5 godlies", ["MM2 CATALOG", "SUPREME VALUES"], "LOCAL"],
       // The local brain declines this one, so it is the AI row. The decline path
       // stamps the AI provenance up front, which is what has to survive.

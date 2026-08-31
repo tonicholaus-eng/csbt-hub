@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import GameSwitcher from "./GameSwitcher";
 import ItemSearchPicker from "./items/ItemSearchPicker";
 import { useCSBTTheme } from "./ThemeProvider";
 import {
@@ -24,7 +23,7 @@ const featureItems = [
   { icon: "🔍", label: "Check Values" },
   { icon: "⚖️", label: "Compare Trades" },
   { icon: "📈", label: "Demand Trends" },
-  { icon: "🤖", label: "Ask Nich" },
+  { icon: "🤖", label: "Ask NICH" },
 ] as const;
 
 function formatRefreshDate(value: string) {
@@ -107,7 +106,7 @@ export default function Hero({ totalItems, categoryCount, generatedAt }: HeroPro
     },
     {
       value: "🤖",
-      label: "Nich Assistant",
+      label: "NICH Assistant",
       description: "Help anytime you need it",
     },
   ] as const;
@@ -211,7 +210,10 @@ export default function Hero({ totalItems, categoryCount, generatedAt }: HeroPro
           Database refreshed {refreshedLabel}
         </span>
 
-        <GameSwitcher />
+        {/* The game switch used to live here, which is why it disappeared the
+            moment a user chose any appearance other than the default — each one
+            renders its own hero. It is now in the shared sidebar and mobile
+            header instead, where every appearance and every page keeps it. */}
 
         <h1 className="mt-8 text-4xl font-black tracking-tight drop-shadow-lg sm:text-6xl md:text-8xl">
           CSBT HUB

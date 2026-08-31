@@ -5,7 +5,7 @@ const stages = [
   { no: "02", href: "/values", kicker: "VALUE LAB", title: "Check the Value", copy: "Switch between supported value sources and variants without leaving the item page.", tone: "cyan", mark: "◇" },
   { no: "03", href: "/calculator", kicker: "TRADE ARENA", title: "Build the Trade", copy: "Compare both offers and see the estimated difference before you commit.", tone: "orange", mark: "⇄" },
   { no: "04", href: "/demand", kicker: "MARKET LEVEL", title: "Read Demand", copy: "See the market signal behind the number and make a better decision.", tone: "gold", mark: "↗" },
-  { no: "05", href: "/nich", kicker: "GUIDE UNLOCKED", title: "Ask Nich", copy: "Get help, discover nearby items, or choose the next CSBT tool.", tone: "purple", mark: "✦" },
+  { no: "05", href: "/nich", kicker: "GUIDE UNLOCKED", title: "Ask NICH", copy: "Get help, discover nearby items, or choose the next CSBT tool.", tone: "purple", mark: "✦" },
 ] as const;
 
 export default function RobloxTradeJourney() {

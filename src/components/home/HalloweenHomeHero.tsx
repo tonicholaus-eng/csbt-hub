@@ -9,7 +9,7 @@ const actions = [
   { href: "/values", no: "01", kicker: "FORTUNE BOARD", title: "Check Values", copy: "Reveal an item's supported value before you make your next move.", tone: "orange", mark: "✦" },
   { href: "/calculator", no: "02", kicker: "HAUNTED TRADE TENT", title: "Compare Trades", copy: "Put both offers on the table and see the difference before you commit.", tone: "red", mark: "⇄" },
   { href: "/demand", no: "03", kicker: "MARKET ORACLE", title: "Demand Trends", copy: "Read the market signal hiding behind the value.", tone: "gold", mark: "↗" },
-  { href: "/nich", no: "04", kicker: "SPIRIT GUIDE", title: "Ask Nich", copy: "Call on Nich when you need a second opinion or your next step.", tone: "purple", mark: "☾" },
+  { href: "/nich", no: "04", kicker: "SPIRIT GUIDE", title: "Ask NICH", copy: "Call on Nich when you need a second opinion or your next step.", tone: "purple", mark: "☾" },
 ] as const;
 
 function formatRefreshDate(value: string) {
@@ -24,7 +24,7 @@ export default function HalloweenHomeHero({ totalItems, categoryCount, generated
     { label: "Items in the archive", value: `${totalItems.toLocaleString()}+`, copy: "Tracked values", tone: "items" },
     { label: "Categories", value: String(categoryCount), copy: "Across the CSBT database", tone: "categories" },
     { label: "Value Sources", value: "2", copy: "GCash + Elve Shark", tone: "sources" },
-    { label: "Nich Assistant", value: "ONLINE", copy: "Your midnight trading guide", tone: "nich" },
+    { label: "NICH Assistant", value: "ONLINE", copy: "Your midnight trading guide", tone: "nich" },
   ] as const;
 
   return (

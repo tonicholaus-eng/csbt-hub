@@ -5,7 +5,7 @@ const stops = [
   { no: "02", href: "/values", kicker: "FORTUNE TENT", title: "Check the Value", copy: "Reveal the supported values and variants before moving on.", tone: "orange", mark: "✦" },
   { no: "03", href: "/calculator", kicker: "TRADE RING", title: "Compare the Trade", copy: "Put both offers under the lanterns and inspect the difference.", tone: "red", mark: "⇄" },
   { no: "04", href: "/demand", kicker: "ORACLE PATH", title: "Read Demand", copy: "Follow the market signal before you make the final call.", tone: "gold", mark: "↗" },
-  { no: "05", href: "/nich", kicker: "NICH'S HUT", title: "Ask Nich", copy: "Unlock a second opinion, nearby items, or your next CSBT tool.", tone: "purple", mark: "☾" },
+  { no: "05", href: "/nich", kicker: "NICH'S HUT", title: "Ask NICH", copy: "Unlock a second opinion, nearby items, or your next CSBT tool.", tone: "purple", mark: "☾" },
 ] as const;
 
 export default function HalloweenHauntedTrail() {

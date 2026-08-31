@@ -12,11 +12,15 @@
 
 import type { MM2ValueSource } from "../../../components/mm2/MM2TradeTypes";
 import type { MM2Intent } from "./intent";
+import type { MM2UserIntent } from "./semantic";
 
 export type MM2TradeMemory = {
   yourItemIds: Array<{ id: string; quantity: number }>;
   theirItemIds: Array<{ id: string; quantity: number }>;
   valueSource: MM2ValueSource;
+  /** Raw value each side said they would add on top ("+200"). */
+  yourAdds?: number | null;
+  theirAdds?: number | null;
 };
 
 export type MM2NichContext = {
@@ -26,9 +30,33 @@ export type MM2NichContext = {
   recentItemIds?: string[];
   /** The weapons in the last explicit comparison, so "which has better demand?" works. */
   comparisonItemIds?: string[];
+  /**
+   * The weapons NICH last *offered* — a recommendation list, a top-10, a
+   * clarification's candidates. This is what "the first one" points at, and it
+   * is deliberately separate from `recentItemIds`: the things I listed and the
+   * things we discussed are different sets, and conflating them made an ordinal
+   * reference pick whichever weapon happened to be mentioned most recently.
+   */
+  candidateItemIds?: string[];
+  /** Weapons the user said they own, so "what can I get for these" has a subject. */
+  inventoryItemIds?: string[];
+  /**
+   * How many of each they said they had, keyed by id.
+   *
+   * Stored beside the ids rather than by repeating them, so reference
+   * resolution ("those") still sees a clean list of distinct weapons while the
+   * total is computed from the real counts — "2 icebreakers" is 130, not 65.
+   */
+  inventoryQuantities?: Record<string, number>;
   /** Sticky value source for the conversation. */
   lastValueSource?: MM2ValueSource;
   lastIntent?: MM2Intent;
+  /** What the user was *trying to do* last turn. Drives follow-ups and corrections. */
+  lastSemanticIntent?: MM2UserIntent;
+  /** The figure last asked for, so "what about demand?" knows it changed subject. */
+  lastMetric?: "value" | "demand" | "liquidity" | "details";
+  /** The value a recommendation was built around, for "give me more like that". */
+  lastTargetValue?: number;
   lastUserMessage?: string;
   /** The last parsed trade, so "what if I add batwing?" can extend it. */
   lastTrade?: MM2TradeMemory;
@@ -39,6 +67,10 @@ export type MM2NichContext = {
 };
 
 export const MAX_RECENT_MM2_ITEMS = 8;
+/** A recommendation list the user can point an ordinal at. */
+export const MAX_MM2_CANDIDATES = 12;
+/** How many weapons a user may list as theirs in one conversation. */
+export const MAX_MM2_INVENTORY = 24;
 
 export function createMM2Context(): MM2NichContext {
   return { gameId: "mm2", recentItemIds: [], turnCount: 0 };
@@ -70,11 +102,50 @@ export function sanitizeMM2Context(value: unknown): MM2NichContext {
       .slice(0, 6);
   }
 
+  if (Array.isArray(raw.candidateItemIds)) {
+    context.candidateItemIds = raw.candidateItemIds
+      .filter((id): id is string => typeof id === "string" && id.length > 0 && id.length <= 120)
+      .slice(0, MAX_MM2_CANDIDATES);
+  }
+
+  if (Array.isArray(raw.inventoryItemIds)) {
+    context.inventoryItemIds = raw.inventoryItemIds
+      .filter((id): id is string => typeof id === "string" && id.length > 0 && id.length <= 120)
+      .slice(0, MAX_MM2_INVENTORY);
+  }
+
+  if (raw.inventoryQuantities && typeof raw.inventoryQuantities === "object") {
+    const quantities: Record<string, number> = {};
+    let count = 0;
+    for (const [id, value] of Object.entries(raw.inventoryQuantities as Record<string, unknown>)) {
+      if (count >= MAX_MM2_INVENTORY) break;
+      const quantity = Number(value);
+      if (!id || id.length > 120 || !Number.isFinite(quantity)) continue;
+      quantities[id] = Math.max(1, Math.min(99, Math.floor(quantity)));
+      count += 1;
+    }
+    if (count) context.inventoryQuantities = quantities;
+  }
+
   if (raw.lastValueSource === "SUPREME" || raw.lastValueSource === "GCASH") {
     context.lastValueSource = raw.lastValueSource;
   }
 
   if (typeof raw.lastIntent === "string") context.lastIntent = raw.lastIntent as MM2Intent;
+  if (typeof raw.lastSemanticIntent === "string") {
+    context.lastSemanticIntent = raw.lastSemanticIntent as MM2UserIntent;
+  }
+  if (
+    raw.lastMetric === "value" ||
+    raw.lastMetric === "demand" ||
+    raw.lastMetric === "liquidity" ||
+    raw.lastMetric === "details"
+  ) {
+    context.lastMetric = raw.lastMetric;
+  }
+  if (typeof raw.lastTargetValue === "number" && Number.isFinite(raw.lastTargetValue)) {
+    context.lastTargetValue = Math.max(0, Math.min(1e12, raw.lastTargetValue));
+  }
   if (typeof raw.lastUserMessage === "string") context.lastUserMessage = raw.lastUserMessage.slice(0, 500);
 
   if (raw.lastTrade && typeof raw.lastTrade === "object") {
@@ -95,8 +166,17 @@ export function sanitizeMM2Context(value: unknown): MM2NichContext {
     const valueSource = trade.valueSource === "GCASH" ? "GCASH" : "SUPREME";
     const yourItemIds = readSide(trade.yourItemIds);
     const theirItemIds = readSide(trade.theirItemIds);
+    const readAdds = (value: unknown) =>
+      typeof value === "number" && Number.isFinite(value) && value > 0 ? Math.min(1e12, value) : null;
+
     if (yourItemIds.length || theirItemIds.length) {
-      context.lastTrade = { yourItemIds, theirItemIds, valueSource };
+      context.lastTrade = {
+        yourItemIds,
+        theirItemIds,
+        valueSource,
+        yourAdds: readAdds(trade.yourAdds),
+        theirAdds: readAdds(trade.theirAdds),
+      };
     }
   }
 

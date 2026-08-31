@@ -188,7 +188,7 @@ export default function MM2AddWeaponModal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.04] text-lg font-black text-[var(--mm2-ink-2)] transition hover:bg-white/[0.08] hover:text-white sm:h-12 sm:w-12 sm:rounded-2xl"
+                  className="csbt-tap relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.04] text-lg font-black text-[var(--mm2-ink-2)] transition hover:bg-white/[0.08] hover:text-white sm:h-12 sm:w-12 sm:rounded-2xl"
                 >
                   ✕
                 </button>
@@ -228,7 +228,7 @@ export default function MM2AddWeaponModal({
                   <button
                     type="button"
                     onClick={() => setSearch("")}
-                    className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-xl bg-white/[0.06] font-black text-[var(--mm2-ink-2)] hover:bg-red-500/10 hover:text-red-300"
+                    className="csbt-tap absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-xl bg-white/[0.06] font-black text-[var(--mm2-ink-2)] hover:bg-red-500/10 hover:text-red-300"
                   >
                     ✕
                   </button>
