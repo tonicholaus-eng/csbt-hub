@@ -388,10 +388,15 @@ export default function MM2NichConsole({
             {[GREETING, ...messages].map((message) =>
               message.role === "user" ? (
                 <div key={message.id} className={styles.userTurn}>
+                  <div className={styles.turnLabel}>OPERATOR QUERY</div>
                   <span>{message.text}</span>
                 </div>
               ) : (
                 <div key={message.id} className={styles.nichTurn}>
+                  <div className={styles.nichIdentity}>
+                    <span className={styles.nichDot} />
+                    NICH // MM2 INTELLIGENCE
+                  </div>
                   {message.sources?.length ? (
                     <div className={styles.provenance}>
                       {message.sources.map((source) => (

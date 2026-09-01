@@ -309,19 +309,33 @@
 
 .userTurn span {
   max-width: min(78%, 560px);
-  padding: 10px 14px;
+  padding: 14px 18px;
   color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.5;
-  background: linear-gradient(135deg, rgba(186, 22, 46, 0.92), rgba(120, 12, 30, 0.9));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.55;
+  background:
+    linear-gradient(135deg, rgba(220, 30, 62, 0.95), rgba(92, 10, 25, 0.96));
+  border: 1px solid rgba(255, 90, 110, 0.45);
+  box-shadow:
+    0 12px 30px rgba(0,0,0,.45),
+    inset 0 1px 0 rgba(255,255,255,.2);
   clip-path: polygon(0 0, 100% 0, 100% 100%, 10px 100%, 0 calc(100% - 10px));
 }
 
 .nichTurn {
-  margin-bottom: 22px;
-  max-width: min(94%, 760px);
+  margin-bottom: 28px;
+  max-width: min(94%, 860px);
+  padding: 18px 22px 20px;
+  position: relative;
+  background:
+    linear-gradient(145deg, rgba(20,26,36,.88), rgba(5,8,13,.82));
+  border-left: 2px solid rgba(239,51,80,.65);
+  border-top: 1px solid rgba(255,255,255,.07);
+  box-shadow:
+    0 18px 45px rgba(0,0,0,.42),
+    inset 0 1px 0 rgba(255,255,255,.05);
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
 }
 
 /* Provenance. Small, technical, and factual — set by the engine, not guessed. */
@@ -350,10 +364,11 @@
 
 .nichText,
 .errorText {
-  color: var(--ink-2);
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.62;
+  color: #e4e9f2;
+  font-size: 14px;
+  font-weight: 520;
+  line-height: 1.75;
+  letter-spacing: .01em;
 }
 
 .errorText { color: #f09aa5; }
@@ -1144,4 +1159,115 @@
   .cardActions button,
   .clarifyList button,
   .composer button { transition: none; }
+}
+
+
+/* --------------------------------------------------------------------------
+   Conversation readability pass
+   Makes the transcript read like an AI operations terminal instead of a log.
+   -------------------------------------------------------------------------- */
+
+.nichTurn {
+  position: relative;
+  margin: 18px 0 26px;
+  padding: 18px 22px 20px;
+  max-width: 82%;
+  background:
+    linear-gradient(135deg, rgba(20,25,36,.78), rgba(5,8,13,.86));
+  border: 1px solid rgba(255,255,255,.08);
+  border-left: 2px solid rgba(239,51,80,.75);
+  box-shadow:
+    0 18px 40px rgba(0,0,0,.35),
+    inset 0 1px rgba(255,255,255,.04);
+  clip-path: polygon(0 0, 98% 0, 100% 12px, 100% 100%, 0 100%);
+}
+
+.nichIdentity,
+.turnLabel {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:12px;
+  color: #8792a5;
+  font-size:8px;
+  font-weight:900;
+  letter-spacing:.18em;
+}
+
+.nichDot {
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:#46cf72;
+  box-shadow:0 0 10px rgba(70,207,114,.9);
+}
+
+.userTurn {
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:6px;
+  margin:22px 0;
+}
+
+.userTurn > span {
+  max-width:420px;
+  padding:12px 18px;
+  color:#f4f6fb;
+  background:linear-gradient(135deg, rgba(239,51,80,.92), rgba(139,20,45,.9));
+  border:1px solid rgba(255,90,110,.5);
+  box-shadow:0 12px 30px rgba(239,51,80,.18);
+  clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
+}
+
+.nichText {
+  color:#e8edf7;
+  font-size:14px;
+  line-height:1.65;
+}
+
+.textLine {
+  display:block;
+  min-height:1.2em;
+}
+
+.provenance {
+  margin-bottom:14px;
+}
+
+.provenance span {
+  display:inline-flex;
+  padding:4px 8px;
+  margin-right:6px;
+  color:#ff8297;
+  background:rgba(239,51,80,.08);
+  border:1px solid rgba(239,51,80,.25);
+}
+
+/* Structured answers should feel like an extension of NICH, not a detached card. */
+.nichTurn :global(.mm2NichCard) {
+  margin-top:18px;
+}
+
+@media (max-width:860px) {
+  .nichTurn {max-width:100%; padding:16px;}
+  .nichText {font-size:13px;}
+}
+
+/* Value source identity - NICH market signals */
+.supremeMetric small, .supremeMetric small span { color:#facc15; }
+.supremeMetric b { color:#fde68a; text-shadow:0 0 16px rgba(250,204,21,.18); }
+
+.gcashMetric small, .gcashMetric small span { color:#22c55e; }
+.gcashMetric b { color:#86efac; text-shadow:0 0 16px rgba(34,197,94,.16); }
+
+.demandMetric small, .demandMetric small span { color:#fb7185; }
+.demandMetric b { color:#fecdd3; text-shadow:0 0 16px rgba(251,113,133,.16); }
+
+.metricRow > div small {
+  display:flex;
+  align-items:center;
+  gap:.35rem;
+  font-weight:700;
+  letter-spacing:.16em;
 }

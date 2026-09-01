@@ -50,16 +50,16 @@ function ItemCard({ item, focus, onAsk }: { item: MM2ItemSummary; focus: string;
       </div>
 
       <div className={styles.metricRow}>
-        <div className={focus === "SUPREME" ? styles.metricLead : undefined}>
-          <small>SUPREME</small>
+        <div className={`${focus === "SUPREME" ? styles.metricLead : ""} ${styles.supremeMetric}`}>
+          <small><span>◆</span> SUPREME VALUE</small>
           <b>{fmt(item.supreme)}</b>
         </div>
-        <div className={focus === "GCASH" ? styles.metricLead : undefined}>
-          <small>GCASH</small>
+        <div className={`${focus === "GCASH" ? styles.metricLead : ""} ${styles.gcashMetric}`}>
+          <small><span>●</span> GCASH VALUE</small>
           <b>{fmt(item.gcash)}</b>
         </div>
-        <div className={focus === "DEMAND" ? styles.metricLead : undefined}>
-          <small>DEMAND</small>
+        <div className={`${focus === "DEMAND" ? styles.metricLead : ""} ${styles.demandMetric}`}>
+          <small><span>◈</span> DEMAND</small>
           <b>{item.demand === null ? "N/A" : `${item.demand}/10`}</b>
           {tier ? <em>{tier}</em> : null}
         </div>

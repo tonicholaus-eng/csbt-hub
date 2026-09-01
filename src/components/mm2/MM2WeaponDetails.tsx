@@ -340,12 +340,24 @@ function SummaryCard({
   value: string;
   note: string;
 }) {
+  const meta =
+    label.toLowerCase().includes("supreme")
+      ? { tag: "SUPREME", tone: "border-yellow-400/40 bg-yellow-400/10 text-yellow-300", glow: "shadow-[0_0_30px_rgba(250,204,21,.08)]" }
+      : label.toLowerCase().includes("gcash")
+        ? { tag: "GCASH", tone: "border-emerald-400/40 bg-emerald-400/10 text-emerald-300", glow: "shadow-[0_0_30px_rgba(52,211,153,.08)]" }
+        : { tag: label.toUpperCase(), tone: "border-red-400/40 bg-red-400/10 text-red-300", glow: "" };
+
   return (
-    <div className="rounded-[20px] border border-white/[0.08] bg-white/[0.025] p-5">
-      <p className="text-[10px] font-black uppercase tracking-[.14em] text-zinc-500">
-        {label}
-      </p>
-      <p className="mt-2 text-3xl font-black tracking-[-.04em] text-white">{value}</p>
+    <div className={`rounded-[20px] border border-white/[0.08] bg-white/[0.025] p-5 ${meta.glow}`}>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[10px] font-black uppercase tracking-[.14em] text-zinc-500">
+          {label}
+        </p>
+        <span className={`rounded-md border px-2 py-1 text-[9px] font-black tracking-[.18em] ${meta.tone}`}>
+          {meta.tag}
+        </span>
+      </div>
+      <p className="mt-3 text-3xl font-black tracking-[-.04em] text-white">{value}</p>
       <p className="mt-1 text-xs font-semibold text-zinc-600">{note}</p>
     </div>
   );
