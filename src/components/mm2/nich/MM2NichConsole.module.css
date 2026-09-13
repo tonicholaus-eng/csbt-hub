@@ -261,7 +261,9 @@
   display: flex;
   min-width: 0;
   flex-direction: column;
-  min-height: clamp(520px, 66vh, 780px);
+  height: clamp(520px, 66vh, 780px);
+  min-height: 520px;
+  overflow: hidden;
   border-top: 1px solid rgba(255, 255, 255, 0.13);
   border-bottom: 1px solid rgba(0, 0, 0, 0.55);
   background:
@@ -288,7 +290,9 @@
 
 .transcript {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 26px clamp(14px, 1.6vw, 28px) 8px;
   scrollbar-width: thin;
   scrollbar-color: rgba(154, 26, 45, 0.7) transparent;
@@ -1173,12 +1177,13 @@
   padding: 18px 22px 20px;
   max-width: 82%;
   background:
-    linear-gradient(135deg, rgba(20,25,36,.78), rgba(5,8,13,.86));
-  border: 1px solid rgba(255,255,255,.08);
+    linear-gradient(135deg, rgba(22,29,42,.94), rgba(5,8,13,.96));
+  border: 1px solid rgba(255,255,255,.13);
   border-left: 2px solid rgba(239,51,80,.75);
   box-shadow:
-    0 18px 40px rgba(0,0,0,.35),
-    inset 0 1px rgba(255,255,255,.04);
+    0 24px 55px rgba(0,0,0,.5),
+    inset 0 1px rgba(255,255,255,.07),
+    0 0 30px rgba(239,51,80,.05);
   clip-path: polygon(0 0, 98% 0, 100% 12px, 100% 100%, 0 100%);
 }
 
@@ -1251,6 +1256,7 @@
 
 @media (max-width:860px) {
   .nichTurn {max-width:100%; padding:16px;}
+  .workspace {height: calc(100vh - 180px);}
   .nichText {font-size:13px;}
 }
 
