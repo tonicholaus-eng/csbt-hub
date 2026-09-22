@@ -1,18 +1,18 @@
 {
-  "generatedAt": "2026-09-13T08:40:45.103Z",
+  "generatedAt": "2026-09-22T06:31:55.454Z",
   "categories": {
-    "PET": 781,
-    "PETWEAR": 938,
-    "EGG": 39,
-    "VEHICLE": 268,
-    "FOOD": 92,
+    "PET": 787,
+    "PETWEAR": 957,
+    "EGG": 40,
+    "VEHICLE": 271,
+    "FOOD": 93,
     "GIFT": 67,
-    "STROLLER": 102,
-    "TOY": 718,
+    "STROLLER": 103,
+    "TOY": 744,
     "STICKER": 365,
     "OTHER": 28
   },
-  "total": 3398,
+  "total": 3455,
   "warnings": [
     "2023 Uplift Butterfly: no matching Elve Shark snapshot record; workbook fallback used.",
     "Pet Rock: no matching Elve Shark snapshot record; workbook fallback used.",

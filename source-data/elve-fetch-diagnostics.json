@@ -1,33 +1,33 @@
 {
-  "fetchedAt": "2026-09-13T08:40:42.636Z",
+  "fetchedAt": "2026-09-22T06:31:51.377Z",
   "sourceVersion": 516,
   "captureMode": "browser-rsc-api",
   "categoryCounts": {
-    "EGG": 39,
-    "FOOD": 92,
+    "EGG": 40,
+    "FOOD": 93,
     "GIFT": 67,
     "OTHER": 32,
-    "PET": 779,
-    "PETWEAR": 938,
+    "PET": 785,
+    "PETWEAR": 957,
     "STICKER": 365,
-    "STROLLER": 102,
-    "TOY": 718,
-    "VEHICLE": 268
+    "STROLLER": 103,
+    "TOY": 744,
+    "VEHICLE": 271
   },
   "freshCategoryCounts": {
-    "EGG": 39,
-    "FOOD": 92,
+    "EGG": 40,
+    "FOOD": 93,
     "GIFT": 67,
     "OTHER": 32,
-    "PET": 779,
-    "PETWEAR": 938,
+    "PET": 785,
+    "PETWEAR": 957,
     "STICKER": 365,
-    "STROLLER": 102,
-    "TOY": 718,
-    "VEHICLE": 268
+    "STROLLER": 103,
+    "TOY": 744,
+    "VEHICLE": 271
   },
   "preservedCategories": [],
-  "freshCandidates": 3400,
+  "freshCandidates": 3457,
   "network": [
     {
       "url": "https://www.elvebredd.com/api/user-self",
@@ -57,12 +57,12 @@
       "candidateItems": 0
     },
     {
-      "url": "https://www.elvebredd.com/trading-servers?_rsc=OY4dXFDlHMABqseM",
+      "url": "https://www.elvebredd.com/api/pets/get-version",
       "status": 200,
       "resourceType": "fetch",
-      "contentType": "text/x-component",
+      "contentType": "text/plain",
       "fallbackCategory": null,
-      "parsedAsJson": false,
+      "parsedAsJson": true,
       "candidateItems": 0
     },
     {
@@ -75,12 +75,12 @@
       "candidateItems": 0
     },
     {
-      "url": "https://www.elvebredd.com/api/pets/get-version",
+      "url": "https://www.elvebredd.com/trading-servers?_rsc=OY4dXFDlHMABqseM",
       "status": 200,
       "resourceType": "fetch",
-      "contentType": "text/plain",
+      "contentType": "text/x-component",
       "fallbackCategory": null,
-      "parsedAsJson": true,
+      "parsedAsJson": false,
       "candidateItems": 0
     },
     {
@@ -93,7 +93,7 @@
       "candidateItems": 0
     },
     {
-      "url": "https://www.elvebredd.com/trade-center?_rsc=DqQhzYI-SIUpEWqo",
+      "url": "https://www.elvebredd.com/sign-in?_rsc=OY4dXFDlHMABqseM",
       "status": 200,
       "resourceType": "fetch",
       "contentType": "text/x-component",
@@ -111,7 +111,7 @@
       "candidateItems": 0
     },
     {
-      "url": "https://www.elvebredd.com/sign-in?_rsc=OY4dXFDlHMABqseM",
+      "url": "https://www.elvebredd.com/trade-center?_rsc=DqQhzYI-SIUpEWqo",
       "status": 200,
       "resourceType": "fetch",
       "contentType": "text/x-component",
@@ -138,135 +138,9 @@
       "candidateItems": 0
     },
     {
-      "url": "https://config.playwire.com/audience_segments/config.json",
-      "status": 200,
-      "resourceType": "xhr",
-      "contentType": "application/json",
-      "fallbackCategory": null,
-      "parsedAsJson": true,
-      "candidateItems": 0
-    },
-    {
-      "url": "https://gum.criteo.com/sid/json?origin=prebid&topUrl=https%3A%2F%2Fwww.elvebredd.com%2F&domain=www.elvebredd.com&cw=1&lsw=1",
+      "url": "https://gum.criteo.com/sid/json?origin=publishertagids&domain=elvebredd.com&sn=ChromeSyncframe&so=0&topUrl=www.elvebredd.com",
       "status": 200,
       "resourceType": "fetch",
-      "contentType": "application/json; charset=utf-8",
-      "fallbackCategory": null,
-      "parsedAsJson": true,
-      "candidateItems": 0
-    },
-    {
-      "url": "https://web-banner.ads.aps.amazon-adsystem.com/e/dtb/bid",
-      "status": 200,
-      "resourceType": "fetch",
-      "contentType": "application/json;charset=utf-8",
-      "fallbackCategory": null,
-      "parsedAsJson": true,
-      "candidateItems": 0
-    },
-    {
-      "url": "https://gum.criteo.com/sid/json?origin=publishertagids&domain=elvebredd.com&sn=ChromeSyncframe&so=3&topUrl=www.elvebredd.com&bundle=-Lznd19qRW5vbnNUVGpwaUVlZjBmYTdubGxrdXdnbXh3Ym9weVJFMDhWaFk4NkszMzd0JTJGVk9PT215WCUyQlpVUUl3Wmh6Y0ZxdjRlTkpoTGp1VU5sMmFqdjMxeiUyRkVMNFpleDd5aDNxdW03U1hJaWl2dW9KQ2lQeGNQUkFpN3pJOERhakpGVQ",
-      "status": 200,
-      "resourceType": "fetch",
-      "contentType": "application/json; charset=utf-8",
-      "fallbackCategory": null,
-      "parsedAsJson": true,
-      "candidateItems": 0
-    },
-    {
-      "url": "https://htlb.casalemedia.com/openrtb/pbjs?s=505013",
-      "status": 200,
-      "resourceType": "fetch",
-      "contentType": "application/json",
-      "fallbackCategory": null,
-      "parsedAsJson": true,
-      "candidateItems": 0
-    },
-    {
-      "url": "https://geo.privacymanager.io/",
-      "status": 200,
-      "resourceType": "fetch",
-      "contentType": "application/json",
-      "fallbackCategory": null,
-      "parsedAsJson": true,
-      "candidateItems": 0
-    },
-    {
-      "url": "https://fastlane.rubiconproject.com/a/api/fastlane.json?account_id=12556&site_id=110932&zone_id=523774&size_id=15&alt_size_ids=9%2C8%2C10&rp_schain=1.0,1!playwire.com,1025206,1,,,&eid_pubcid.org=1dfd3446-fe64-46f6-bb55-481eb7294dbf%5E1%5E%5E%5E%5E%5E&eid_linkedin.com=32da56ad-d41a-41e3-9485-26cfe3bf9659%5E1%5E%5E%5E%5E%5E&rf=https%3A%2F%2Fwww.elvebredd.com%2Fadopt-me-calculator&tg_i.domain=elvebredd.com&tg_i.page=https%3A%2F%2Fwww.elvebredd.com%2Fadopt-me-calculator&tg_i.documentLang=en&tg_i.cat=681%2CIAB9-30%2C680&tg_i.sectioncat=681%2CIAB9-30%2C680&tg_i.pagecat=681%2CIAB9-30%2C680&tg_i.mobile=0&tg_i.pos=oop&tg_i.sitecont_cat=games_hardcore%2Cvideo_gaming&tg_i.adunit=pw-oop-left_rail&tg_i.refresh_count=0&tg_i.refresh=false&tg_i.dfp_ad_unit_code=%2F154013155%2C23076924989%2F1025206%2F74829%2Fpublisher%3A1025206-website%3A74829-left_rail&tk_flint=pbjs_lite_v10.29.1&x_source.tid=2b43dca5-9e22-4061-afa2-2fb1d0d2913e&l_pb_bid_id=1715c01b-037f-4c22-be9e-d5d5aabb6f43&p_screen_res=1920x1080&rp_secure=1&x_imp.ext.tid=d039b213-cf0a-44e1-a04b-53aa53956b92&rp_hard_floor=0.04&p_site.mobile=0&p_gpid=%2F154013155%2C23076924989%2F1025206%2F74829%2Fpublisher%3A1025206-website%3A74829-left_rail&m_ch_ua=%22Not%3DA%3FBrand%22%7Cv%3D%2299%22%2C%22HeadlessChrome%22%7Cv%3D%22151%22%2C%22Chromium%22%7Cv%3D%22151%22&m_ch_mobile=%3F0&m_ch_platform=Windows&slots=1&rand=0.5446556341308586",
-      "status": 200,
-      "resourceType": "fetch",
-      "contentType": "application/json",
-      "fallbackCategory": null,
-      "parsedAsJson": true,
-      "candidateItems": 0
-    },
-    {
-      "url": "https://htlb.casalemedia.com/openrtb/pbjs?s=1031634",
-      "status": 200,
-      "resourceType": "fetch",
-      "contentType": "application/json",
-      "fallbackCategory": null,
-      "parsedAsJson": true,
-      "candidateItems": 0
-    },
-    {
-      "url": "https://web-video.ads.aps.amazon-adsystem.com/e/dtb/bid",
-      "status": 200,
-      "resourceType": "fetch",
-      "contentType": "application/json;charset=utf-8",
-      "fallbackCategory": null,
-      "parsedAsJson": true,
-      "candidateItems": 0
-    },
-    {
-      "url": "https://fastlane.rubiconproject.com/a/api/fastlane.json?account_id=12556&site_id=110932&zone_id=523774&size_id=2&alt_size_ids=43%2C55%2C117&rp_schain=1.0,1!playwire.com,1025206,1,,,&eid_pubcid.org=1dfd3446-fe64-46f6-bb55-481eb7294dbf%5E1%5E%5E%5E%5E%5E&eid_linkedin.com=32da56ad-d41a-41e3-9485-26cfe3bf9659%5E1%5E%5E%5E%5E%5E&rf=https%3A%2F%2Fwww.elvebredd.com%2Fadopt-me-calculator&tg_i.domain=elvebredd.com&tg_i.page=https%3A%2F%2Fwww.elvebredd.com%2Fadopt-me-calculator&tg_i.documentLang=en&tg_i.cat=681%2CIAB9-30%2C680&tg_i.sectioncat=681%2CIAB9-30%2C680&tg_i.pagecat=681%2CIAB9-30%2C680&tg_i.mobile=0&tg_i.pos=oop&tg_i.sitecont_cat=games_hardcore%2Cvideo_gaming&tg_i.adunit=pw-oop-bottom_rail&tg_i.refresh_count=0&tg_i.refresh=false&tg_i.dfp_ad_unit_code=%2F154013155%2C23076924989%2F1025206%2F74829%2Fpublisher%3A1025206-website%3A74829-bottom_rail&tk_flint=pbjs_lite_v10.29.1&x_source.tid=2b43dca5-9e22-4061-afa2-2fb1d0d2913e&l_pb_bid_id=96c80fa3-b1f0-43e6-b100-9d3368470671&p_screen_res=1920x1080&rp_secure=1&x_imp.ext.tid=660290e5-cb07-4767-854a-e03fba0a2104&rp_hard_floor=0.04&p_site.mobile=0&p_gpid=%2F154013155%2C23076924989%2F1025206%2F74829%2Fpublisher%3A1025206-website%3A74829-bottom_rail&m_ch_ua=%22Not%3DA%3FBrand%22%7Cv%3D%2299%22%2C%22HeadlessChrome%22%7Cv%3D%22151%22%2C%22Chromium%22%7Cv%3D%22151%22&m_ch_mobile=%3F0&m_ch_platform=Windows&slots=1&rand=0.30787797984683984",
-      "status": 200,
-      "resourceType": "fetch",
-      "contentType": "application/json",
-      "fallbackCategory": null,
-      "parsedAsJson": true,
-      "candidateItems": 0
-    },
-    {
-      "url": "https://ib.adnxs.com/ut/v3/prebid",
-      "status": 200,
-      "resourceType": "fetch",
-      "contentType": "application/json; charset=utf-8",
-      "fallbackCategory": null,
-      "parsedAsJson": true,
-      "candidateItems": 0
-    },
-    {
-      "url": "https://ib.adnxs.com/ut/v3/prebid",
-      "status": 200,
-      "resourceType": "fetch",
-      "contentType": "application/json; charset=utf-8",
-      "fallbackCategory": null,
-      "parsedAsJson": true,
-      "candidateItems": 0
-    },
-    {
-      "url": "https://fastlane.rubiconproject.com/a/api/fastlane.json?account_id=12556&site_id=110932&zone_id=523774&size_id=15&alt_size_ids=9%2C8%2C10&rp_schain=1.0,1!playwire.com,1025206,1,,,&eid_pubcid.org=1dfd3446-fe64-46f6-bb55-481eb7294dbf%5E1%5E%5E%5E%5E%5E&eid_linkedin.com=32da56ad-d41a-41e3-9485-26cfe3bf9659%5E1%5E%5E%5E%5E%5E&rf=https%3A%2F%2Fwww.elvebredd.com%2Fadopt-me-calculator&tg_i.domain=elvebredd.com&tg_i.page=https%3A%2F%2Fwww.elvebredd.com%2Fadopt-me-calculator&tg_i.documentLang=en&tg_i.cat=681%2CIAB9-30%2C680&tg_i.sectioncat=681%2CIAB9-30%2C680&tg_i.pagecat=681%2CIAB9-30%2C680&tg_i.mobile=0&tg_i.pos=oop&tg_i.sitecont_cat=games_hardcore%2Cvideo_gaming&tg_i.adunit=pw-oop-right_rail&tg_i.refresh_count=0&tg_i.refresh=false&tg_i.dfp_ad_unit_code=%2F154013155%2C23076924989%2F1025206%2F74829%2Fpublisher%3A1025206-website%3A74829-right_rail&tk_flint=pbjs_lite_v10.29.1&x_source.tid=2b43dca5-9e22-4061-afa2-2fb1d0d2913e&l_pb_bid_id=1a0ad86e-654b-438c-b7e2-a64d0971caea&p_screen_res=1920x1080&rp_secure=1&x_imp.ext.tid=0bdba3db-f8cd-4699-866b-f093872fbca1&rp_hard_floor=0.04&p_site.mobile=0&p_gpid=%2F154013155%2C23076924989%2F1025206%2F74829%2Fpublisher%3A1025206-website%3A74829-right_rail&m_ch_ua=%22Not%3DA%3FBrand%22%7Cv%3D%2299%22%2C%22HeadlessChrome%22%7Cv%3D%22151%22%2C%22Chromium%22%7Cv%3D%22151%22&m_ch_mobile=%3F0&m_ch_platform=Windows&slots=1&rand=0.16874266596740595",
-      "status": 200,
-      "resourceType": "fetch",
-      "contentType": "application/json",
-      "fallbackCategory": null,
-      "parsedAsJson": true,
-      "candidateItems": 0
-    },
-    {
-      "url": "https://api.id5-sync.com/analytics/483/id5-api-js",
-      "status": 200,
-      "resourceType": "fetch",
-      "contentType": "application/json",
-      "fallbackCategory": null,
-      "parsedAsJson": true,
-      "candidateItems": 0
-    },
-    {
-      "url": "https://ep1.adtrafficquality.google/getconfig/sodar?sv=200&tid=gpt&tv=m202609090201&st=env&sjk=5725741165327065",
-      "status": 200,
-      "resourceType": "xhr",
       "contentType": "application/json; charset=utf-8",
       "fallbackCategory": null,
       "parsedAsJson": true,
@@ -282,7 +156,88 @@
       "candidateItems": 0
     },
     {
-      "url": "https://esp.rtbhouse.com/encrypt",
+      "url": "https://config.playwire.com/audience_segments/config.json",
+      "status": 200,
+      "resourceType": "xhr",
+      "contentType": "application/json",
+      "fallbackCategory": null,
+      "parsedAsJson": true,
+      "candidateItems": 0
+    },
+    {
+      "url": "https://htlb.casalemedia.com/openrtb/pbjs?s=1031634",
+      "status": 200,
+      "resourceType": "fetch",
+      "contentType": "application/json",
+      "fallbackCategory": null,
+      "parsedAsJson": true,
+      "candidateItems": 0
+    },
+    {
+      "url": "https://web-banner.ads.aps.amazon-adsystem.com/e/dtb/bid",
+      "status": 200,
+      "resourceType": "fetch",
+      "contentType": "application/json;charset=utf-8",
+      "fallbackCategory": null,
+      "parsedAsJson": true,
+      "candidateItems": 0
+    },
+    {
+      "url": "https://htlb.casalemedia.com/openrtb/pbjs?s=505013",
+      "status": 200,
+      "resourceType": "fetch",
+      "contentType": "application/json",
+      "fallbackCategory": null,
+      "parsedAsJson": true,
+      "candidateItems": 0
+    },
+    {
+      "url": "https://ib.adnxs.com/ut/v3/prebid",
+      "status": 200,
+      "resourceType": "fetch",
+      "contentType": "application/json; charset=utf-8",
+      "fallbackCategory": null,
+      "parsedAsJson": true,
+      "candidateItems": 0
+    },
+    {
+      "url": "https://ib.adnxs.com/ut/v3/prebid",
+      "status": 200,
+      "resourceType": "fetch",
+      "contentType": "application/json; charset=utf-8",
+      "fallbackCategory": null,
+      "parsedAsJson": true,
+      "candidateItems": 0
+    },
+    {
+      "url": "https://web-video.ads.aps.amazon-adsystem.com/e/dtb/bid",
+      "status": 200,
+      "resourceType": "fetch",
+      "contentType": "application/json;charset=utf-8",
+      "fallbackCategory": null,
+      "parsedAsJson": true,
+      "candidateItems": 0
+    },
+    {
+      "url": "https://api.id5-sync.com/analytics/483/id5-api-js",
+      "status": 200,
+      "resourceType": "fetch",
+      "contentType": "application/json",
+      "fallbackCategory": null,
+      "parsedAsJson": true,
+      "candidateItems": 0
+    },
+    {
+      "url": "https://fastlane.rubiconproject.com/a/api/fastlane.json?account_id=12556&site_id=110932&zone_id=523774&size_id=2&alt_size_ids=43%2C55%2C117&rp_schain=1.0,1!playwire.com,1025206,1,a4beb5a9-bcb2-4bbe-a835-d4acca22ff2b,,&rf=https%3A%2F%2Fwww.elvebredd.com%2Fadopt-me-calculator&tg_i.domain=elvebredd.com&tg_i.page=https%3A%2F%2Fwww.elvebredd.com%2Fadopt-me-calculator&tg_i.documentLang=en&tg_i.cat=681%2CIAB9-30%2C680&tg_i.sectioncat=681%2CIAB9-30%2C680&tg_i.pagecat=681%2CIAB9-30%2C680&tg_i.mobile=0&tg_i.pos=oop&tg_i.sitecont_cat=games_hardcore%2Cvideo_gaming&tg_i.adunit=pw-oop-bottom_rail&tg_i.dfp_ad_unit_code=%2F154013155%2C23076924989%2F1025206%2F74829%2Fpublisher%3A1025206-website%3A74829-bottom_rail&tk_flint=pbjs_lite_v10.29.1&x_source.tid=eb64e1d4-1b64-4b13-a317-8c31b1d5a0ba&l_pb_bid_id=5e3419bb-f902-4188-9f94-e14c4bde282d&p_screen_res=1920x1080&rp_secure=1&x_imp.ext.tid=860c8483-cfeb-41b5-9266-2fafb73cd2a9&rp_hard_floor=0.04&p_site.mobile=0&p_gpid=%2F154013155%2C23076924989%2F1025206%2F74829%2Fpublisher%3A1025206-website%3A74829-bottom_rail&m_ch_ua=%22Not%3DA%3FBrand%22%7Cv%3D%2299%22%2C%22HeadlessChrome%22%7Cv%3D%22151%22%2C%22Chromium%22%7Cv%3D%22151%22&m_ch_mobile=%3F0&m_ch_platform=Windows&slots=1&rand=0.201001923731564",
+      "status": 200,
+      "resourceType": "fetch",
+      "contentType": "application/json",
+      "fallbackCategory": null,
+      "parsedAsJson": true,
+      "candidateItems": 0
+    },
+    {
+      "url": "https://fastlane.rubiconproject.com/a/api/fastlane.json?account_id=12556&site_id=110932&zone_id=523774&size_id=15&alt_size_ids=9%2C8%2C10&rp_schain=1.0,1!playwire.com,1025206,1,a4beb5a9-bcb2-4bbe-a835-d4acca22ff2b,,&rf=https%3A%2F%2Fwww.elvebredd.com%2Fadopt-me-calculator&tg_i.domain=elvebredd.com&tg_i.page=https%3A%2F%2Fwww.elvebredd.com%2Fadopt-me-calculator&tg_i.documentLang=en&tg_i.cat=681%2CIAB9-30%2C680&tg_i.sectioncat=681%2CIAB9-30%2C680&tg_i.pagecat=681%2CIAB9-30%2C680&tg_i.mobile=0&tg_i.pos=oop&tg_i.sitecont_cat=games_hardcore%2Cvideo_gaming&tg_i.adunit=pw-oop-right_rail&tg_i.dfp_ad_unit_code=%2F154013155%2C23076924989%2F1025206%2F74829%2Fpublisher%3A1025206-website%3A74829-right_rail&tk_flint=pbjs_lite_v10.29.1&x_source.tid=eb64e1d4-1b64-4b13-a317-8c31b1d5a0ba&l_pb_bid_id=1642096e-115d-4c48-80b3-34a21e253767&p_screen_res=1920x1080&rp_secure=1&x_imp.ext.tid=1d9e4fed-ffaa-49ea-948f-fd88bd92480e&rp_hard_floor=0.04&p_site.mobile=0&p_gpid=%2F154013155%2C23076924989%2F1025206%2F74829%2Fpublisher%3A1025206-website%3A74829-right_rail&m_ch_ua=%22Not%3DA%3FBrand%22%7Cv%3D%2299%22%2C%22HeadlessChrome%22%7Cv%3D%22151%22%2C%22Chromium%22%7Cv%3D%22151%22&m_ch_mobile=%3F0&m_ch_platform=Windows&slots=1&rand=0.42094377086480395",
       "status": 200,
       "resourceType": "fetch",
       "contentType": "application/json",
@@ -300,7 +255,7 @@
       "candidateItems": 0
     },
     {
-      "url": "https://lexicon.33across.com/v1/envelope?pid=0014000001YrMoYAAV&gdpr=0&src=pbjs&ver=10.29.1&coppa=0",
+      "url": "https://fastlane.rubiconproject.com/a/api/fastlane.json?account_id=12556&site_id=110932&zone_id=523774&size_id=15&alt_size_ids=9%2C8%2C10&rp_schain=1.0,1!playwire.com,1025206,1,a4beb5a9-bcb2-4bbe-a835-d4acca22ff2b,,&rf=https%3A%2F%2Fwww.elvebredd.com%2Fadopt-me-calculator&tg_i.domain=elvebredd.com&tg_i.page=https%3A%2F%2Fwww.elvebredd.com%2Fadopt-me-calculator&tg_i.documentLang=en&tg_i.cat=681%2CIAB9-30%2C680&tg_i.sectioncat=681%2CIAB9-30%2C680&tg_i.pagecat=681%2CIAB9-30%2C680&tg_i.mobile=0&tg_i.pos=oop&tg_i.sitecont_cat=games_hardcore%2Cvideo_gaming&tg_i.adunit=pw-oop-left_rail&tg_i.dfp_ad_unit_code=%2F154013155%2C23076924989%2F1025206%2F74829%2Fpublisher%3A1025206-website%3A74829-left_rail&tk_flint=pbjs_lite_v10.29.1&x_source.tid=eb64e1d4-1b64-4b13-a317-8c31b1d5a0ba&l_pb_bid_id=9e352d29-0ce1-4bea-b8df-efca23f421c0&p_screen_res=1920x1080&rp_secure=1&x_imp.ext.tid=4f7ad647-aaf9-4e49-b5ff-bd63df349ae7&rp_hard_floor=0.04&p_site.mobile=0&p_gpid=%2F154013155%2C23076924989%2F1025206%2F74829%2Fpublisher%3A1025206-website%3A74829-left_rail&m_ch_ua=%22Not%3DA%3FBrand%22%7Cv%3D%2299%22%2C%22HeadlessChrome%22%7Cv%3D%22151%22%2C%22Chromium%22%7Cv%3D%22151%22&m_ch_mobile=%3F0&m_ch_platform=Windows&slots=1&rand=0.618590111743866",
       "status": 200,
       "resourceType": "fetch",
       "contentType": "application/json",
@@ -318,79 +273,16 @@
       "candidateItems": 0
     },
     {
-      "url": "https://idx.liadm.com/idex/did-0046/any?duid=14db281db216--01m2cysrxne8csrtx2hpvvbrws&did=did-0046&cd=.elvebredd.com&pu=https%3A%2F%2Fwww.elvebredd.com&resolve=nonId&resolve=uid2&resolve=index&resolve=bidswitch&resolve=pubmatic&resolve=magnite&resolve=openx&resolve=sorvrn&resolve=thetradedesk&resolve=medianet&resolve=vidazoo&resolve=sonobi&resolve=sharethrough&resolve=triplelift",
-      "status": 200,
-      "resourceType": "fetch",
-      "contentType": "text/plain; charset=utf-8",
-      "fallbackCategory": null,
-      "parsedAsJson": true,
-      "candidateItems": 0
-    },
-    {
-      "url": "https://securepubads.g.doubleclick.net/gampad/ads?pvsid=5725741165327065&correlator=4285929239993857&eid=122880890%2C122880986%2C95400668&output=ldjh&gdfp_req=1&vrg=202609090201&ptt=17&impl=fifs&gdpr=0&iu_parts=154013155%3A23076924989%2C1025206%2C74829%2Cpublisher%3A1025206-website%3A74829-bottom_rail%2Cpublisher%3A1025206-website%3A74829-right_rail%2Cpublisher%3A1025206-website%3A74829-left_rail&enc_prev_ius=%2F0%2F1%2F2%2F3%2C%2F0%2F1%2F2%2F4%2C%2F0%2F1%2F2%2F5&prev_iu_szs=1x6%7C320x50%7C728x90%7C970x90%7C320x100%2C300x600%7C160x600%7C300x250%7C120x600%2C300x600%7C160x600%7C300x250%7C120x600&ifi=1&dids=pw-oop-bottom_rail~pw-oop-right_rail~pw-oop-left_rail&adfs=2163754769~1063502888~2238734029&sfv=1-0-45&eri=1&sc=1&cookie_enabled=1&abxe=1&dt=1789288835100&lmt=1789288835&adxs=960%2C1620%2C0&adys=1888%2C583%2C583&biw=1920&bih=1080&scr_x=0&scr_y=0&btvi=1%7C0%7C0&ucis=1%7C2%7C3&oid=2&u_his=2&u_h=1080&u_w=1920&u_ah=1080&u_aw=1920&u_cd=24&u_sd=1&u_tz=480&dmc=16&bc=31&nvt=1&uach=WyJXaW5kb3dzIiwiMTAuMCIsIng4NiIsIiIsIjE1MS4wLjc5MjIuMzQiLG51bGwsMCxudWxsLCI2NCIsW1siTm90PUE_QnJhbmQiLCI5OS4wLjAuMCJdLFsiSGVhZGxlc3NDaHJvbWUiLCIxNTEuMC43OTIyLjM0Il0sWyJDaHJvbWl1bSIsIjE1MS4wLjc5MjIuMzQiXV0sMF0.&url=https%3A%2F%2Fwww.elvebredd.com%2Fadopt-me-calculator&vis=1&psz=1920x1888%7C1920x1888%7C1920x1888&msz=1920x-1%7C300x-1%7C300x-1&fws=4%2C516%2C516&ohw=1920%2C1920%2C1920&a3p=EjQKCnB1YmNpZC5vcmcSJDFkZmQzNDQ2LWZlNjQtNDZmNi1iYjU1LTQ4MWViNzI5NGRiZlgBEpsBCgpjcml0ZW8uY29tEooBY1JidTZGOUtXWGdsTWtaTGJtNWFKVEpHU213elkydDRkbk5SWW1GM056STNkVU5DVDNkSk5saFZia3BqY25Fek5qVjViRUpPV0VkclFubEtkVmhEVTFCUlJsSm9XV0ZtTUVSTkpUSkNXalJ3YTJaaldubEJVRXg1V2pJME5GQkdRU1V6UkNVelJBWAES1gEKDmVzcC5jcml0ZW8uY29tEroBLUx6bmQxOXFSVzV2Ym5OVVZHcHdhVVZsWmpCbVlUZHViR3hyZFhkbmJYaDNZbTl3ZVZKRk1EaFdhRms0Tmtzek16ZDBKVEpHVms5UFQyMTVXQ1V5UWxwVlVVbDNXbWg2WTBaeGRqUmxUa3BvVEdwMVZVNXNNbUZxZGpNeGVpVXlSa1ZNTkZwbGVEZDVhRE54ZFcwM1UxaEphV2wyZFc5S1EybFFlR05RVWtGcE4zcEpPRVJoYWtwR1ZRGNTKs8-JNEgAEhgKCXlhaG9vLmNvbRi4yrPPiTRIAFICCG8SFAoFb3BlbngYv8qzz4k0SABSAghvEhcKCHJ0YmhvdXNlGIzJs8-JNEgAUgIIZA..&dlt=1789288829828&idt=4025&prev_scp=pos%3DFIXED%26slot_id%3Dpw-oop-bottom_rail%26refresh%3Dfalse%26amazonBid%3Dfalse%26custom_path%3DROS%26lld_id%3D7b33e186ce944152bf78fb9f3601d50a88833985%26price_floor%3D0.04%26amznbid%3D2%26amznp%3D2%26hb_ver%3D1.17.2%26hb_format_rubicon%3Dbanner%26hb_size_rubicon%3D728x90%26hb_pb_rubicon%3D0.05%26hb_adid_rubicon%3D43ef51b9d98de998%26hb_bidder_rubicon%3Drubicon%26hb_format%3Dbanner%26hb_size%3D728x90%26hb_pb%3D0.05%26hb_adid%3D43ef51b9d98de998%26hb_bidder%3Drubicon%26bid_type%3Dclient%26in_view%3Dtrue%26unit_id%3D32400%7Cpos%3DFIXED%26slot_id%3Dpw-oop-right_rail%26refresh%3Dfalse%26amazonBid%3Dfalse%26custom_path%3DROS%26lld_id%3Dc21ef4289c54445c86ff0109b2c2013888833991%26price_floor%3D0.04%26amznbid%3D2%26amznp%3D2%26in_view%3Dtrue%26unit_id%3D32548%7Cpos%3DFIXED%26slot_id%3Dpw-oop-left_rail%26refresh%3Dfalse%26amazonBid%3Dfalse%26custom_path%3DROS%26lld_id%3D34a280f6775f4b839e15e4cf73b67f2888833993%26price_floor%3D0.04%26amznbid%3D2%26amznp%3D2%26in_view%3Dtrue%26unit_id%3D32547&cust_params=pf_src%3Dml%26salad%3Dcobb%26dd%3Dmango%26di%3Dgrape%26vd%3Dmango%26vi%3Dgrape%26sitecont_cat%3Dgames_hardcore%252Cvideo_gaming%26tyche_code%3DX-20260910-4-REV-DISCREP%26pageos_code%3DX-20260910-4-REV-DISCREP%26config_id%3D1025206_74829_primary_config%26hour%3D16%26day%3DSunday%26OS%3DWindows%252010%26browser%3DChrome%2520150%26pagecount%3D1%26window_width%3D1900%26window_height%3D1050%26screen_orientation%3Dlandscape%26website_id%3D74829%26pub_id%3D1025206%26refresh_count%3D0%26tyche_version%3DX-20260910-4-REV-DISCREP%26ab_test%3Dna_A%26ad_clicker%3Dfalse%26page_focus%3Dtrue%26li-module-enabled%3Dt1-e0&adks=1786016440%2C2403059264%2C1160490669&frm=20&eoidce=1&gblpids=%2F154013155%2C23076924989%2F1025206%2F74829%2Fpublisher%3A1025206-website%3A74829-bottom_rail~%2F154013155%2C23076924989%2F1025206%2F74829%2Fpublisher%3A1025206-website%3A74829-right_rail~%2F154013155%2C23076924989%2F1025206%2F74829%2Fpublisher%3A1025206-website%3A74829-left_rail&pb_szs=320x50%7C728x90%7C970x90%7C320x100~300x600%7C160x600%7C300x250%7C120x600~300x600%7C160x600%7C300x250%7C120x600&pgls=CAk.",
-      "status": 200,
-      "resourceType": "fetch",
-      "contentType": "text/plain; charset=utf-8",
-      "fallbackCategory": null,
-      "parsedAsJson": false,
-      "candidateItems": 0
-    },
-    {
-      "url": "https://gum.criteo.com/sid/json?origin=prebid&topUrl=https%3A%2F%2Fwww.elvebredd.com%2F&domain=www.elvebredd.com&bundle=-Lznd19qRW5vbnNUVGpwaUVlZjBmYTdubGxrdXdnbXh3Ym9weVJFMDhWaFk4NkszMzd0JTJGVk9PT215WCUyQlpVUUl3Wmh6Y0ZxdjRlTkpoTGp1VU5sMmFqdjMxeiUyRkVMNFpleDd5aDNxdW03U1hJaWl2dW9KQ2lQeGNQUkFpN3pJOERhakpGVQ&cw=1&pbt=1&lsw=1",
-      "status": 200,
-      "resourceType": "fetch",
-      "contentType": "application/json; charset=utf-8",
-      "fallbackCategory": null,
-      "parsedAsJson": true,
-      "candidateItems": 0
-    },
-    {
-      "url": "https://lexicon.33across.com/v1/envelope?pid=0014000001YrMoYAAV&gdpr=0&src=pbjs&ver=10.29.1&coppa=0",
-      "status": 200,
-      "resourceType": "fetch",
-      "contentType": "application/json",
-      "fallbackCategory": null,
-      "parsedAsJson": true,
-      "candidateItems": 0
-    },
-    {
-      "url": "https://idx.liadm.com/idex/did-0046/any?duid=14db281db216--01m2cysrxne8csrtx2hpvvbrws&did=did-0046&cd=.elvebredd.com&pu=https%3A%2F%2Fwww.elvebredd.com&resolve=nonId&resolve=uid2&resolve=index&resolve=bidswitch&resolve=pubmatic&resolve=magnite&resolve=openx&resolve=sorvrn&resolve=thetradedesk&resolve=medianet&resolve=vidazoo&resolve=sonobi&resolve=sharethrough&resolve=triplelift",
-      "status": 200,
-      "resourceType": "fetch",
-      "contentType": "text/plain; charset=utf-8",
-      "fallbackCategory": null,
-      "parsedAsJson": true,
-      "candidateItems": 0
-    },
-    {
-      "url": "https://gum.criteo.com/sid/json?origin=criteoPrebidAdapter&domain=www.elvebredd.com&sn=ChromeSyncframe&so=0&topUrl=www.elvebredd.com&bundle=-Lznd19qRW5vbnNUVGpwaUVlZjBmYTdubGxrdXdnbXh3Ym9weVJFMDhWaFk4NkszMzd0JTJGVk9PT215WCUyQlpVUUl3Wmh6Y0ZxdjRlTkpoTGp1VU5sMmFqdjMxeiUyRkVMNFpleDd5aDNxdW03U1hJaWl2dW9KQ2lQeGNQUkFpN3pJOERhakpGVQ",
-      "status": 200,
-      "resourceType": "fetch",
-      "contentType": "application/json; charset=utf-8",
-      "fallbackCategory": null,
-      "parsedAsJson": true,
-      "candidateItems": 0
-    },
-    {
-      "url": "https://rp.liadm.com/j?dtstmp=1789288834480&did=did-0046&se=e30&duid=14db281db216--01m2cysrxne8csrtx2hpvvbrws&tv=10.29.1&pu=https%3A%2F%2Fwww.elvebredd.com%2Fadopt-me-calculator&wpn=prebid&cd=.elvebredd.com&n3pc=true",
-      "status": 200,
-      "resourceType": "fetch",
-      "contentType": "application/json",
-      "fallbackCategory": null,
-      "parsedAsJson": true,
-      "candidateItems": 0
-    },
-    {
-      "url": "https://agen-assets.ftstatic.com/display/11040033/6394772.json",
+      "url": "https://ep1.adtrafficquality.google/getconfig/sodar?sv=200&tid=gpt&tv=m202609150101&st=env&sjk=3551812225656872",
       "status": 200,
       "resourceType": "xhr",
-      "contentType": "application/json",
+      "contentType": "application/json; charset=utf-8",
       "fallbackCategory": null,
       "parsedAsJson": true,
       "candidateItems": 0
     },
     {
-      "url": "https://data.ad-score.com/data/cors?pm_st=wDbzsANmlpzCiApvMpivqMVuOtpLYVwb-FE7fPshldVPiMyMb23DAFk/BPM8=-E03JNc9kbFrjPw==&pm_ct=86bde6315f1b3bbe59ce163c&pm_pl=1789288837108&pm_td=79&pid=1000942&en=1.1&callback=__pm_glbl_dvCmMCKmGofHKqM3RYAMKC0n._gc1&tt=g&v=7cf6c29",
+      "url": "https://securepubads.g.doubleclick.net/gampad/ads?pvsid=3551812225656872&correlator=411541060415838&eid=122881158&output=ldjh&gdfp_req=1&vrg=202609150101&ptt=17&impl=fifs&gdpr=0&iu_parts=154013155%3A23076924989%2C1025206%2C74829%2Cpublisher%3A1025206-website%3A74829-bottom_rail%2Cpublisher%3A1025206-website%3A74829-right_rail%2Cpublisher%3A1025206-website%3A74829-left_rail&enc_prev_ius=%2F0%2F1%2F2%2F3%2C%2F0%2F1%2F2%2F4%2C%2F0%2F1%2F2%2F5&prev_iu_szs=1x6%7C320x50%7C728x90%7C970x90%7C320x100%2C300x600%7C160x600%7C300x250%7C120x600%2C300x600%7C160x600%7C300x250%7C120x600&ifi=1&dids=pw-oop-bottom_rail~pw-oop-right_rail~pw-oop-left_rail&adfs=1483173014~2688009945~2617785652&sfv=1-0-45&eri=1&sc=1&cookie_enabled=1&abxe=1&dt=1790058705378&lmt=1790058705&adxs=960%2C1620%2C0&adys=1888%2C583%2C583&biw=1920&bih=1080&scr_x=0&scr_y=0&btvi=1%7C0%7C0&ucis=1%7C2%7C3&oid=2&u_his=2&u_h=1080&u_w=1920&u_ah=1080&u_aw=1920&u_cd=24&u_sd=1&u_tz=480&dmc=16&bc=31&nvt=1&uach=WyJXaW5kb3dzIiwiMTAuMCIsIng4NiIsIiIsIjE1MS4wLjc5MjIuMzQiLG51bGwsMCxudWxsLCI2NCIsW1siTm90PUE_QnJhbmQiLCI5OS4wLjAuMCJdLFsiSGVhZGxlc3NDaHJvbWUiLCIxNTEuMC43OTIyLjM0Il0sWyJDaHJvbWl1bSIsIjE1MS4wLjc5MjIuMzQiXV0sMF0.&url=https%3A%2F%2Fwww.elvebredd.com%2Fadopt-me-calculator&vis=1&psz=1920x1888%7C1920x1888%7C1920x1888&msz=1920x-1%7C300x-1%7C300x-1&fws=4%2C516%2C516&ohw=1920%2C1920%2C1920&a3p=Eh0KDmVzcC5jcml0ZW8uY29tGNfMwL6MNEgAUgIIZBIYCgl5YWhvby5jb20Y2M7Avow0SABSAghvEhQKBW9wZW54GJzOwL6MNEgAUgIIbxIXCghydGJob3VzZRjQ0MC-jDRIAFICCGo.&dlt=1790058697942&idt=4210&prev_scp=pos%3DFIXED%26slot_id%3Dpw-oop-bottom_rail%26refresh%3Dfalse%26amazonBid%3Dfalse%26custom_path%3DROS%26lld_id%3Da8ddf214f0f54f38a95090bd6a3a9a3758703259%26price_floor%3D0.04%26amznbid%3D2%26amznp%3D2%26hb_ver%3D1.17.2%26hb_format_ix%3Dbanner%26hb_size_ix%3D728x90%26hb_pb_ix%3D0.07%26hb_adid_ix%3D47e7958dafdea8f%26hb_bidder_ix%3Dix%26hb_format%3Dbanner%26hb_size%3D728x90%26hb_pb%3D0.07%26hb_adid%3D47e7958dafdea8f%26hb_bidder%3Dix%26bid_type%3Dclient%26in_view%3Dtrue%26unit_id%3D32400%7Cpos%3DFIXED%26slot_id%3Dpw-oop-right_rail%26refresh%3Dfalse%26amazonBid%3Dfalse%26custom_path%3DROS%26lld_id%3Da36cc01106dd49a5aa90eab69648f4f258703267%26price_floor%3D0.04%26amznbid%3D2%26amznp%3D2%26in_view%3Dtrue%26unit_id%3D32548%7Cpos%3DFIXED%26slot_id%3Dpw-oop-left_rail%26refresh%3Dfalse%26amazonBid%3Dfalse%26custom_path%3DROS%26lld_id%3D395221acfdee4a54beddf6d861d3d1ff58703269%26price_floor%3D0.04%26amznbid%3D2%26amznp%3D2%26in_view%3Dtrue%26unit_id%3D32547&cust_params=pf_src%3Dml%26salad%3Dcobb%26dd%3Dmango%26di%3Dgrape%26vd%3Dmango%26vi%3Dgrape%26sitecont_cat%3Dgames_hardcore%252Cvideo_gaming%26tyche_code%3DV.20260917.1%26pageos_code%3DV.20260917.1%26config_id%3D1025206_74829_primary_config%26hour%3D14%26day%3DTuesday%26OS%3DWindows%252010%26browser%3DChrome%2520150%26pagecount%3D1%26window_width%3D1900%26window_height%3D1050%26screen_orientation%3Dlandscape%26website_id%3D74829%26pub_id%3D1025206%26refresh_count%3D0%26tyche_version%3DV.20260917.1%26ab_test%3Dna_A%26ad_clicker%3Dfalse%26page_focus%3Dtrue&adks=1786016440%2C2403059264%2C1160490669&frm=20&eoidce=1&gblpids=%2F154013155%2C23076924989%2F1025206%2F74829%2Fpublisher%3A1025206-website%3A74829-bottom_rail~%2F154013155%2C23076924989%2F1025206%2F74829%2Fpublisher%3A1025206-website%3A74829-right_rail~%2F154013155%2C23076924989%2F1025206%2F74829%2Fpublisher%3A1025206-website%3A74829-left_rail&pb_szs=320x50%7C728x90%7C970x90%7C320x100~300x600%7C160x600%7C300x250%7C120x600~300x600%7C160x600%7C300x250%7C120x600&pgls=CAk.&pbbce=1",
       "status": 200,
       "resourceType": "fetch",
       "contentType": "text/plain; charset=utf-8",
@@ -399,19 +291,10 @@
       "candidateItems": 0
     },
     {
-      "url": "https://data.ad-score.com/data/cors?pm_st=wDbzsANmlpzCiApvMpivqMVuOtpLYVwb-FE7fPshldVPiMyMb23DAFk/BPM8=-E03JNc9kbFrjPw==&pm_ct=86bde6315f1b3bbe59ce163c&pm_pl=1789288837108&pm_td=903&pid=1000942&en=1.1&callback=__pm_glbl_dvCmMCKmGofHKqM3RYAMKC0n._gc2&tt=g&v=7cf6c29",
+      "url": "https://gum.criteo.com/sid/json?origin=criteoPrebidAdapter&domain=www.elvebredd.com&sn=ChromeSyncframe&so=0&topUrl=www.elvebredd.com&bundle=M28aml9US2loSnU2QTFuM0pIMFJpWnBwelRsbFpKeiUyQnAlMkZmMU9WREgydVp0NG9DMGIzeUxydnVJcEZualk1VllCMjJsTiUyRjNJMDlDSTVGbm9ld3VGcVE3QzJSNkdxUnZINUZ3ZkdWd2tJeTgyTDFZM3ZCaHhaSWRLZ2RpZyUyQnFkZUVSdGMxZjBHSW5NZHEwQksxSjRLMldPSWtoUSUzRCUzRA",
       "status": 200,
       "resourceType": "fetch",
-      "contentType": "text/plain; charset=utf-8",
-      "fallbackCategory": null,
-      "parsedAsJson": true,
-      "candidateItems": 0
-    },
-    {
-      "url": "https://data.ad-score.com/data/cors?pm_st=wDbzsANmlpzCiApvMpivqMVuOtpLYVwb-FE7fPshldVPiMyMb23DAFk/BPM8=-E03JNc9kbFrjPw==&pm_ct=86bde6315f1b3bbe59ce163c&pm_pl=1789288837108&pm_td=1494&pid=1000942&en=1.1&callback=__pm_glbl_dvCmMCKmGofHKqM3RYAMKC0n._gc3&tt=g&v=7cf6c29",
-      "status": 200,
-      "resourceType": "fetch",
-      "contentType": "text/plain; charset=utf-8",
+      "contentType": "application/json; charset=utf-8",
       "fallbackCategory": null,
       "parsedAsJson": true,
       "candidateItems": 0
